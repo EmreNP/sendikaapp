@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isBranchManager() {
+      return isAuthenticated() && 
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'branch_manager');
+    }
+    
+    // Branches collection
+    match /branches/{branchId} {
+      // Okuma: Admin tümünü, branch_manager sadece kendi şubesini, user sadece aktif şubeleri
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (isBranchManager() && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId == branchId) ||
+        (resource.data.isActive == true)
+      );
+      
+      // Oluşturma: Sadece admin (server-side)
+      allow create: if false;
+      
+      // Güncelleme: Sadece admin (server-side)
+      allow update: if false;
+      
+      // Silme: Sadece admin (server-side soft delete)
+      allow delete: if false;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Okuma: Kullanıcı sadece kendi belgesini okuyabilir, admin ve branch_manager tümünü okuyabilir
+      allow read: if isOwner(userId) || isAdmin() || 
+        (isBranchManager() && resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId);
+      
+      // Güncelleme: Kullanıcı sadece kendi belgesini güncelleyebilir
+      // Ama bazı alanları değiştiremez (status, role, uid, email, createdAt)
+      allow update: if isOwner(userId) && 
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        // Status ve role sadece server tarafından değiştirilebilir
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.role == resource.data.role;
+      
+      // Branch manager kendi şubesindeki kullanıcıların status'unu güncelleyebilir
+      allow update: if isBranchManager() && 
+        resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId &&
+        // Sadece status güncellemesi yapabilir
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      
+      // Admin her şeyi güncelleyebilir
+      allow update: if isAdmin();
+      
+      // Oluşturma ve silme: Sadece server-side (admin SDK)
+      allow create, delete: if false;
+    }
+    
+    // User Registration Logs collection
+    match /user_registration_logs/{logId} {
+      // Okuma: Admin, branch_manager (kendi şubesindeki kullanıcılar için), user (kendi logları)
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (isBranchManager() && 
+         get(/databases/$(database)/documents/users/$(resource.data.userId)).data.branchId == 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId) ||
+        (resource.data.userId == request.auth.uid)
+      );
+      
+      // Oluşturma: Sadece server-side
+      allow create: if false;
+      
+      // Güncelleme ve silme: Sadece server-side
+      allow update, delete: if false;
+    }
+  }
+}
+

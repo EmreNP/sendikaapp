@@ -1,0 +1,108 @@
+/**
+ * Firebase'in kendi email servisini kullanarak email gönderir
+ * Firebase Auth REST API kullanır - harici servis gerektirmez
+ */
+
+/**
+ * Error type guard
+ */
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  );
+}
+
+// Firebase Web API Key - Firebase Console'dan alın
+// Firebase Console → Project Settings → General → Web API Key
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
+
+if (!FIREBASE_WEB_API_KEY) {
+  console.warn('⚠️ FIREBASE_WEB_API_KEY not set in environment variables.');
+  console.warn('   Email sending will not work. Please add FIREBASE_WEB_API_KEY to your .env file.');
+}
+
+/**
+ * Firebase Auth REST API ile email verification gönderir
+ * Firebase'in kendi email servisini kullanır
+ * 
+ * @param email Kullanıcının email adresi
+ * @throws Error if email sending fails
+ */
+export async function sendEmailVerification(email: string): Promise<void> {
+  if (!FIREBASE_WEB_API_KEY) {
+    throw new Error('FIREBASE_WEB_API_KEY is not configured. Please add it to your .env file.');
+  }
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requestType: 'VERIFY_EMAIL',
+        email: email,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Firebase email sending failed: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ Email verification sent to ${email}`);
+    return data;
+  } catch (error: unknown) {
+    const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+    console.error(`❌ Failed to send email verification to ${email}:`, errorMessage);
+    throw error;
+  }
+}
+
+/**
+ * Firebase Auth REST API ile password reset email gönderir
+ * Firebase'in kendi email servisini kullanır
+ * 
+ * @param email Kullanıcının email adresi
+ * @throws Error if email sending fails
+ */
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  if (!FIREBASE_WEB_API_KEY) {
+    throw new Error('FIREBASE_WEB_API_KEY is not configured. Please add it to your .env file.');
+  }
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requestType: 'PASSWORD_RESET',
+        email: email,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Firebase email sending failed: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ Password reset email sent to ${email}`);
+    return data;
+  } catch (error: unknown) {
+    const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+    console.error(`❌ Failed to send password reset email to ${email}:`, errorMessage);
+    throw error;
+  }
+}
+

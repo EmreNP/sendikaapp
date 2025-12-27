@@ -1,0 +1,22 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "user_registration_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tcKimlikNo", "order": "ASCENDING" },
+        { "fieldPath": "uid", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+

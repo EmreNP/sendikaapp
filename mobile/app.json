@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Sendika App",
+    "slug": "sendika-mobile",
+    "version": "1.0.0",
+    "main": "index.js",
+    "orientation": "portrait",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sendika.app"
+    },
+    "android": {
+      "package": "com.sendika.app"
+    }
+  }
+}
