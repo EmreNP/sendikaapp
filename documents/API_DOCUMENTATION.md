@@ -220,32 +220,6 @@ Hata response'ları:
 
 ---
 
-### 7. Verify Email - Confirm (E-posta Doğrulama Onayla)
-**Endpoint:** `POST /api/auth/verify-email/confirm`  
-**Auth:** Gerekmez  
-**Açıklama:** E-posta doğrulamasını onaylar. (Client-side'da action code verify edildikten sonra UID gönderilir)
-
-**Request Body:**
-```json
-{
-  "uid": "user-uid-123"
-}
-```
-
-**Validation Kuralları:**
-- `uid`: Zorunlu
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "E-posta adresi başarıyla doğrulandı",
-  "email": "ahmet@example.com"
-}
-```
-
----
-
 ## User Endpoints
 
 ### 8. Get Current User (Kendi Bilgilerini Getir)
@@ -645,6 +619,10 @@ veya şube atamasını kaldırmak için:
 - **Branch Manager:** Sadece kendi şubesi, manager bilgileri ile
 - **User:** Sadece aktif şubeler, manager bilgileri olmadan
 
+**Query Parameters:**
+- `page`: Sayfa numarası (default: 1)
+- `limit`: Sayfa başına kayıt (default: 20)
+
 **Response (200):**
 ```json
 {
@@ -671,7 +649,10 @@ veya şube atamasını kaldırmak için:
         }
       ]
     }
-  ]
+  ],
+  "total": 10,
+  "page": 1,
+  "limit": 20
 }
 ```
 
@@ -682,6 +663,11 @@ veya şube atamasını kaldırmak için:
 **Auth:** Gerekli (Bearer token)  
 **Açıklama:** Belirli bir şubenin detaylarını getirir.
 
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm şubeleri görebilir (aktif + pasif), manager bilgileri ile
+- **Branch Manager:** Sadece kendi şubesini görebilir, manager bilgileri ile
+- **User:** Sadece aktif şubeleri görebilir, manager bilgileri olmadan
+
 **Response (200):**
 ```json
 {
@@ -689,7 +675,23 @@ veya şube atamasını kaldırmak için:
   "branch": {
     "id": "branch-id-123",
     "name": "İstanbul Şubesi",
-    ...
+    "code": "IST-001",
+    "address": "Örnek Mahalle",
+    "city": "İstanbul",
+    "district": "Kadıköy",
+    "phone": "02121234567",
+    "email": "istanbul@sendika.com",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z",
+    "managers": [
+      {
+        "uid": "manager-uid-123",
+        "firstName": "Mehmet",
+        "lastName": "Demir",
+        "email": "mehmet@example.com"
+      }
+    ]
   }
 }
 ```
@@ -721,14 +723,22 @@ veya şube atamasını kaldırmak için:
 - `email`: Opsiyonel, geçerli email formatı
 - `phone`: Opsiyonel, Türkiye telefon formatı
 
-**Response (200):**
+**Response (201):**
 ```json
 {
   "success": true,
   "branch": {
     "id": "branch-id-123",
     "name": "İstanbul Şubesi",
-    ...
+    "code": "IST-001",
+    "address": "Örnek Mahalle, Örnek Sokak No:1",
+    "city": "İstanbul",
+    "district": "Kadıköy",
+    "phone": "02121234567",
+    "email": "istanbul@sendika.com",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
   },
   "message": "Şube başarıyla oluşturuldu"
 }
@@ -781,7 +791,7 @@ veya şube atamasını kaldırmak için:
 **Endpoint:** `DELETE /api/branches/[id]`  
 **Auth:** Gerekli (Bearer token)  
 **Yetki:** Admin  
-**Açıklama:** Şubeyi siler (soft delete - isActive: false). Şubeye bağlı kullanıcı varsa silinemez.
+**Açıklama:** Şubeyi kalıcı olarak siler (hard delete). Şubeye bağlı kullanıcı varsa silinemez.
 
 **Response (200):**
 ```json
@@ -790,6 +800,66 @@ veya şube atamasını kaldırmak için:
   "message": "Şube başarıyla silindi"
 }
 ```
+
+---
+
+### 25. Get User Registration Logs (Kullanıcı Kayıt Logları)
+**Endpoint:** `GET /api/users/[id]/logs`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager, User (sadece kendi logları)  
+**Açıklama:** Kullanıcının kayıt sürecindeki tüm loglarını getirir.
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Herkesin loglarını görebilir
+- **Branch Manager:** Sadece kendi şubesindeki kullanıcıların loglarını görebilir
+- **User:** Sadece kendi loglarını görebilir
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Kayıt logları başarıyla alındı",
+  "logs": [
+    {
+      "id": "log-id-123",
+      "userId": "user-uid-123",
+      "action": "register_basic",
+      "performedBy": "user-uid-123",
+      "performedByRole": "user",
+      "previousStatus": null,
+      "newStatus": "pending_details",
+      "note": null,
+      "documentUrl": null,
+      "metadata": {
+        "email": "ahmet@example.com"
+      },
+      "timestamp": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "log-id-124",
+      "userId": "user-uid-123",
+      "action": "branch_manager_approval",
+      "performedBy": "manager-uid-123",
+      "performedByRole": "branch_manager",
+      "previousStatus": "pending_branch_review",
+      "newStatus": "pending_admin_approval",
+      "note": "Başvuru onaylandı",
+      "documentUrl": "https://storage.example.com/form.pdf",
+      "metadata": null,
+      "timestamp": "2024-01-02T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Log Action Türleri:**
+- `register_basic`: Temel kayıt işlemi
+- `register_details`: Detaylı bilgilerin eklenmesi
+- `branch_manager_approval`: Şube müdürü onayı
+- `admin_approval`: Admin onayı
+- `admin_rejection`: Admin reddi
+- `admin_return`: Admin'in geri göndermesi
+- `branch_manager_return`: Şube müdürünün geri göndermesi
 
 ---
 
@@ -981,10 +1051,15 @@ const userResponse = await api.get('/users/me');
    - Sadece `user` rolü oluşturabilir
    - Status güncelleme yetkileri sınırlıdır
 
-5. **Soft Delete:** Branch silme işlemi soft delete'dir (isActive: false). Kullanıcı silme işlemi hard delete'dir.
+5. **Delete İşlemleri:**
+   - Branch silme işlemi hard delete'dir (kalıcı olarak silinir)
+   - Kullanıcı silme işlemi hard delete'dir (Firebase Auth ve Firestore'dan tamamen silinir)
+   - Branch silmeden önce şubeye bağlı kullanıcı olup olmadığı kontrol edilir
+
+6. **Registration Logs:** Tüm kullanıcı kayıt süreci işlemleri loglanır. Loglar, kullanıcının durum değişikliklerini, kim tarafından yapıldığını ve ilgili notları içerir.
 
 ---
 
-**Son Güncelleme:** 2024-01-01  
-**Versiyon:** 1.0.0
+**Son Güncelleme:** 2024-12-19  
+**Versiyon:** 1.1.0
 

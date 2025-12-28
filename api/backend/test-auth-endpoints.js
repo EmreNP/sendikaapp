@@ -3,7 +3,6 @@
 /**
  * Test script for new auth endpoints:
  * A3: /api/auth/verify-email/send (POST, Authenticated)
- * A4: /api/auth/verify-email/confirm (POST, Public)
  * A5: /api/auth/password/change (POST, Authenticated)
  * A6: /api/auth/password/reset-request (POST, Public)
  */
@@ -147,27 +146,6 @@ async function runTests() {
       'Authorization': `Bearer ${testToken}`
     }
   );
-  
-  // Test A4: /api/auth/verify-email/confirm (POST, Public)
-  // Note: In real scenario, client-side would verify action code first
-  // For testing, we'll directly mark email as verified
-  await testEndpoint(
-    'A4: /api/auth/verify-email/confirm',
-    'POST',
-    `${BASE_URL}/api/auth/verify-email/confirm`,
-    {},
-    {
-      uid: testUid
-    }
-  );
-  
-  // Verify email is now verified
-  try {
-    const userRecord = await auth.getUser(testUid);
-    console.log(`\n✅ Email verified status: ${userRecord.emailVerified}`);
-  } catch (error) {
-    console.error(`❌ Error checking email status:`, error.message);
-  }
   
   // Test A5: /api/auth/password/change (POST, Authenticated)
   const newPassword = 'NewTest123456';
