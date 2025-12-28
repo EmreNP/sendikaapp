@@ -10,3 +10,9 @@ export * from './userValidation';
 // Branch validations
 export * from './branchValidation';
 
+// News validations
+export * from './newsValidation';
+
+// Image validations
+export * from './imageValidation';
+

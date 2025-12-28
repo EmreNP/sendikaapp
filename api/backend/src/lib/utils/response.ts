@@ -323,4 +323,27 @@ export function serializeUserTimestamps(user: any): any {
   return serialized;
 }
 
+/**
+ * News objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeNewsTimestamps(news: any): any {
+  if (!news) return news;
+  
+  const serialized = { ...news };
+  
+  if (news.createdAt) {
+    serialized.createdAt = serializeTimestamp(news.createdAt);
+  }
+  
+  if (news.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(news.updatedAt);
+  }
+  
+  if (news.publishedAt) {
+    serialized.publishedAt = serializeTimestamp(news.publishedAt);
+  }
+  
+  return serialized;
+}
+
 

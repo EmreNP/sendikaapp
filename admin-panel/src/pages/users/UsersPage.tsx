@@ -231,30 +231,27 @@ export default function UsersPage() {
         return;
       }
 
-      const results = await Promise.allSettled(
-        userIds.map(userId => 
-          apiRequest(`/api/users/${userId}`, { method: 'DELETE' }).catch(err => {
-            console.error(`Error deleting user ${userId}:`, err);
-            return { error: err.message };
-          })
-        )
-      );
-
-      // Başarılı olanları state'den kaldır
-      const successfulIds = new Set<string>();
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          successfulIds.add(userIds[index]);
-        }
+      const result = await apiRequest<{
+        success: boolean;
+        successCount: number;
+        failureCount: number;
+        errors?: Array<{ userId: string; error: string }>;
+      }>('/api/users/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', userIds }),
       });
 
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) {
-        setError(`${failed} kullanıcı silinirken hata oluştu`);
+      if (result.failureCount > 0) {
+        setError(`${result.failureCount} kullanıcı silinirken hata oluştu`);
       }
 
       // Başarılı olanları state'den kaldır
-      setUsers(prev => prev.filter(u => !successfulIds.has(u.uid)));
+      if (result.successCount > 0) {
+        const failedUserIds = new Set(result.errors?.map(e => e.userId) || []);
+        const successfulUserIds = userIds.filter(id => !failedUserIds.has(id));
+        setUsers(prev => prev.filter(u => !successfulUserIds.includes(u.uid)));
+      }
+
       setSelectedUserIds(new Set());
     } catch (error: any) {
       console.error('Error bulk deleting users:', error);
@@ -270,30 +267,27 @@ export default function UsersPage() {
       const { apiRequest } = await import('@/utils/api');
       const userIds = Array.from(selectedUserIds);
 
-      const results = await Promise.allSettled(
-        userIds.map(userId => 
-          apiRequest(`/api/users/${userId}/deactivate`, { method: 'PATCH' }).catch(err => {
-            console.error(`Error deactivating user ${userId}:`, err);
-            return { error: err.message };
-          })
-        )
-      );
-
-      // Başarılı olanları state'de güncelle
-      const successfulIds = new Set<string>();
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          successfulIds.add(userIds[index]);
-        }
+      const result = await apiRequest<{
+        success: boolean;
+        successCount: number;
+        failureCount: number;
+        errors?: Array<{ userId: string; error: string }>;
+      }>('/api/users/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'deactivate', userIds }),
       });
 
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) {
-        setError(`${failed} kullanıcı deaktif edilirken hata oluştu`);
+      if (result.failureCount > 0) {
+        setError(`${result.failureCount} kullanıcı deaktif edilirken hata oluştu`);
       }
 
       // Başarılı olanları state'de deaktif et
-      setUsers(prev => prev.map(u => successfulIds.has(u.uid) ? { ...u, isActive: false } : u));
+      if (result.successCount > 0) {
+        const failedUserIds = new Set(result.errors?.map(e => e.userId) || []);
+        const successfulUserIds = userIds.filter(id => !failedUserIds.has(id));
+        setUsers(prev => prev.map(u => successfulUserIds.includes(u.uid) ? { ...u, isActive: false } : u));
+      }
+
       setSelectedUserIds(new Set());
     } catch (error: any) {
       console.error('Error bulk deactivating users:', error);
@@ -309,30 +303,27 @@ export default function UsersPage() {
       const { apiRequest } = await import('@/utils/api');
       const userIds = Array.from(selectedUserIds);
 
-      const results = await Promise.allSettled(
-        userIds.map(userId => 
-          apiRequest(`/api/users/${userId}/activate`, { method: 'PATCH' }).catch(err => {
-            console.error(`Error activating user ${userId}:`, err);
-            return { error: err.message };
-          })
-        )
-      );
-
-      // Başarılı olanları state'de güncelle
-      const successfulIds = new Set<string>();
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          successfulIds.add(userIds[index]);
-        }
+      const result = await apiRequest<{
+        success: boolean;
+        successCount: number;
+        failureCount: number;
+        errors?: Array<{ userId: string; error: string }>;
+      }>('/api/users/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'activate', userIds }),
       });
 
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) {
-        setError(`${failed} kullanıcı aktif edilirken hata oluştu`);
+      if (result.failureCount > 0) {
+        setError(`${result.failureCount} kullanıcı aktif edilirken hata oluştu`);
       }
 
       // Başarılı olanları state'de aktif et
-      setUsers(prev => prev.map(u => successfulIds.has(u.uid) ? { ...u, isActive: true } : u));
+      if (result.successCount > 0) {
+        const failedUserIds = new Set(result.errors?.map(e => e.userId) || []);
+        const successfulUserIds = userIds.filter(id => !failedUserIds.has(id));
+        setUsers(prev => prev.map(u => successfulUserIds.includes(u.uid) ? { ...u, isActive: true } : u));
+      }
+
       setSelectedUserIds(new Set());
     } catch (error: any) {
       console.error('Error bulk activating users:', error);
@@ -694,8 +685,8 @@ export default function UsersPage() {
               onClick={() => {
                 setConfirmDialog({
                   isOpen: true,
-                  title: 'Toplu Engelleme',
-                  message: `${selectedUserIds.size} kullanıcıyı engellemek istediğinizden emin misiniz?`,
+                  title: 'Toplu Deaktif Etme',
+                  message: `${selectedUserIds.size} kullanıcıyı deaktif etmek istediğinizden emin misiniz?`,
                   variant: 'warning',
                   onConfirm: () => {
                     setConfirmDialog(prev => ({ ...prev, isOpen: false }));
@@ -706,7 +697,25 @@ export default function UsersPage() {
               disabled={processing}
               className="px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             >
-              Engelle
+              Deaktif Et
+            </button>
+            <button
+              onClick={() => {
+                setConfirmDialog({
+                  isOpen: true,
+                  title: 'Toplu Aktif Etme',
+                  message: `${selectedUserIds.size} kullanıcıyı aktif etmek istediğinizden emin misiniz?`,
+                  variant: 'info',
+                  onConfirm: () => {
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    handleBulkActivate();
+                  },
+                });
+              }}
+              disabled={processing}
+              className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              Aktif Et
             </button>
             <button
               onClick={() => setSelectedUserIds(new Set())}

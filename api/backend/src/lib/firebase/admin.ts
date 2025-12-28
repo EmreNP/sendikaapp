@@ -48,9 +48,30 @@ if (getApps().length === 0) {
       const serviceAccountContent = fs.readFileSync(serviceAccountPath, 'utf8');
       const serviceAccount = JSON.parse(serviceAccountContent);
       
+      // Storage bucket name'i service account'tan veya env'den al
+      // Service account'ta storageBucket field'ı varsa onu kullan
+      let storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+      
+      if (!storageBucket && serviceAccount.storageBucket) {
+        storageBucket = serviceAccount.storageBucket;
+      } else if (!storageBucket) {
+        // Fallback: project_id'den bucket name oluştur
+        // Ama önce mevcut bucket'ları kontrol etmek daha iyi
+        storageBucket = `${serviceAccount.project_id}.appspot.com`;
+        console.warn(`⚠️  Storage bucket belirtilmemiş, varsayılan kullanılıyor: ${storageBucket}`);
+        console.warn(`   Lütfen .env dosyasına FIREBASE_STORAGE_BUCKET ekleyin veya service account'ta storageBucket field'ı olduğundan emin olun`);
+      }
+      
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        ...(storageBucket && { storageBucket: storageBucket }),
       });
+      
+      if (storageBucket) {
+        console.log(`   Storage bucket: ${storageBucket}`);
+      } else {
+        console.warn(`   ⚠️  Storage bucket yapılandırılmamış`);
+      }
       
       console.log('✅ Firebase Admin SDK initialized (Development)');
       console.log(`   Service account loaded from: ${serviceAccountPath}`);
@@ -80,6 +101,7 @@ if (getApps().length === 0) {
 
 export const auth = admin.auth();
 export const db = admin.firestore();
+export const storage = admin.storage();
 
 export default admin;
 

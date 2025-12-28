@@ -6,7 +6,9 @@
 - [Authentication](#authentication)
 - [Auth Endpoints](#auth-endpoints)
 - [User Endpoints](#user-endpoints)
+- [News Endpoints](#news-endpoints)
 - [Branch Endpoints](#branch-endpoints)
+- [File Upload Endpoints](#file-upload-endpoints)
 - [Validation Kuralları](#validation-kuralları)
 - [Hata Kodları](#hata-kodları)
 
@@ -607,9 +609,296 @@ veya şube atamasını kaldırmak için:
 
 ---
 
+### 19.5. Bulk User Operations (Kullanıcı Toplu İşlemler)
+**Endpoint:** `POST /api/users/bulk`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Birden fazla kullanıcı için toplu işlem yapar (delete, activate, deactivate).
+
+**İşlem Tipleri:**
+- `delete`: Kullanıcıları kalıcı olarak siler (sadece Admin)
+- `activate`: Kullanıcıları aktif eder
+- `deactivate`: Kullanıcıları deaktif eder
+
+**Yetki Kısıtlamaları:**
+- **Delete:** Sadece Admin yapabilir
+- **Activate/Deactivate:** Admin ve Branch Manager yapabilir (Branch Manager sadece kendi şubesindeki kullanıcıları işleyebilir)
+
+**Request Body:**
+```json
+{
+  "action": "activate",
+  "userIds": ["user-id-1", "user-id-2", "user-id-3"]
+}
+```
+
+**Validation Kuralları:**
+- `action`: Zorunlu, sadece `"delete"`, `"activate"`, `"deactivate"`
+- `userIds`: Zorunlu, array, en az 1, en fazla 100 kullanıcı
+- Kendi hesabınızı delete veya deactivate edemezsiniz
+
+**Response (200 - Tüm işlemler başarılı):**
+```json
+{
+  "success": true,
+  "message": "3 kullanıcı için toplu işlem başarıyla tamamlandı",
+  "data": {
+    "success": true,
+    "successCount": 3,
+    "failureCount": 0
+  },
+  "code": "BULK_USER_ACTION_SUCCESS"
+}
+```
+
+**Response (207 - Kısmi başarı):**
+```json
+{
+  "success": true,
+  "message": "Toplu işlem kısmen tamamlandı. Başarılı: 2, Başarısız: 1",
+  "data": {
+    "success": false,
+    "successCount": 2,
+    "failureCount": 1,
+    "errors": [
+      {
+        "userId": "user-id-3",
+        "error": "Kullanıcı bulunamadı"
+      }
+    ]
+  },
+  "code": "BULK_USER_ACTION_PARTIAL"
+}
+```
+
+**Hata Örnekleri:**
+- Kullanıcı bulunamadı
+- Bu kullanıcıya erişim yetkiniz yok (Branch Manager başka şube kullanıcısını işlemeye çalışırsa)
+- Kendi hesabınızı bu işlem için seçemezsiniz
+- Kullanıcı zaten aktif/deaktif
+
+---
+
+## News Endpoints
+
+### 20. Get News List (Haber Listesi)
+**Endpoint:** `GET /api/news`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Haber listesini getirir.
+
+**Query Parameters:**
+- `page`: Sayfa numarası (default: 1)
+- `limit`: Sayfa başına kayıt (default: 20)
+- `isPublished`: Yayın durumu filtresi (`true` veya `false`)
+- `isFeatured`: Öne çıkan haber filtresi (`true` veya `false`)
+- `search`: Başlık arama metni
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "news": [
+    {
+      "id": "news-id-123",
+      "title": "Haber Başlığı",
+      "content": "<p>Haber içeriği</p>",
+      "externalUrl": null,
+      "imageUrl": "https://storage.example.com/news/image.jpg",
+      "isPublished": true,
+      "isFeatured": false,
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "createdBy": "admin-uid-123",
+      "updatedBy": "admin-uid-123"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 20
+}
+```
+
+---
+
+### 21. Create News (Haber Oluştur)
+**Endpoint:** `POST /api/news`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Yeni haber oluşturur.
+
+**Request Body:**
+```json
+{
+  "title": "Yeni Haber Başlığı",
+  "content": "<p>Haber içeriği HTML formatında</p>",
+  "imageUrl": "https://storage.example.com/news/image.jpg",
+  "isPublished": false,
+  "isFeatured": false
+}
+```
+
+veya dış link için:
+```json
+{
+  "title": "Yeni Haber Başlığı",
+  "externalUrl": "https://example.com/news",
+  "imageUrl": "https://storage.example.com/news/image.jpg",
+  "isPublished": false,
+  "isFeatured": false
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `content` veya `externalUrl`: En az biri zorunlu (ikisi birlikte olabilir)
+- `isPublished`: Opsiyonel, default: `false`
+- `isFeatured`: Opsiyonel, default: `false`
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Haber başarıyla oluşturuldu",
+  "news": {
+    "id": "news-id-123",
+    "title": "Yeni Haber Başlığı",
+    ...
+  }
+}
+```
+
+---
+
+### 22. Get News by ID (Haber Detayı)
+**Endpoint:** `GET /api/news/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Belirli bir haberin detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "news": {
+    "id": "news-id-123",
+    "title": "Haber Başlığı",
+    ...
+  }
+}
+```
+
+---
+
+### 23. Update News (Haber Güncelle)
+**Endpoint:** `PUT /api/news/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Haber bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "content": "<p>Güncellenmiş içerik</p>",
+  "isPublished": true,
+  "isFeatured": true
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Haber başarıyla güncellendi",
+  "news": {
+    "id": "news-id-123",
+    ...
+  }
+}
+```
+
+---
+
+### 24. Delete News (Haber Sil)
+**Endpoint:** `DELETE /api/news/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Haberi kalıcı olarak siler (hard delete).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Haber kalıcı olarak silindi"
+}
+```
+
+---
+
+### 25. Bulk News Operations (Haber Toplu İşlemler)
+**Endpoint:** `POST /api/news/bulk`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Birden fazla haber için toplu işlem yapar (delete, publish, unpublish).
+
+**İşlem Tipleri:**
+- `delete`: Haberleri kalıcı olarak siler
+- `publish`: Haberleri yayınlar
+- `unpublish`: Haberleri yayından kaldırır
+
+**Request Body:**
+```json
+{
+  "action": "publish",
+  "newsIds": ["news-id-1", "news-id-2", "news-id-3"]
+}
+```
+
+**Validation Kuralları:**
+- `action`: Zorunlu, sadece `"delete"`, `"publish"`, `"unpublish"`
+- `newsIds`: Zorunlu, array, en az 1, en fazla 100 haber
+
+**Response (200 - Tüm işlemler başarılı):**
+```json
+{
+  "success": true,
+  "message": "3 haber için toplu işlem başarıyla tamamlandı",
+  "data": {
+    "success": true,
+    "successCount": 3,
+    "failureCount": 0
+  },
+  "code": "BULK_NEWS_ACTION_SUCCESS"
+}
+```
+
+**Response (207 - Kısmi başarı):**
+```json
+{
+  "success": true,
+  "message": "Toplu işlem kısmen tamamlandı. Başarılı: 2, Başarısız: 1",
+  "data": {
+    "success": false,
+    "successCount": 2,
+    "failureCount": 1,
+    "errors": [
+      {
+        "newsId": "news-id-3",
+        "error": "Haber bulunamadı"
+      }
+    ]
+  },
+  "code": "BULK_NEWS_ACTION_PARTIAL"
+}
+```
+
+---
+
 ## Branch Endpoints
 
-### 20. Get Branches List (Şube Listesi)
+### 26. Get Branches List (Şube Listesi)
 **Endpoint:** `GET /api/branches`  
 **Auth:** Gerekli (Bearer token)  
 **Açıklama:** Şube listesini getirir.
@@ -658,7 +947,7 @@ veya şube atamasını kaldırmak için:
 
 ---
 
-### 21. Get Branch by ID (Şube Detayı)
+### 27. Get Branch by ID (Şube Detayı)
 **Endpoint:** `GET /api/branches/[id]`  
 **Auth:** Gerekli (Bearer token)  
 **Açıklama:** Belirli bir şubenin detaylarını getirir.
@@ -698,7 +987,7 @@ veya şube atamasını kaldırmak için:
 
 ---
 
-### 22. Create Branch (Şube Oluştur)
+### 28. Create Branch (Şube Oluştur)
 **Endpoint:** `POST /api/branches`  
 **Auth:** Gerekli (Bearer token)  
 **Yetki:** Admin  
@@ -746,7 +1035,7 @@ veya şube atamasını kaldırmak için:
 
 ---
 
-### 23. Update Branch (Şube Güncelle)
+### 29. Update Branch (Şube Güncelle)
 **Endpoint:** `PUT /api/branches/[id]`  
 **Auth:** Gerekli (Bearer token)  
 **Yetki:** Admin  
@@ -787,7 +1076,7 @@ veya şube atamasını kaldırmak için:
 
 ---
 
-### 24. Delete Branch (Şube Sil)
+### 30. Delete Branch (Şube Sil)
 **Endpoint:** `DELETE /api/branches/[id]`  
 **Auth:** Gerekli (Bearer token)  
 **Yetki:** Admin  
@@ -803,7 +1092,7 @@ veya şube atamasını kaldırmak için:
 
 ---
 
-### 25. Get User Registration Logs (Kullanıcı Kayıt Logları)
+### 31. Get User Registration Logs (Kullanıcı Kayıt Logları)
 **Endpoint:** `GET /api/users/[id]/logs`  
 **Auth:** Gerekli (Bearer token)  
 **Yetki:** Admin, Branch Manager, User (sadece kendi logları)  
@@ -860,6 +1149,323 @@ veya şube atamasını kaldırmak için:
 - `admin_rejection`: Admin reddi
 - `admin_return`: Admin'in geri göndermesi
 - `branch_manager_return`: Şube müdürünün geri göndermesi
+
+---
+
+## File Upload Endpoints
+
+### 32. Upload File (Dosya Yükle)
+**Endpoint:** `POST /api/files/{category}/upload`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Kategoriye göre değişir (aşağıda detaylı)  
+**Content-Type:** `multipart/form-data`  
+**Açıklama:** Belirtilen kategoride dosya yükler. Firebase Storage'a yüklenir ve public URL döner.
+
+---
+
+#### Kategoriler ve Özellikleri
+
+##### 1. `news` - Haber Görselleri
+
+**Yetki:** Sadece Admin
+
+**Dosya Formatları:**
+- JPEG (`.jpg`, `.jpeg`)
+- PNG (`.png`)
+- WebP (`.webp`)
+
+**Dosya Boyutu:**
+- Maksimum: 5MB
+
+**Storage Path:**
+```
+news/{timestamp}-{sanitized-filename}
+```
+
+**Request Örneği:**
+```bash
+POST /api/files/news/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+
+file: [binary image data]
+```
+
+---
+
+##### 2. `user-documents` - Kullanıcı Belgeleri
+
+**Yetki:** Admin, Branch Manager
+
+**Dosya Formatları:**
+- PDF (`.pdf`)
+
+**Dosya Boyutu:**
+- Maksimum: 10MB
+
+**Storage Path:**
+```
+user-documents/{userId}/{timestamp}-{sanitized-filename}
+```
+
+**⚠️ ÖNEMLİ:** Bu kategori için `userId` parametresi **zorunludur**.
+
+**Request Örneği:**
+```bash
+POST /api/files/user-documents/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+
+file: [binary PDF data]
+userId: user-uid-123
+```
+
+**Request Body (Form Data):**
+```
+file: [binary file]
+userId: user-uid-123  ← ZORUNLU
+```
+
+---
+
+#### Request Format
+
+**Content-Type:** `multipart/form-data`
+
+**Form Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | File (binary) | ✅ Evet | Yüklenecek dosya |
+| `userId` | String | ⚠️ Sadece `user-documents` için | Kullanıcı ID'si |
+
+---
+
+#### Response Format
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Görsel başarıyla yüklendi",  // veya "Döküman başarıyla yüklendi"
+  "data": {
+    "imageUrl": "https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg",
+    "documentUrl": "https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg",
+    "fileUrl": "https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg",
+    "fileName": "1704067200000-filename.jpg",
+    "size": 1024000,
+    "contentType": "image/jpeg",
+    "category": "news"
+  },
+  "code": "IMAGE_UPLOAD_SUCCESS"  // veya "DOCUMENT_UPLOAD_SUCCESS"
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `imageUrl` | String (URI) | Public URL (backward compatibility için) |
+| `documentUrl` | String (URI) | Public URL (user-documents için) |
+| `fileUrl` | String (URI) | Generic public URL (tüm kategoriler için) |
+| `fileName` | String | Yüklenen dosyanın adı (timestamp ile birlikte) |
+| `size` | Integer | Dosya boyutu (bytes) |
+| `contentType` | String | Dosya MIME type (örn: `image/jpeg`, `application/pdf`) |
+| `category` | String | Yüklenen dosyanın kategorisi (`news` veya `user-documents`) |
+
+**Not:** `imageUrl`, `documentUrl` ve `fileUrl` tümü aynı değeri içerir. Backward compatibility ve farklı kullanım senaryoları için farklı isimlerle döner.
+
+---
+
+#### Validation Kuralları
+
+**Kategori Validasyonu:**
+- Sadece `news` ve `user-documents` kategorileri desteklenir
+- Diğer kategoriler için 400 hatası döner
+
+**Dosya Formatı Validasyonu:**
+
+**news kategorisi için:**
+- MIME Type: `image/jpeg`, `image/jpg`, `image/png`, `image/webp`
+- Uzantı: `.jpg`, `.jpeg`, `.png`, `.webp`
+- Maksimum boyut: 5MB
+
+**user-documents kategorisi için:**
+- MIME Type: `application/pdf`
+- Uzantı: `.pdf`
+- Maksimum boyut: 10MB
+
+**Dosya Adı Güvenliği:**
+- Dosya adları otomatik olarak sanitize edilir
+- Tehlikeli karakterler (`/`, `\`, `..`, vb.) temizlenir
+- Timestamp eklenerek benzersizlik sağlanır (format: `{timestamp}-{original-filename}`)
+- Maksimum dosya adı uzunluğu: 255 karakter
+
+**Özel Validasyonlar:**
+- `user-documents` kategorisi için `userId` parametresi zorunludur
+- Dosya boş olamaz
+- Dosya formatı kontrolü yapılır (MIME type ve uzantı)
+
+---
+
+#### Hata Durumları
+
+**400 - Validation Error:**
+
+```json
+{
+  "success": false,
+  "message": "Geçersiz kategori. İzin verilen kategoriler: news, user-documents",
+  "code": "VALIDATION_ERROR"
+}
+```
+
+Olası hata mesajları:
+- `"Dosya bulunamadı"` - Form-data'da `file` field'ı eksik
+- `"Geçersiz dosya formatı"` - Desteklenmeyen dosya formatı
+- `"Dosya boyutu çok büyük. Maksimum boyut: 5MB"` - Dosya limit aşımı
+- `"User ID gerekli"` - `user-documents` için `userId` eksik
+- `"Geçersiz kategori"` - Desteklenmeyen kategori
+
+**401 - Unauthorized:**
+
+```json
+{
+  "success": false,
+  "message": "Yetkilendirme token'ı gerekli",
+  "code": "AUTHENTICATION_REQUIRED"
+}
+```
+
+**403 - Forbidden:**
+
+```json
+{
+  "success": false,
+  "message": "Bu işlem için admin yetkisi gerekli",
+  "code": "UNAUTHORIZED"
+}
+```
+
+- `news` kategorisi için admin olmayan kullanıcılar
+- `user-documents` kategorisi için admin/branch_manager olmayan kullanıcılar
+
+**500 - Server Error:**
+
+```json
+{
+  "success": false,
+  "message": "Storage yapılandırma hatası. Lütfen Firebase Storage ayarlarını kontrol edin.",
+  "code": "SERVER_ERROR",
+  "details": "Detaylı hata mesajı (sadece development'ta)"
+}
+```
+
+Olası nedenler:
+- Firebase Storage bucket yapılandırılmamış
+- Bucket bulunamadı
+- Dosya storage'a kaydedilemedi
+
+---
+
+#### Kullanım Örnekleri
+
+##### JavaScript/TypeScript (Fetch API)
+
+```typescript
+// News görseli yükle
+async function uploadNewsImage(file: File, token: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('http://localhost:3001/api/files/news/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  return data.data.fileUrl; // Public URL
+}
+
+// User document yükle
+async function uploadUserDocument(file: File, userId: string, token: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('userId', userId); // ZORUNLU
+
+  const response = await fetch('http://localhost:3001/api/files/user-documents/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  return data.data.documentUrl; // Public URL
+}
+```
+
+##### cURL
+
+```bash
+# News görseli yükle
+curl -X POST http://localhost:3001/api/files/news/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@/path/to/image.jpg"
+
+# User document yükle
+curl -X POST http://localhost:3001/api/files/user-documents/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@/path/to/document.pdf" \
+  -F "userId=user-uid-123"
+```
+
+##### Axios
+
+```typescript
+import axios from 'axios';
+
+// News görseli yükle
+const uploadNewsImage = async (file: File, token: string) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await axios.post(
+    'http://localhost:3001/api/files/news/upload',
+    formData,
+    {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data.data.fileUrl;
+};
+```
+
+---
+
+#### Notlar
+
+1. **Dosya Adı Formatı:** Yüklenen dosyalar `{timestamp}-{original-filename}` formatında saklanır. Bu sayede dosya adı çakışmaları önlenir.
+
+2. **Public URL:** Tüm dosyalar otomatik olarak public yapılır ve direkt erişilebilir URL döner.
+
+3. **Storage Bucket:** Firebase Storage bucket'ı environment variable (`FIREBASE_STORAGE_BUCKET`) veya default bucket kullanılır.
+
+4. **Güvenlik:** Dosya adları sanitize edilir, tehlikeli karakterler temizlenir. Sadece belirli formatlar kabul edilir.
+
+5. **Backward Compatibility:** Response'da `imageUrl`, `documentUrl` ve `fileUrl` alanları aynı değeri içerir. Farklı kullanım senaryoları için farklı isimlerle döner.
+
+6. **Yetki Kontrolü:** Her kategori için yetki kontrolü yapılır. Admin olmayan kullanıcılar `news` kategorisine dosya yükleyemez.
+
+7. **User Documents:** `user-documents` kategorisi için `userId` parametresi zorunludur ve dosyalar kullanıcı ID'sine göre klasörlendirilir.
 
 ---
 
@@ -1060,6 +1666,12 @@ const userResponse = await api.get('/users/me');
 
 ---
 
-**Son Güncelleme:** 2024-12-19  
-**Versiyon:** 1.1.0
+**Son Güncelleme:** 2024-12-28  
+**Versiyon:** 1.2.0
+
+**Değişiklikler:**
+- Bulk user operations endpoint'i eklendi (`POST /api/users/bulk`)
+- News endpoints eklendi (`GET`, `POST`, `PUT`, `DELETE /api/news`)
+- Bulk news operations endpoint'i eklendi (`POST /api/news/bulk`)
+- File upload endpoint'i eklendi (`POST /api/files/{category}/upload`)
 

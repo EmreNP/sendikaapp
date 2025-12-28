@@ -173,3 +173,21 @@ export interface UserRegistrationLog {
   timestamp: Timestamp;
 }
 
+// Bulk operations
+export type BulkUserAction = 'delete' | 'activate' | 'deactivate';
+
+export interface BulkUserActionRequest {
+  action: BulkUserAction;
+  userIds: string[];
+}
+
+export interface BulkUserActionResult {
+  success: boolean;
+  successCount: number;
+  failureCount: number;
+  errors?: Array<{
+    userId: string;
+    error: string;
+  }>;
+}
+

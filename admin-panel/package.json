@@ -12,8 +12,11 @@
   "dependencies": {
     "firebase": "^10.7.1",
     "lucide-react": "^0.294.0",
+    "quill": "^2.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-image-crop": "^11.0.10",
+    "react-quill": "^2.0.0",
     "react-router-dom": "^6.21.0"
   },
   "devDependencies": {

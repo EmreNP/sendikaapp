@@ -65,6 +65,23 @@ export const openApiSpec = {
           isActive: { type: 'boolean' },
         },
       },
+      News: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          content: { type: 'string', description: 'HTML içerik' },
+          externalUrl: { type: 'string', format: 'uri', description: 'Dış link URL\'i' },
+          imageUrl: { type: 'string', format: 'uri' },
+          isPublished: { type: 'boolean' },
+          isFeatured: { type: 'boolean' },
+          publishedAt: { type: 'string', format: 'date-time' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+          createdBy: { type: 'string' },
+          updatedBy: { type: 'string' },
+        },
+      },
     },
   },
   paths: {
@@ -618,6 +635,109 @@ export const openApiSpec = {
         },
       },
     },
+    '/api/users/bulk': {
+      post: {
+        summary: 'Kullanıcı Toplu İşlemler',
+        description: 'Birden fazla kullanıcı için toplu işlem yapar (delete, activate, deactivate)',
+        tags: ['Users'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['action', 'userIds'],
+                properties: {
+                  action: {
+                    type: 'string',
+                    enum: ['delete', 'activate', 'deactivate'],
+                    description: 'Yapılacak işlem tipi',
+                  },
+                  userIds: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    minItems: 1,
+                    maxItems: 100,
+                    description: 'İşlem yapılacak kullanıcı ID\'leri (maksimum 100)',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Tüm işlemler başarılı',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            success: { type: 'boolean', example: true },
+                            successCount: { type: 'integer', example: 5 },
+                            failureCount: { type: 'integer', example: 0 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '207': {
+            description: 'Kısmi başarı (bazı işlemler başarısız)',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            success: { type: 'boolean', example: false },
+                            successCount: { type: 'integer', example: 3 },
+                            failureCount: { type: 'integer', example: 2 },
+                            errors: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  userId: { type: 'string' },
+                                  error: { type: 'string' },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Geçersiz istek',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/branches': {
       get: {
         summary: 'Şube Listesi',
@@ -790,6 +910,460 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/news': {
+      get: {
+        summary: 'Haber Listesi',
+        description: 'Haber listesini getirir',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'isPublished', in: 'query', schema: { type: 'boolean' }, description: 'Yayın durumu filtresi' },
+          { name: 'isFeatured', in: 'query', schema: { type: 'boolean' }, description: 'Öne çıkan haber filtresi' },
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Başlık arama metni' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Haber Oluştur',
+        description: 'Yeni haber oluşturur (Admin)',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200, example: 'Yeni Haber Başlığı' },
+                  content: { type: 'string', description: 'HTML içerik (externalUrl yoksa zorunlu)' },
+                  externalUrl: { type: 'string', format: 'uri', description: 'Dış link URL\'i (content yoksa zorunlu)' },
+                  imageUrl: { type: 'string', format: 'uri' },
+                  isPublished: { type: 'boolean', default: false },
+                  isFeatured: { type: 'boolean', default: false },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Haber başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/news/{id}': {
+      get: {
+        summary: 'Haber Detayı',
+        description: 'Belirli bir haberin detaylarını getirir',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Haber Güncelle',
+        description: 'Haber bilgilerini günceller (Admin)',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  content: { type: 'string' },
+                  externalUrl: { type: 'string', format: 'uri' },
+                  imageUrl: { type: 'string', format: 'uri' },
+                  isPublished: { type: 'boolean' },
+                  isFeatured: { type: 'boolean' },
+                  publishedAt: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Haber başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Haber Sil',
+        description: 'Haberi kalıcı olarak siler (Admin)',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Haber kalıcı olarak silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/news/bulk': {
+      post: {
+        summary: 'Haber Toplu İşlemler',
+        description: 'Birden fazla haber için toplu işlem yapar (delete, publish, unpublish) - Sadece Admin',
+        tags: ['News'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['action', 'newsIds'],
+                properties: {
+                  action: {
+                    type: 'string',
+                    enum: ['delete', 'publish', 'unpublish'],
+                    description: 'Yapılacak işlem tipi',
+                  },
+                  newsIds: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    minItems: 1,
+                    maxItems: 100,
+                    description: 'İşlem yapılacak haber ID\'leri (maksimum 100)',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Tüm işlemler başarılı',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            success: { type: 'boolean', example: true },
+                            successCount: { type: 'integer', example: 5 },
+                            failureCount: { type: 'integer', example: 0 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '207': {
+            description: 'Kısmi başarı (bazı işlemler başarısız)',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            success: { type: 'boolean', example: false },
+                            successCount: { type: 'integer', example: 3 },
+                            failureCount: { type: 'integer', example: 2 },
+                            errors: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  newsId: { type: 'string' },
+                                  error: { type: 'string' },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Geçersiz istek',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/files/{category}/upload': {
+      post: {
+        summary: 'Dosya Yükle',
+        description: `Belirtilen kategoride dosya yükler. Firebase Storage'a yüklenir ve public URL döner.
+
+**Kategoriler:**
+
+- **news**: Haber görselleri
+  - Yetki: Sadece Admin
+  - Format: JPEG, JPG, PNG, WebP
+  - Maksimum boyut: 5MB
+  - Storage path: \`news/{timestamp}-{filename}\`
+
+- **user-documents**: Kullanıcı belgeleri (PDF)
+  - Yetki: Admin, Branch Manager
+  - Format: PDF
+  - Maksimum boyut: 10MB
+  - Storage path: \`user-documents/{userId}/{timestamp}-{filename}\`
+  - **ÖNEMLİ**: Bu kategori için \`userId\` parametresi form-data'da zorunludur
+
+**Dosya Adı Güvenliği:**
+- Dosya adları otomatik olarak sanitize edilir (tehlikeli karakterler temizlenir)
+- Timestamp eklenerek benzersizlik sağlanır
+- Maksimum dosya adı uzunluğu: 255 karakter
+
+**Response:**
+- \`imageUrl\`: Backward compatibility için (tüm kategoriler için)
+- \`documentUrl\`: User documents için
+- \`fileUrl\`: Generic URL (tüm kategoriler için)
+- Tüm URL'ler aynı değeri içerir`,
+        tags: ['Files'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'category',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', enum: ['news', 'user-documents'] },
+            description: 'Dosya kategorisi. news: Görsel dosyaları (Admin), user-documents: PDF belgeleri (Admin, Branch Manager)',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['file'],
+                properties: {
+                  file: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Yüklenecek dosya. news için: JPEG/PNG/WebP (max 5MB), user-documents için: PDF (max 10MB)',
+                  },
+                  userId: {
+                    type: 'string',
+                    description: 'Kullanıcı ID (SADECE user-documents kategorisi için zorunlu)',
+                    example: 'user-uid-123',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Dosya başarıyla yüklendi',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            imageUrl: {
+                              type: 'string',
+                              format: 'uri',
+                              description: 'Yüklenen dosyanın public URL\'i (backward compatibility)',
+                            },
+                            documentUrl: {
+                              type: 'string',
+                              format: 'uri',
+                              description: 'Yüklenen dosyanın public URL\'i (user-documents için)',
+                            },
+                            fileUrl: {
+                              type: 'string',
+                              format: 'uri',
+                              description: 'Yüklenen dosyanın generic public URL\'i',
+                            },
+                            fileName: {
+                              type: 'string',
+                              description: 'Yüklenen dosyanın adı (timestamp ile birlikte)',
+                              example: '1704067200000-original-filename.jpg',
+                            },
+                            size: {
+                              type: 'integer',
+                              description: 'Dosya boyutu (bytes)',
+                              example: 1024000,
+                            },
+                            contentType: {
+                              type: 'string',
+                              description: 'Dosya MIME type',
+                              example: 'image/jpeg',
+                            },
+                            category: {
+                              type: 'string',
+                              enum: ['news', 'user-documents'],
+                              description: 'Yüklenen dosyanın kategorisi',
+                            },
+                          },
+                          required: ['imageUrl', 'fileUrl', 'fileName', 'size', 'contentType', 'category'],
+                        },
+                      },
+                    },
+                  ],
+                },
+                example: {
+                  success: true,
+                  message: 'Görsel başarıyla yüklendi',
+                  data: {
+                    imageUrl: 'https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg',
+                    documentUrl: 'https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg',
+                    fileUrl: 'https://storage.googleapis.com/bucket-name/news/1704067200000-filename.jpg',
+                    fileName: '1704067200000-filename.jpg',
+                    size: 1024000,
+                    contentType: 'image/jpeg',
+                    category: 'news',
+                  },
+                  code: 'IMAGE_UPLOAD_SUCCESS',
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Geçersiz dosya, kategori veya eksik parametre',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                examples: {
+                  invalidCategory: {
+                    value: {
+                      success: false,
+                      message: 'Geçersiz kategori. İzin verilen kategoriler: news, user-documents',
+                      code: 'VALIDATION_ERROR',
+                    },
+                  },
+                  missingFile: {
+                    value: {
+                      success: false,
+                      message: 'Dosya bulunamadı',
+                      code: 'VALIDATION_ERROR',
+                    },
+                  },
+                  invalidFormat: {
+                    value: {
+                      success: false,
+                      message: 'Geçersiz dosya formatı. İzin verilen formatlar: .jpg, .jpeg, .png, .webp',
+                      code: 'VALIDATION_ERROR',
+                    },
+                  },
+                  fileTooLarge: {
+                    value: {
+                      success: false,
+                      message: 'Dosya boyutu çok büyük. Maksimum boyut: 5MB',
+                      code: 'VALIDATION_ERROR',
+                    },
+                  },
+                  missingUserId: {
+                    value: {
+                      success: false,
+                      message: 'User ID gerekli',
+                      code: 'VALIDATION_ERROR',
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '401': {
+            description: 'Yetkilendirme gerekli',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '403': {
+            description: 'Bu kategori için yetkiniz yok',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                example: {
+                  success: false,
+                  message: 'Bu işlem için admin yetkisi gerekli',
+                  code: 'UNAUTHORIZED',
+                },
+              },
+            },
+          },
+          '500': {
+            description: 'Sunucu hatası (Storage yapılandırma hatası veya dosya yükleme hatası)',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
               },
             },
           },

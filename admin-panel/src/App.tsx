@@ -6,6 +6,7 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import BranchDashboard from './pages/dashboard/BranchDashboard';
 import UsersPage from './pages/users/UsersPage';
 import BranchesPage from './pages/branches/BranchesPage';
+import NewsPage from './pages/news/NewsPage';
 
 function App() {
   return (
@@ -36,6 +37,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <BranchesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/news"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <NewsPage />
               </ProtectedRoute>
             }
           />

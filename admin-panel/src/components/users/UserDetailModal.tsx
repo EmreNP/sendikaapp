@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Phone, MapPin, Calendar, Briefcase, FileText, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, Upload, File, Clock, History, Trash2 } from 'lucide-react';
+import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, Upload, File, Clock, History, Trash2 } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
-import { storage } from '@/config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface UserDetail {
   uid: string;
@@ -393,23 +391,46 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     }
   };
 
-  // PDF yükleme fonksiyonu
+  // PDF yükleme fonksiyonu - Backend API kullanarak
   const uploadPdfToStorage = async (file: File, userId: string): Promise<string> => {
     try {
       setUploadingPdf(true);
       
-      // PDF dosyasını Firebase Storage'a yükle
-      const timestamp = Date.now();
-      const fileName = `user-documents/${userId}/${timestamp}-${file.name}`;
-      const storageRef = ref(storage, fileName);
+      // FormData oluştur
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', userId);
       
-      await uploadBytes(storageRef, file);
+      // Backend API'ye yükle
+      const { api } = await import('@/config/api');
+      const { authService } = await import('@/services/auth/authService');
       
-      // Download URL'ini al
-      const url = await getDownloadURL(storageRef);
+      const token = await authService.getIdToken();
+      const url = api.url('/api/files/user-documents/upload');
       
-      setPdfUrl(url);
-      return url;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Content-Type header'ını eklemeyin, FormData otomatik ekler
+        },
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'PDF yüklenirken bir hata oluştu');
+      }
+      
+      const documentUrl = data.data?.documentUrl || data.data?.fileUrl || data.data?.imageUrl;
+      
+      if (!documentUrl) {
+        throw new Error('Yükleme başarılı ancak URL alınamadı');
+      }
+      
+      setPdfUrl(documentUrl);
+      return documentUrl;
     } catch (err: any) {
       console.error('❌ Error uploading PDF:', err);
       throw new Error('PDF yüklenirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
