@@ -703,7 +703,6 @@ veya şube atamasını kaldırmak için:
       "id": "news-id-123",
       "title": "Haber Başlığı",
       "content": "<p>Haber içeriği</p>",
-      "externalUrl": null,
       "imageUrl": "https://storage.example.com/news/image.jpg",
       "isPublished": true,
       "isFeatured": false,
@@ -739,20 +738,9 @@ veya şube atamasını kaldırmak için:
 }
 ```
 
-veya dış link için:
-```json
-{
-  "title": "Yeni Haber Başlığı",
-  "externalUrl": "https://example.com/news",
-  "imageUrl": "https://storage.example.com/news/image.jpg",
-  "isPublished": false,
-  "isFeatured": false
-}
-```
-
 **Validation Kuralları:**
 - `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
-- `content` veya `externalUrl`: En az biri zorunlu (ikisi birlikte olabilir)
+- `content`: Zorunlu, HTML formatında içerik
 - `isPublished`: Opsiyonel, default: `false`
 - `isFeatured`: Opsiyonel, default: `false`
 
@@ -891,6 +879,223 @@ veya dış link için:
     ]
   },
   "code": "BULK_NEWS_ACTION_PARTIAL"
+}
+```
+
+---
+
+## Announcements Endpoints
+
+### 25. Get Announcements List (Duyuru Listesi)
+**Endpoint:** `GET /api/announcements`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Duyuru listesini getirir.
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm duyurular (yayında + taslak)
+- **Branch Manager/User:** Sadece yayınlanan duyurular
+
+**Query Parameters:**
+- `page` (opsiyonel): Sayfa numarası (default: 1)
+- `limit` (opsiyonel): Sayfa başına kayıt sayısı (default: 20, max: 100)
+- `isPublished` (opsiyonel): Yayın durumu filtresi (sadece admin)
+- `isFeatured` (opsiyonel): Öne çıkan duyuru filtresi (sadece admin)
+- `search` (opsiyonel): Başlık arama metni
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "announcements": [
+    {
+      "id": "announcement-id-123",
+      "title": "Duyuru Başlığı",
+      "content": "<p>Duyuru içeriği</p>",
+      "externalUrl": null,
+      "imageUrl": "https://storage.example.com/announcements/image.jpg",
+      "isPublished": true,
+      "isFeatured": false,
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "createdBy": "admin-uid-123",
+      "updatedBy": "admin-uid-123"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 20
+}
+```
+
+---
+
+### 26. Create Announcement (Duyuru Oluştur)
+**Endpoint:** `POST /api/announcements`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Yeni duyuru oluşturur.
+
+**Request Body:**
+```json
+{
+  "title": "Yeni Duyuru Başlığı",
+  "content": "<p>Duyuru içeriği HTML formatında</p>",
+  "imageUrl": "https://storage.example.com/announcements/image.jpg",
+  "isPublished": false,
+  "isFeatured": false
+}
+```
+
+veya dış link için:
+```json
+{
+  "title": "Yeni Duyuru Başlığı",
+  "externalUrl": "https://example.com/announcement",
+  "imageUrl": "https://storage.example.com/announcements/image.jpg",
+  "isPublished": false,
+  "isFeatured": false
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `content` veya `externalUrl`: En az biri zorunlu (ikisi birlikte olamaz)
+- `imageUrl`: Opsiyonel
+- `isPublished`: Opsiyonel, default: `false`
+- `isFeatured`: Opsiyonel, default: `false`
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Duyuru başarıyla oluşturuldu",
+  "announcement": {
+    "id": "announcement-id-123",
+    "title": "Yeni Duyuru Başlığı",
+    ...
+  }
+}
+```
+
+---
+
+### 27. Get Announcement by ID (Duyuru Detayı)
+**Endpoint:** `GET /api/announcements/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Belirli bir duyurunun detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "announcement": {
+    "id": "announcement-id-123",
+    "title": "Duyuru Başlığı",
+    ...
+  }
+}
+```
+
+---
+
+### 28. Update Announcement (Duyuru Güncelle)
+**Endpoint:** `PUT /api/announcements/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Duyuru bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "content": "<p>Güncellenmiş içerik</p>",
+  "isPublished": true,
+  "isFeatured": true
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Duyuru başarıyla güncellendi",
+  "announcement": {
+    "id": "announcement-id-123",
+    ...
+  }
+}
+```
+
+---
+
+### 29. Delete Announcement (Duyuru Sil)
+**Endpoint:** `DELETE /api/announcements/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Duyuruyu kalıcı olarak siler.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Duyuru başarıyla silindi"
+}
+```
+
+---
+
+### 30. Bulk Announcement Actions (Duyuru Toplu İşlemler)
+**Endpoint:** `POST /api/announcements/bulk`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Birden fazla duyuru için toplu işlem yapar.
+
+**Request Body:**
+```json
+{
+  "action": "delete",
+  "announcementIds": ["announcement-id-1", "announcement-id-2", "announcement-id-3"]
+}
+```
+
+**İşlem Tipleri:**
+- `delete`: Duyuruları kalıcı olarak sil
+- `publish`: Duyuruları yayınla
+- `unpublish`: Duyuruları yayından kaldır
+
+**Response (200 - Tüm işlemler başarılı):**
+```json
+{
+  "success": true,
+  "message": "3 duyuru için toplu işlem başarıyla tamamlandı",
+  "data": {
+    "success": true,
+    "successCount": 3,
+    "failureCount": 0
+  },
+  "code": "BULK_ANNOUNCEMENT_ACTION_SUCCESS"
+}
+```
+
+**Response (207 - Kısmi başarı):**
+```json
+{
+  "success": true,
+  "message": "Toplu işlem kısmen tamamlandı. Başarılı: 2, Başarısız: 1",
+  "data": {
+    "success": false,
+    "successCount": 2,
+    "failureCount": 1,
+    "errors": [
+      {
+        "announcementId": "announcement-id-3",
+        "error": "Duyuru bulunamadı"
+      }
+    ]
+  },
+  "code": "BULK_ANNOUNCEMENT_ACTION_PARTIAL"
 }
 ```
 
@@ -1175,7 +1380,7 @@ veya dış link için:
 - WebP (`.webp`)
 
 **Dosya Boyutu:**
-- Maksimum: 5MB
+- Maksimum: 10MB
 
 **Storage Path:**
 ```
@@ -1193,7 +1398,35 @@ file: [binary image data]
 
 ---
 
-##### 2. `user-documents` - Kullanıcı Belgeleri
+##### 2. `announcements` - Duyuru Görselleri
+
+**Yetki:** Sadece Admin
+
+**Dosya Formatları:**
+- JPEG (`.jpg`, `.jpeg`)
+- PNG (`.png`)
+- WebP (`.webp`)
+
+**Dosya Boyutu:**
+- Maksimum: 10MB
+
+**Storage Path:**
+```
+announcements/{timestamp}-{sanitized-filename}
+```
+
+**Request Örneği:**
+```bash
+POST /api/files/announcements/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+
+file: [binary image data]
+```
+
+---
+
+##### 3. `user-documents` - Kullanıcı Belgeleri
 
 **Yetki:** Admin, Branch Manager
 
@@ -1280,15 +1513,15 @@ userId: user-uid-123  ← ZORUNLU
 #### Validation Kuralları
 
 **Kategori Validasyonu:**
-- Sadece `news` ve `user-documents` kategorileri desteklenir
+- Sadece `news`, `announcements` ve `user-documents` kategorileri desteklenir
 - Diğer kategoriler için 400 hatası döner
 
 **Dosya Formatı Validasyonu:**
 
-**news kategorisi için:**
+**news ve announcements kategorileri için:**
 - MIME Type: `image/jpeg`, `image/jpg`, `image/png`, `image/webp`
 - Uzantı: `.jpg`, `.jpeg`, `.png`, `.webp`
-- Maksimum boyut: 5MB
+- Maksimum boyut: 10MB
 
 **user-documents kategorisi için:**
 - MIME Type: `application/pdf`
@@ -1323,7 +1556,7 @@ userId: user-uid-123  ← ZORUNLU
 Olası hata mesajları:
 - `"Dosya bulunamadı"` - Form-data'da `file` field'ı eksik
 - `"Geçersiz dosya formatı"` - Desteklenmeyen dosya formatı
-- `"Dosya boyutu çok büyük. Maksimum boyut: 5MB"` - Dosya limit aşımı
+- `"Dosya boyutu çok büyük. Maksimum boyut: 10MB"` - Dosya limit aşımı
 - `"User ID gerekli"` - `user-documents` için `userId` eksik
 - `"Geçersiz kategori"` - Desteklenmeyen kategori
 

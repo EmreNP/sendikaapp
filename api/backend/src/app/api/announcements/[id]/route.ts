@@ -3,8 +3,8 @@ import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
-import type { News, UpdateNewsRequest } from '@shared/types/news';
-import { validateUpdateNews } from '@/lib/utils/validation/newsValidation';
+import type { Announcement, UpdateAnnouncementRequest } from '@shared/types/announcement';
+import { validateUpdateAnnouncement } from '@/lib/utils/validation/announcementValidation';
 import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { 
   successResponse, 
@@ -13,17 +13,17 @@ import {
   notFoundError,
   serverError,
   isErrorWithMessage,
-  serializeNewsTimestamps
+  serializeAnnouncementTimestamps
 } from '@/lib/utils/response';
 
-// GET - Tek haber detayı
+// GET - Tek duyuru detayı
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   return withAuth(request, async (req, user) => {
     try {
-      const newsId = params.id;
+      const announcementId = params.id;
       
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
@@ -34,53 +34,53 @@ export async function GET(
       
       const userRole = currentUserData!.role;
       
-      const newsDoc = await db.collection('news').doc(newsId).get();
+      const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
-      if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      if (!announcementDoc.exists) {
+        return notFoundError('Duyuru');
       }
       
-      const newsData = newsDoc.data();
+      const announcementData = announcementDoc.data();
       
-      // USER/BRANCH_MANAGER için sadece yayınlanan haberler
+      // USER/BRANCH_MANAGER için sadece yayınlanan duyurular
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
-        if (!newsData?.isPublished) {
-          return notFoundError('Haber');
+        if (!announcementData?.isPublished) {
+          return notFoundError('Duyuru');
         }
       }
       
-      const news: News = {
-        id: newsDoc.id,
-        ...newsData,
-      } as News;
+      const announcement: Announcement = {
+        id: announcementDoc.id,
+        ...announcementData,
+      } as Announcement;
       
       // Timestamp'leri serialize et
-      const serializedNews = serializeNewsTimestamps(news);
+      const serializedAnnouncement = serializeAnnouncementTimestamps(announcement);
       
       return successResponse(
-        'Haber başarıyla getirildi',
-        { news: serializedNews }
+        'Duyuru başarıyla getirildi',
+        { announcement: serializedAnnouncement }
       );
       
     } catch (error: unknown) {
-      console.error('❌ Get news error:', error);
+      console.error('❌ Get announcement error:', error);
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       return serverError(
-        'Haber getirilirken bir hata oluştu',
+        'Duyuru getirilirken bir hata oluştu',
         errorMessage
       );
     }
   });
 }
 
-// PUT - Haber güncelle (sadece admin)
+// PUT - Duyuru güncelle (sadece admin)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   return withAuth(request, async (req, user) => {
     try {
-      const newsId = params.id;
+      const announcementId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
@@ -93,13 +93,13 @@ export async function PUT(
         return unauthorizedError('Bu işlem için admin yetkisi gerekli');
       }
       
-      const newsDoc = await db.collection('news').doc(newsId).get();
+      const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
-      if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      if (!announcementDoc.exists) {
+        return notFoundError('Duyuru');
       }
       
-      const currentNewsData = newsDoc.data();
+      const currentAnnouncementData = announcementDoc.data();
       
       // Request body size kontrolü (max 1MB)
       const contentLength = request.headers.get('content-length');
@@ -107,12 +107,13 @@ export async function PUT(
         return validationError('İstek boyutu çok büyük. Maksimum 1MB olabilir.');
       }
       
-      const body: UpdateNewsRequest = await request.json();
-      const { title, content, imageUrl, isPublished, isFeatured, publishedAt } = body;
+      const body: UpdateAnnouncementRequest = await request.json();
+      const { title, content, externalUrl, imageUrl, isPublished, isFeatured, publishedAt } = body;
       
       // Mevcut değerlerle birleştirilmiş validation
-      const validation = validateUpdateNews(body, {
-        content: currentNewsData?.content
+      const validation = validateUpdateAnnouncement(body, {
+        content: currentAnnouncementData?.content,
+        externalUrl: currentAnnouncementData?.externalUrl
       });
       
       if (!validation.valid) {
@@ -133,6 +134,10 @@ export async function PUT(
         updateData.content = content ? sanitizeHtml(content) : null;
       }
       
+      if (externalUrl !== undefined) {
+        updateData.externalUrl = externalUrl?.trim() || null;
+      }
+      
       if (imageUrl !== undefined) {
         updateData.imageUrl = imageUrl?.trim() || null;
       }
@@ -146,7 +151,7 @@ export async function PUT(
         updateData.isPublished = isPublished;
         
         // isPublished: true yapılıyorsa ve publishedAt yoksa otomatik set et
-        if (isPublished === true && !currentNewsData?.publishedAt && !publishedAt) {
+        if (isPublished === true && !currentAnnouncementData?.publishedAt && !publishedAt) {
           updateData.publishedAt = admin.firestore.FieldValue.serverTimestamp();
         }
         
@@ -161,45 +166,45 @@ export async function PUT(
         updateData.publishedAt = admin.firestore.Timestamp.fromDate(new Date(publishedAt));
       }
       
-      await db.collection('news').doc(newsId).update(updateData);
+      await db.collection('announcements').doc(announcementId).update(updateData);
       
-      // Güncellenmiş haberi getir
-      const updatedNewsDoc = await db.collection('news').doc(newsId).get();
-      const updatedNewsData = updatedNewsDoc.data();
-      const news: News = {
-        id: newsId,
-        ...updatedNewsData,
-      } as News;
+      // Güncellenmiş duyuruyu getir
+      const updatedAnnouncementDoc = await db.collection('announcements').doc(announcementId).get();
+      const updatedAnnouncementData = updatedAnnouncementDoc.data();
+      const announcement: Announcement = {
+        id: announcementId,
+        ...updatedAnnouncementData,
+      } as Announcement;
       
       // Timestamp'leri serialize et
-      const serializedNews = serializeNewsTimestamps(news);
+      const serializedAnnouncement = serializeAnnouncementTimestamps(announcement);
       
       return successResponse(
-        'Haber başarıyla güncellendi',
-        { news: serializedNews },
+        'Duyuru başarıyla güncellendi',
+        { announcement: serializedAnnouncement },
         200,
-        'NEWS_UPDATE_SUCCESS'
+        'ANNOUNCEMENT_UPDATE_SUCCESS'
       );
       
     } catch (error: unknown) {
-      console.error('❌ Update news error:', error);
+      console.error('❌ Update announcement error:', error);
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       return serverError(
-        'Haber güncellenirken bir hata oluştu',
+        'Duyuru güncellenirken bir hata oluştu',
         errorMessage
       );
     }
   });
 }
 
-// DELETE - Haber sil (sadece admin, hard delete)
+// DELETE - Duyuru sil (sadece admin, hard delete)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   return withAuth(request, async (req, user) => {
     try {
-      const newsId = params.id;
+      const announcementId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
@@ -212,29 +217,29 @@ export async function DELETE(
         return unauthorizedError('Bu işlem için admin yetkisi gerekli');
       }
       
-      const newsDoc = await db.collection('news').doc(newsId).get();
+      const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
-      if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      if (!announcementDoc.exists) {
+        return notFoundError('Duyuru');
       }
       
       // Hard delete - belgeyi tamamen sil
-      await db.collection('news').doc(newsId).delete();
+      await db.collection('announcements').doc(announcementId).delete();
       
-      console.log(`✅ News ${newsId} deleted`);
+      console.log(`✅ Announcement ${announcementId} deleted`);
       
       return successResponse(
-        'Haber başarıyla silindi',
+        'Duyuru başarıyla silindi',
         undefined,
         200,
-        'NEWS_DELETE_SUCCESS'
+        'ANNOUNCEMENT_DELETE_SUCCESS'
       );
       
     } catch (error: unknown) {
-      console.error('❌ Delete news error:', error);
+      console.error('❌ Delete announcement error:', error);
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       return serverError(
-        'Haber silinirken bir hata oluştu',
+        'Duyuru silinirken bir hata oluştu',
         errorMessage
       );
     }

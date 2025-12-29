@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      if (education && !Object.values(EDUCATION_LEVEL).includes(education)) {
+      if (education && !Object.values(EDUCATION_LEVEL).includes(education as any)) {
         return validationError('Geçersiz eğitim seviyesi');
       }
       
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       if (fatherName !== undefined) updateData.fatherName = fatherName;
       if (motherName !== undefined) updateData.motherName = motherName;
       if (birthPlace !== undefined) updateData.birthPlace = birthPlace;
-      if (education !== undefined) updateData.education = education;
+      if (education !== undefined) updateData.education = education as any;
       if (kurumSicil !== undefined) updateData.kurumSicil = kurumSicil;
       if (kadroUnvani !== undefined) updateData.kadroUnvani = kadroUnvani;
       if (kadroUnvanKodu !== undefined) updateData.kadroUnvanKodu = kadroUnvanKodu;
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       if (city !== undefined) updateData.city = city;
       if (district !== undefined) updateData.district = district;
       
-      await db.collection('users').doc(user.uid).update(updateData);
+      await db.collection('users').doc(user.uid).update(updateData as any);
       
       // 4.5️⃣ REGISTRATION LOG OLUŞTUR
       await createRegistrationLog({

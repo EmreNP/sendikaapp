@@ -90,7 +90,7 @@ export async function PATCH(
         // User rolüne geçerken branchId korunur (opsiyonel)
       }
       
-      await db.collection('users').doc(targetUserId).update(updateData);
+      await db.collection('users').doc(targetUserId).update(updateData as any);
       
       console.log(`✅ User ${targetUserId} role updated: ${currentRole} → ${newRole}`);
       

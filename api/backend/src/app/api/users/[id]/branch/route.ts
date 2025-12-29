@@ -78,7 +78,7 @@ export async function PATCH(
         updateData.branchId = branchId;
       }
       
-      await db.collection('users').doc(targetUserId).update(updateData);
+      await db.collection('users').doc(targetUserId).update(updateData as any);
       
       console.log(`✅ User ${targetUserId} branch updated: ${currentBranchId || 'none'} → ${branchId || 'none'}`);
       

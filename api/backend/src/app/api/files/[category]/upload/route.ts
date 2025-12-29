@@ -13,7 +13,7 @@ import {
 } from '@/lib/utils/response';
 
 // İzin verilen kategoriler
-const ALLOWED_CATEGORIES = ['news', 'user-documents'] as const;
+const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
@@ -24,6 +24,13 @@ function getCategoryPermissions(category: string, userRole: string): {
   switch (category) {
     case 'news':
       // News: Sadece admin
+      return {
+        canUpload: userRole === USER_ROLE.ADMIN,
+        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+      };
+    
+    case 'announcements':
+      // Announcements: Sadece admin
       return {
         canUpload: userRole === USER_ROLE.ADMIN,
         error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,

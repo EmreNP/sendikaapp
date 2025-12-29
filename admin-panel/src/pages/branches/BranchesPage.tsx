@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Search, Trash2, XCircle, CheckCircle, Edit } from 'lucide-react';
+import { Building2, Search, Trash2, XCircle, CheckCircle, Edit } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import BranchFormModal from '@/components/branches/BranchFormModal';
@@ -14,7 +14,7 @@ interface Branch {
   district?: string;
   phone?: string;
   email?: string;
-  isActive: boolean;
+  isActive?: boolean;
 }
 
 export default function BranchesPage() {
@@ -265,7 +265,7 @@ export default function BranchesPage() {
                                       variant: 'warning',
                                       onConfirm: () => {
                                         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                        handleToggleActive(branch.id, branch.isActive);
+                                        handleToggleActive(branch.id, branch.isActive ?? false);
                                       },
                                     });
                                   }}
@@ -285,7 +285,7 @@ export default function BranchesPage() {
                                       variant: 'info',
                                       onConfirm: () => {
                                         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                        handleToggleActive(branch.id, branch.isActive);
+                                        handleToggleActive(branch.id, branch.isActive ?? false);
                                       },
                                     });
                                   }}
@@ -303,7 +303,6 @@ export default function BranchesPage() {
                                     title: 'Şubeyi Sil',
                                     message: `${branch.name} şubesini silmek istediğinizden emin misiniz? Bu şubeye bağlı kullanıcılar varsa işlem başarısız olacaktır.`,
                                     variant: 'danger',
-                                    confirmText: 'Sil',
                                     onConfirm: () => {
                                       setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                                       handleDeleteBranch(branch.id);

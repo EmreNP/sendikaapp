@@ -114,7 +114,7 @@ export async function PATCH(
         updateData.documentUrl = documentUrl;
       }
       
-      await db.collection('users').doc(targetUserId).update(updateData);
+      await db.collection('users').doc(targetUserId).update(updateData as any);
       
       console.log(`📊 Status update - User: ${targetUserId}, Role: ${userRole}, Current: ${currentStatus}, New: ${newStatus}`);
       console.log(`📊 USER_ROLE.ADMIN: ${USER_ROLE.ADMIN}, userRole: ${userRole}, Match: ${userRole === USER_ROLE.ADMIN}`);

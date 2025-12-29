@@ -1,22 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
-import { X, Upload, XCircle, Scissors } from 'lucide-react';
+import { X, XCircle, Scissors } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { newsService } from '@/services/api/newsService';
-import type { News, CreateNewsRequest, UpdateNewsRequest } from '@/types/news';
-import ImageCropModal from './ImageCropModal';
+import { announcementService } from '@/services/api/announcementService';
+import type { Announcement, CreateAnnouncementRequest, UpdateAnnouncementRequest } from '@/types/announcement';
+import ImageCropModal from '../news/ImageCropModal';
 
-interface NewsFormModalProps {
-  news: News | null;
+interface AnnouncementFormModalProps {
+  announcement: Announcement | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: NewsFormModalProps) {
+export default function AnnouncementFormModal({ announcement, isOpen, onClose, onSuccess }: AnnouncementFormModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
+    externalUrl: '',
     imageUrl: '',
     isPublished: false,
     isFeatured: false,
@@ -31,24 +32,26 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
   const [croppedImageBlob, setCroppedImageBlob] = useState<Blob | null>(null);
   const [croppedImagePreview, setCroppedImagePreview] = useState<string>('');
 
-  const isEditMode = !!news;
+  const isEditMode = !!announcement;
 
   useEffect(() => {
     if (isOpen) {
-      if (news) {
+      if (announcement) {
         // Edit mode - mevcut verileri doldur
         setFormData({
-          title: news.title || '',
-          content: news.content || '',
-          imageUrl: news.imageUrl || '',
-          isPublished: news.isPublished || false,
-          isFeatured: news.isFeatured || false,
+          title: announcement.title || '',
+          content: announcement.content || '',
+          externalUrl: announcement.externalUrl || '',
+          imageUrl: announcement.imageUrl || '',
+          isPublished: announcement.isPublished || false,
+          isFeatured: announcement.isFeatured || false,
         });
       } else {
         // Create mode - formu temizle
         setFormData({
           title: '',
           content: '',
+          externalUrl: '',
           imageUrl: '',
           isPublished: true, // Varsayılan olarak işaretli
           isFeatured: false,
@@ -61,7 +64,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
       setCroppedImagePreview('');
       setIsCropModalOpen(false);
     }
-  }, [isOpen, news]);
+  }, [isOpen, announcement]);
 
   // Görsel seçildiğinde crop modal'ı aç
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,8 +120,26 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
       return;
     }
 
-    if (!formData.content.trim()) {
-      setError('İçerik zorunludur');
+    // İçerik ve dış link aynı anda kullanılamaz kontrolü
+    // ReactQuill HTML döndürür, sadece tag'leri temizleyerek kontrol et
+    const contentText = formData.content.replace(/<[^>]*>/g, '').trim();
+    const hasContent = contentText !== '';
+    const hasExternalUrl = formData.externalUrl.trim() !== '';
+    
+    if (!hasContent && !hasExternalUrl) {
+      setError('İçerik veya dış link alanlarından en az biri zorunludur');
+      return;
+    }
+    
+    if (hasContent && hasExternalUrl) {
+      setError('İçerik ve dış link aynı anda kullanılamaz. Lütfen sadece birini seçin.');
+      return;
+    }
+    
+    // İçerik minimum uzunluk kontrolü (sadece içerik kullanıldığında)
+    // ExternalUrl kullanıldığında içerik kontrolü yapılmamalı
+    if (hasContent && !hasExternalUrl && contentText.length < 10) {
+      setError('İçerik en az 10 karakter olmalıdır');
       return;
     }
 
@@ -134,22 +155,23 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
           type: 'image/jpeg',
         });
         
-        const uploadResult = await newsService.uploadImage(croppedFile);
+        const uploadResult = await announcementService.uploadImage(croppedFile);
         imageUrl = uploadResult.imageUrl;
       }
 
-      const body: CreateNewsRequest | UpdateNewsRequest = {
+      const body: CreateAnnouncementRequest | UpdateAnnouncementRequest = {
         title: formData.title.trim(),
-        content: formData.content,
+        content: formData.content || undefined,
+        externalUrl: formData.externalUrl.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         isPublished: formData.isPublished,
         isFeatured: formData.isFeatured,
       };
 
       if (isEditMode) {
-        await newsService.updateNews(news!.id, body);
+        await announcementService.updateAnnouncement(announcement!.id, body);
       } else {
-        await newsService.createNews(body as CreateNewsRequest);
+        await announcementService.createAnnouncement(body as CreateAnnouncementRequest);
       }
 
       // Preview URL'lerini temizle
@@ -160,8 +182,8 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving news:', err);
-      setError(err.message || 'Haber kaydedilirken bir hata oluştu');
+      console.error('Error saving announcement:', err);
+      setError(err.message || 'Duyuru kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -183,7 +205,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
             <h2 className="text-sm font-medium text-white">
-              {isEditMode ? 'Haber Düzenle' : 'Yeni Haber Ekle'}
+              {isEditMode ? 'Duyuru Düzenle' : 'Yeni Duyuru Ekle'}
             </h2>
             <button
               onClick={onClose}
@@ -213,7 +235,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   required
-                  placeholder="Haber başlığı"
+                  placeholder="Duyuru başlığı"
                   maxLength={200}
                 />
               </div>
@@ -221,30 +243,100 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
               {/* İçerik */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  İçerik <span className="text-red-500">*</span>
+                  İçerik {formData.externalUrl.trim() ? '' : <span className="text-red-500">*</span>}
                 </label>
-                <ReactQuill
-                  theme="snow"
-                  value={formData.content}
-                  onChange={(value) => setFormData({ ...formData, content: value })}
-                  placeholder="Haber içeriğini buraya yazın..."
-                  modules={{
-                    toolbar: [
-                      [{ header: [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline'],
-                      [{ list: 'ordered' }, { list: 'bullet' }],
-                      ['link'],
-                      ['clean'],
-                    ],
+                <div className={formData.externalUrl.trim() ? 'opacity-50 pointer-events-none' : ''}>
+                  <ReactQuill
+                    theme="snow"
+                    value={formData.content}
+                    onChange={(value) => {
+                      // HTML tag'lerini temizleyerek kontrol et
+                      const textContent = value.replace(/<[^>]*>/g, '').trim();
+                      // Eğer içerik dolduruluyorsa, dış link'i temizle
+                      if (textContent !== '') {
+                        setFormData({ ...formData, content: value, externalUrl: '' });
+                      } else {
+                        setFormData({ ...formData, content: value });
+                      }
+                    }}
+                    placeholder="Duyuru içeriğini buraya yazın..."
+                    modules={{
+                      toolbar: [
+                        [{ header: [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline'],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        ['link'],
+                        ['clean'],
+                      ],
+                    }}
+                    className="bg-white"
+                    readOnly={!!formData.externalUrl.trim()}
+                  />
+                </div>
+                {formData.externalUrl.trim() && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Dış link kullanıldığı için içerik alanı devre dışı bırakıldı
+                  </p>
+                )}
+                {!formData.externalUrl.trim() && formData.content.replace(/<[^>]*>/g, '').trim() === '' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    İçerik veya dış link alanlarından en az biri zorunludur
+                  </p>
+                )}
+                {!formData.externalUrl.trim() && formData.content.replace(/<[^>]*>/g, '').trim() !== '' && (
+                  (() => {
+                    const textLength = formData.content.replace(/<[^>]*>/g, '').trim().length;
+                    if (textLength > 0 && textLength < 10) {
+                      return (
+                        <p className="text-xs text-amber-600 mt-1">
+                          İçerik en az 10 karakter olmalıdır (şu an: {textLength} karakter)
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()
+                )}
+              </div>
+
+              {/* Dış Link */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dış Link {formData.content.replace(/<[^>]*>/g, '').trim() ? '' : <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="url"
+                  value={formData.externalUrl}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    // Eğer dış link dolduruluyorsa, içeriği temizle
+                    if (url.trim() !== '') {
+                      setFormData({ ...formData, externalUrl: url, content: '' });
+                    } else {
+                      setFormData({ ...formData, externalUrl: url });
+                    }
                   }}
-                  className="bg-white"
+                  disabled={!!formData.content.replace(/<[^>]*>/g, '').trim()}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent ${
+                    formData.content.replace(/<[^>]*>/g, '').trim() ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
+                  }`}
+                  placeholder="https://example.com"
                 />
+                {formData.content.replace(/<[^>]*>/g, '').trim() && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    İçerik kullanıldığı için dış link alanı devre dışı bırakıldı
+                  </p>
+                )}
+                {!formData.content.replace(/<[^>]*>/g, '').trim() && !formData.externalUrl.trim() && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    İçerik veya dış link alanlarından en az biri zorunludur
+                  </p>
+                )}
               </div>
 
               {/* Görsel Yükleme */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Görsel <span className="text-gray-500 text-xs">(16:9 oranında kırpılacak)</span>
+                  Görsel <span className="text-gray-500 text-xs">(Opsiyonel - 16:9 oranında kırpılacak)</span>
                 </label>
                 
                 {/* Yükleme Alanı */}
@@ -293,7 +385,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
                           </p>
                           {croppedImagePreview ? (
                             <p className="text-xs text-gray-500 mt-1">
-                              Haber oluşturulduğunda yüklenecek
+                              Duyuru oluşturulduğunda yüklenecek
                             </p>
                           ) : (
                             <p className="text-xs text-gray-500 mt-1 break-all">{formData.imageUrl}</p>
@@ -340,11 +432,11 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
                   <span className="text-sm font-medium text-gray-700">Hemen yayınla</span>
                 </label>
                 <p className="text-xs text-gray-500 mt-1 ml-6">
-                  İşaretlenmezse haber taslak olarak kaydedilir
+                  İşaretlenmezse duyuru taslak olarak kaydedilir
                 </p>
               </div>
 
-              {/* Öne Çıkan Haber */}
+              {/* Öne Çıkan Duyuru */}
               <div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -353,10 +445,10 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
                     onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
                     className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Öne çıkan haber</span>
+                  <span className="text-sm font-medium text-gray-700">Öne çıkan duyuru</span>
                 </label>
                 <p className="text-xs text-gray-500 mt-1 ml-6">
-                  Öne çıkan haberler ana sayfada özel olarak gösterilir
+                  Öne çıkan duyurular ana sayfada özel olarak gösterilir
                 </p>
               </div>
             </div>

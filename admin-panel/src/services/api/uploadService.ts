@@ -1,7 +1,7 @@
 import { api } from '@/config/api';
 import { authService } from '@/services/auth/authService';
 
-export type UploadCategory = 'news';
+export type UploadCategory = 'news' | 'announcements';
 
 export interface UploadImageResponse {
   imageUrl: string;

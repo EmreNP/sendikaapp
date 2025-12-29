@@ -31,7 +31,7 @@ const sidebarItems: SidebarItem[] = [
   },
   {
     icon: Newspaper,
-    label: 'Haberler',
+    label: 'Haberler & Duyurular',
     path: '/admin/news',
     roles: ['admin'],
   },

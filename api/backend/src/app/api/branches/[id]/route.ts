@@ -160,7 +160,7 @@ export async function PUT(
       if (email !== undefined) updateData.email = email?.trim() || null;
       if (isActive !== undefined) updateData.isActive = isActive;
       
-      await db.collection('branches').doc(branchId).update(updateData);
+      await db.collection('branches').doc(branchId).update(updateData as any);
       
       // Güncellenmiş şubeyi getir
       const updatedBranchDoc = await db.collection('branches').doc(branchId).get();

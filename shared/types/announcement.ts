@@ -1,12 +1,13 @@
 import { Timestamp } from './user';
 
-export interface News {
+export interface Announcement {
   id: string;
   title: string;                    // Zorunlu, 2-200 karakter
-  content: string;                   // HTML string (sanitize edilmiş), zorunlu
+  content?: string;                  // HTML string (sanitize edilmiş), externalUrl yoksa zorunlu
+  externalUrl?: string;              // URL string, content yoksa zorunlu
   imageUrl?: string;                 // Opsiyonel görsel URL
   isPublished: boolean;              // Yayın durumu
-  isFeatured: boolean;                // Öne çıkan haber (default: false)
+  isFeatured: boolean;                // Öne çıkan duyuru (default: false)
   publishedAt?: Timestamp | Date;    // Yayınlanma tarihi (isPublished: true ise set edilir)
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
@@ -15,17 +16,19 @@ export interface News {
 }
 
 // API Request/Response Types
-export interface CreateNewsRequest {
+export interface CreateAnnouncementRequest {
   title: string;
-  content: string;        // HTML string - zorunlu
+  content?: string;        // HTML string - externalUrl yoksa zorunlu
+  externalUrl?: string;    // URL string - content yoksa zorunlu
   imageUrl?: string;
   isPublished?: boolean;  // Default: false
   isFeatured?: boolean;   // Default: false
 }
 
-export interface UpdateNewsRequest {
+export interface UpdateAnnouncementRequest {
   title?: string;
   content?: string;
+  externalUrl?: string;
   imageUrl?: string;
   isPublished?: boolean;
   isFeatured?: boolean;
@@ -33,19 +36,19 @@ export interface UpdateNewsRequest {
 }
 
 // Bulk operations
-export type BulkNewsAction = 'delete' | 'publish' | 'unpublish';
+export type BulkAnnouncementAction = 'delete' | 'publish' | 'unpublish';
 
-export interface BulkNewsActionRequest {
-  action: BulkNewsAction;
-  newsIds: string[];
+export interface BulkAnnouncementActionRequest {
+  action: BulkAnnouncementAction;
+  announcementIds: string[];
 }
 
-export interface BulkNewsActionResult {
+export interface BulkAnnouncementActionResult {
   success: boolean;
   successCount: number;
   failureCount: number;
   errors?: Array<{
-    newsId: string;
+    announcementId: string;
     error: string;
   }>;
 }

@@ -1,8 +1,9 @@
-// News types - shared/types/news.ts'den import edilebilir ama admin panel için ayrı tanım
-export interface News {
+// Announcement types - shared/types/announcement.ts'den import edilebilir ama admin panel için ayrı tanım
+export interface Announcement {
   id: string;
   title: string;
-  content: string;
+  content?: string;
+  externalUrl?: string;
   imageUrl?: string;
   isPublished: boolean;
   isFeatured: boolean;
@@ -13,38 +14,40 @@ export interface News {
   updatedBy?: string;
 }
 
-export interface CreateNewsRequest {
+export interface CreateAnnouncementRequest {
   title: string;
-  content: string;
+  content?: string;
+  externalUrl?: string;
   imageUrl?: string;
   isPublished?: boolean;
   isFeatured?: boolean;
 }
 
-export interface UpdateNewsRequest {
+export interface UpdateAnnouncementRequest {
   title?: string;
   content?: string;
+  externalUrl?: string;
   imageUrl?: string;
   isPublished?: boolean;
   isFeatured?: boolean;
   publishedAt?: string;
 }
 
-export interface NewsListResponse {
-  news: News[];
+export interface AnnouncementListResponse {
+  announcements: Announcement[];
   total: number;
   page: number;
   limit: number;
 }
 
-export type BulkNewsAction = 'delete' | 'publish' | 'unpublish';
+export type BulkAnnouncementAction = 'delete' | 'publish' | 'unpublish';
 
-export interface BulkNewsActionResult {
+export interface BulkAnnouncementActionResult {
   success: boolean;
   successCount: number;
   failureCount: number;
   errors?: Array<{
-    newsId: string;
+    announcementId: string;
     error: string;
   }>;
 }

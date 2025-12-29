@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Newspaper, ExternalLink, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import { X, Newspaper, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import type { News } from '@/types/news';
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
@@ -29,7 +29,7 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
     let d: Date;
     
     // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date) {
+    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
       d = new Date(date.seconds * 1000 + (date.nanoseconds || 0) / 1000000);
     } else if (typeof date === 'string' || date instanceof Date) {
       d = new Date(date);
@@ -130,32 +130,13 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
               </div>
             </div>
 
-            {/* İçerik veya Dış Link */}
-            {news.externalUrl ? (
-              <div className="mb-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ExternalLink className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-blue-900">Dış Link Haberi</span>
-                  </div>
-                  <a
-                    href={news.externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline break-all"
-                  >
-                    {news.externalUrl}
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: news.content || '' }}
-                />
-              </div>
-            )}
+            {/* İçerik */}
+            <div className="mb-6">
+              <div
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: news.content || '' }}
+              />
+            </div>
 
           </div>
         </div>

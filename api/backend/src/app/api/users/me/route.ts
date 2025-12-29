@@ -174,13 +174,13 @@ export async function PUT(request: NextRequest) {
           if (field === 'birthDate' && body[field]) {
             updateData[field] = admin.firestore.Timestamp.fromDate(new Date(body[field]));
           } else {
-            updateData[field] = body[field];
+            (updateData as any)[field] = body[field];
           }
         }
       });
       
       // Firestore'da güncelle
-      await db.collection('users').doc(user.uid).update(updateData);
+      await db.collection('users').doc(user.uid).update(updateData as any);
       
       // Güncellenmiş kullanıcı bilgilerini getir
       const updatedUserDoc = await db.collection('users').doc(user.uid).get();

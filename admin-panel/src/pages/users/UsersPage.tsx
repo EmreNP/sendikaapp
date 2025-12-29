@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Users as UsersIcon, Search, Filter, XCircle, CheckCircle, MoreVertical, UserCog } from 'lucide-react';
+import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
@@ -117,9 +117,6 @@ export default function UsersPage() {
     return matchesSearch && matchesBranch && matchesUserType;
   });
 
-  const getStatusColor = (status: string) => {
-    return 'bg-gray-100 text-gray-700';
-  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -156,26 +153,6 @@ export default function UsersPage() {
     setSelectedUserIds(newSelected);
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      setProcessing(true);
-      const { apiRequest } = await import('@/utils/api');
-      await apiRequest(`/api/users/${userId}`, { method: 'DELETE' });
-      
-      // State'den direkt kaldır
-      setUsers(prev => prev.filter(u => u.uid !== userId));
-      setSelectedUserIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      setError(error.message || 'Kullanıcı silinirken bir hata oluştu');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const handleDeactivateUser = async (userId: string) => {
     try {

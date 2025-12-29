@@ -3,8 +3,8 @@ import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
-import type { News, CreateNewsRequest } from '@shared/types/news';
-import { validateCreateNews } from '@/lib/utils/validation/newsValidation';
+import type { Announcement, CreateAnnouncementRequest } from '@shared/types/announcement';
+import { validateCreateAnnouncement } from '@/lib/utils/validation/announcementValidation';
 import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { 
   successResponse, 
@@ -12,10 +12,10 @@ import {
   unauthorizedError,
   serverError,
   isErrorWithMessage,
-  serializeNewsTimestamps
+  serializeAnnouncementTimestamps
 } from '@/lib/utils/response';
 
-// GET - Tüm haberleri listele
+// GET - Tüm duyuruları listele
 export async function GET(request: NextRequest) {
   return withAuth(request, async (req, user) => {
     try {
@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
       const search = searchParams.get('search');
       
       // Query oluştur
-      let query = db.collection('news') as admin.firestore.Query;
+      let query: admin.firestore.Query = db.collection('announcements') as admin.firestore.Query;
       
-      // USER/BRANCH_MANAGER için sadece yayınlanan haberler
+      // USER/BRANCH_MANAGER için sadece yayınlanan duyurular
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         query = query.where('isPublished', '==', true);
       } else if (userRole === USER_ROLE.ADMIN) {
@@ -57,33 +57,33 @@ export async function GET(request: NextRequest) {
       // Query'yi çalıştır
       const snapshot = await query.orderBy('createdAt', 'desc').get();
       
-      let news = snapshot.docs.map((doc) => ({
+      let announcements = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      })) as News[];
+      })) as Announcement[];
       
       // Search filtresi (client-side - Firestore'da full-text search yok)
       if (search) {
         const searchLower = search.toLowerCase();
-        news = news.filter((n: News) => {
-          const title = (n.title || '').toLowerCase();
+        announcements = announcements.filter((a: Announcement) => {
+          const title = (a.title || '').toLowerCase();
           return title.includes(searchLower);
         });
       }
       
       // Sayfalama
-      const total = news.length;
+      const total = announcements.length;
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
-      const paginatedNews = news.slice(startIndex, endIndex);
+      const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
       
       // Timestamp'leri serialize et
-      const serializedNews = paginatedNews.map(n => serializeNewsTimestamps(n));
+      const serializedAnnouncements = paginatedAnnouncements.map(a => serializeAnnouncementTimestamps(a));
       
       return successResponse(
-        'Haberler başarıyla getirildi',
+        'Duyurular başarıyla getirildi',
         {
-          news: serializedNews,
+          announcements: serializedAnnouncements,
           total,
           page,
           limit,
@@ -91,17 +91,17 @@ export async function GET(request: NextRequest) {
       );
       
     } catch (error: unknown) {
-      console.error('❌ Get news error:', error);
+      console.error('❌ Get announcements error:', error);
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       return serverError(
-        'Haberler getirilirken bir hata oluştu',
+        'Duyurular getirilirken bir hata oluştu',
         errorMessage
       );
     }
   });
 }
 
-// POST - Yeni haber oluştur (sadece admin)
+// POST - Yeni duyuru oluştur (sadece admin)
 export async function POST(request: NextRequest) {
   return withAuth(request, async (req, user) => {
     try {
@@ -122,23 +122,27 @@ export async function POST(request: NextRequest) {
         return validationError('İstek boyutu çok büyük. Maksimum 1MB olabilir.');
       }
       
-      const body: CreateNewsRequest = await request.json();
-      const { title, content, imageUrl, isPublished, isFeatured } = body;
+      const body: CreateAnnouncementRequest = await request.json();
+      const { title, content, externalUrl, imageUrl, isPublished, isFeatured } = body;
       
       // Validation
-      const validation = validateCreateNews(body);
+      const validation = validateCreateAnnouncement(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
         return validationError(firstError);
       }
       
-      // HTML sanitization
-      const sanitizedContent = sanitizeHtml(content);
+      // HTML sanitization (content varsa)
+      let sanitizedContent = content;
+      if (content) {
+        sanitizedContent = sanitizeHtml(content);
+      }
       
-      // Yeni haber oluştur
-      const newsData = {
+      // Yeni duyuru oluştur
+      const announcementData = {
         title: title.trim(),
-        content: sanitizedContent,
+        content: sanitizedContent || null,
+        externalUrl: externalUrl?.trim() || null,
         imageUrl: imageUrl?.trim() || null,
         isPublished: isPublished || false,
         isFeatured: isFeatured || false,
@@ -148,30 +152,30 @@ export async function POST(request: NextRequest) {
         createdBy: user.uid,
       };
       
-      const newsRef = await db.collection('news').add(newsData);
+      const announcementRef = await db.collection('announcements').add(announcementData);
       
-      // Oluşturulan haberi getir
-      const newsDoc = await newsRef.get();
-      const news: News = {
-        id: newsDoc.id,
-        ...newsDoc.data(),
-      } as News;
+      // Oluşturulan duyuruyu getir
+      const announcementDoc = await announcementRef.get();
+      const announcement: Announcement = {
+        id: announcementDoc.id,
+        ...announcementDoc.data(),
+      } as Announcement;
       
       // Timestamp'leri serialize et
-      const serializedNews = serializeNewsTimestamps(news);
+      const serializedAnnouncement = serializeAnnouncementTimestamps(announcement);
       
       return successResponse(
-        'Haber başarıyla oluşturuldu',
-        { news: serializedNews },
+        'Duyuru başarıyla oluşturuldu',
+        { announcement: serializedAnnouncement },
         201,
-        'NEWS_CREATE_SUCCESS'
+        'ANNOUNCEMENT_CREATE_SUCCESS'
       );
       
     } catch (error: unknown) {
-      console.error('❌ Create news error:', error);
+      console.error('❌ Create announcement error:', error);
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       return serverError(
-        'Haber oluşturulurken bir hata oluştu',
+        'Duyuru oluşturulurken bir hata oluştu',
         errorMessage
       );
     }

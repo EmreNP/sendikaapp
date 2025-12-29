@@ -36,23 +36,6 @@ export const validateNewsContent = (content: string): { valid: boolean; error?: 
   return { valid: true };
 };
 
-// External URL validation
-export const validateNewsExternalUrl = (url: string): { valid: boolean; error?: string } => {
-  if (!url || url.trim() === '') {
-    return { valid: false, error: 'Dış link zorunludur' };
-  }
-  
-  try {
-    const urlObj = new URL(url);
-    // Sadece http ve https protokollerine izin ver
-    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-      return { valid: false, error: 'Geçersiz URL protokolü. Sadece http ve https desteklenir' };
-    }
-    return { valid: true };
-  } catch {
-    return { valid: false, error: 'Geçersiz URL formatı' };
-  }
-};
 
 // Image URL validation
 export const validateNewsImageUrl = (url: string): { valid: boolean; error?: string } => {
@@ -79,32 +62,6 @@ export const validateNewsFeatured = (isFeatured: boolean): { valid: boolean; err
   return { valid: true };
 };
 
-// Content/ExternalUrl mutual exclusivity check
-export const validateNewsData = (data: {
-  content?: string;
-  externalUrl?: string;
-}): { valid: boolean; error?: string } => {
-  const hasContent = !!data.content;
-  const hasExternalUrl = !!data.externalUrl;
-  
-  // İkisi de yoksa hata
-  if (!hasContent && !hasExternalUrl) {
-    return { 
-      valid: false, 
-      error: 'İçerik (content) veya dış link (externalUrl) alanlarından biri zorunludur' 
-    };
-  }
-  
-  // İkisi de varsa hata
-  if (hasContent && hasExternalUrl) {
-    return { 
-      valid: false, 
-      error: 'İçerik (content) ve dış link (externalUrl) aynı anda kullanılamaz' 
-    };
-  }
-  
-  return { valid: true };
-};
 
 // Validation Result Interface
 export interface NewsValidationResult {
@@ -122,29 +79,13 @@ export const validateCreateNews = (data: CreateNewsRequest): NewsValidationResul
     errors.title = titleValidation.error || 'Geçersiz başlık';
   }
   
-  // Content/ExternalUrl mutual exclusivity check
-  const dataValidation = validateNewsData({
-    content: data.content,
-    externalUrl: data.externalUrl
-  });
-  if (!dataValidation.valid) {
-    errors.content = dataValidation.error;
-    errors.externalUrl = dataValidation.error;
-  }
-  
-  // Content validation (eğer varsa)
-  if (data.content) {
+  // Content validation (zorunlu)
+  if (!data.content) {
+    errors.content = 'İçerik zorunludur';
+  } else {
     const contentValidation = validateNewsContent(data.content);
     if (!contentValidation.valid) {
       errors.content = contentValidation.error || 'Geçersiz içerik';
-    }
-  }
-  
-  // ExternalUrl validation (eğer varsa)
-  if (data.externalUrl) {
-    const urlValidation = validateNewsExternalUrl(data.externalUrl);
-    if (!urlValidation.valid) {
-      errors.externalUrl = urlValidation.error || 'Geçersiz URL';
     }
   }
   
@@ -173,7 +114,7 @@ export const validateCreateNews = (data: CreateNewsRequest): NewsValidationResul
 // Update News Validation (mevcut değerlerle birleştirilmiş)
 export const validateUpdateNews = (
   data: UpdateNewsRequest,
-  currentNews: { content?: string; externalUrl?: string }
+  currentNews: { content?: string }
 ): NewsValidationResult => {
   const errors: Record<string, string> = {};
   
@@ -187,32 +128,20 @@ export const validateUpdateNews = (
   
   // Mevcut değerlerle birleştir
   const newContent = data.content !== undefined ? data.content : currentNews.content;
-  const newExternalUrl = data.externalUrl !== undefined ? data.externalUrl : currentNews.externalUrl;
   
-  // Content/ExternalUrl mutual exclusivity check
-  const dataValidation = validateNewsData({
-    content: newContent,
-    externalUrl: newExternalUrl
-  });
-  if (!dataValidation.valid) {
-    errors.content = dataValidation.error;
-    errors.externalUrl = dataValidation.error;
-  }
-  
-  // Content validation (eğer varsa)
-  if (newContent) {
-    const contentValidation = validateNewsContent(newContent);
-    if (!contentValidation.valid) {
-      errors.content = contentValidation.error || 'Geçersiz içerik';
+  // Content validation (eğer güncelleniyorsa veya mevcut değer yoksa zorunlu)
+  if (data.content !== undefined) {
+    if (!newContent) {
+      errors.content = 'İçerik zorunludur';
+    } else {
+      const contentValidation = validateNewsContent(newContent);
+      if (!contentValidation.valid) {
+        errors.content = contentValidation.error || 'Geçersiz içerik';
+      }
     }
-  }
-  
-  // ExternalUrl validation (eğer varsa)
-  if (newExternalUrl) {
-    const urlValidation = validateNewsExternalUrl(newExternalUrl);
-    if (!urlValidation.valid) {
-      errors.externalUrl = urlValidation.error || 'Geçersiz URL';
-    }
+  } else if (!newContent) {
+    // Eğer content güncellenmiyorsa ama mevcut değer de yoksa hata
+    errors.content = 'İçerik zorunludur';
   }
   
   // Featured validation (opsiyonel)
