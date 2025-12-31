@@ -129,20 +129,15 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-xl font-bold text-white">
-                {isEditMode ? 'Şube Düzenle' : 'Yeni Şube Ekle'}
-              </h2>
-            </div>
+          <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
+            <h2 className="text-sm font-medium text-white">
+              {isEditMode ? 'Şube Düzenle' : 'Yeni Şube Ekle'}
+            </h2>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
             >
-              <X className="w-6 h-6" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 

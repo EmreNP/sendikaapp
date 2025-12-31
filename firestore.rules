@@ -148,6 +148,53 @@ service cloud.firestore {
       // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
       allow create, update, delete: if false;
     }
+    
+    // Topics collection
+    match /topics/{topicId} {
+      // Okuma: Herkes aktif konuları görebilir, admin tümünü görebilir
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma: Sadece admin (server-side)
+      allow create: if false;
+      
+      // Güncelleme: Sadece admin (server-side)
+      allow update: if false;
+      
+      // Silme: Sadece admin (server-side)
+      allow delete: if false;
+    }
+    
+    // Contact Messages collection
+    match /contact_messages/{messageId} {
+      // Okuma
+      allow read: if isAuthenticated() && (
+        // Admin her şeyi okuyabilir
+        isAdmin() ||
+        // Branch manager: Sadece kendi şubesinin mesajlarını
+        // (Konu kontrolü server-side'da yapılacak)
+        (isBranchManager() && 
+         resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId) ||
+        // User: Sadece kendi mesajlarını
+        resource.data.userId == request.auth.uid
+      );
+      
+      // Oluşturma: Sadece authenticated user, kendi userId'si ile
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Güncelleme: Admin ve branch manager (okundu işaretleme için)
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isBranchManager() && 
+         resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId)
+      );
+      
+      // Silme: Yok (mesajlar silinmez, sadece admin tarafından hard delete yapılabilir - server-side)
+      allow delete: if false;
+    }
   }
 }
 

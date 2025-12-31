@@ -1702,6 +1702,1116 @@ const uploadNewsImage = async (file: File, token: string) => {
 
 ---
 
+## Topics Endpoints (İletişim Konuları)
+
+### 33. Get Topics List (Konu Listesi)
+**Endpoint:** `GET /api/topics`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Aktif konuları listeler. Herkes aktif konuları görebilir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "topics": [
+    {
+      "id": "topic-id-123",
+      "name": "Genel Bilgi",
+      "description": "Genel bilgi talepleri",
+      "isVisibleToBranchManager": true,
+      "isActive": true,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 34. Create Topic (Konu Oluştur)
+**Endpoint:** `POST /api/topics`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Yeni konu oluşturur.
+
+**Request Body:**
+```json
+{
+  "name": "Genel Bilgi",
+  "isVisibleToBranchManager": true,
+  "description": "Genel bilgi talepleri",
+  "isActive": true
+}
+```
+
+**Validation Kuralları:**
+- `name`: Zorunlu, 2-100 karakter arasında
+- `isVisibleToBranchManager`: Zorunlu, boolean (true = branch manager görsün, false = sadece admin görsün)
+- `description`: Opsiyonel
+- `isActive`: Opsiyonel, default: `true`
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Konu başarıyla oluşturuldu",
+  "topic": {
+    "id": "topic-id-123",
+    "name": "Genel Bilgi",
+    ...
+  }
+}
+```
+
+---
+
+### 35. Get Topic by ID (Konu Detayı)
+**Endpoint:** `GET /api/topics/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir konunun detaylarını getirir. Admin olmayan kullanıcılar sadece aktif konuları görebilir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "topic": {
+    "id": "topic-id-123",
+    "name": "Genel Bilgi",
+    ...
+  }
+}
+```
+
+---
+
+### 36. Update Topic (Konu Güncelle)
+**Endpoint:** `PUT /api/topics/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Konu bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "name": "Güncellenmiş Konu Adı",
+  "isVisibleToBranchManager": false,
+  "description": "Güncellenmiş açıklama",
+  "isActive": true
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Konu başarıyla güncellendi",
+  "topic": {
+    "id": "topic-id-123",
+    ...
+  }
+}
+```
+
+---
+
+### 37. Delete Topic (Konu Sil)
+**Endpoint:** `DELETE /api/topics/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Konuyu soft delete yapar (isActive: false).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Konu başarıyla silindi"
+}
+```
+
+---
+
+## Contact Messages Endpoints (İletişim Mesajları)
+
+### 38. Get Contact Messages List (Mesaj Listesi)
+**Endpoint:** `GET /api/contact-messages`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Mesaj listesini getirir.
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm mesajları görür
+- **Branch Manager:** Sadece kendi şubesindeki ve branch manager'a görünür konulara ait mesajları görür
+- **User:** Sadece kendi mesajlarını görür
+
+**Query Parameters:**
+- `page`: Sayfa numarası (default: 1)
+- `limit`: Sayfa başına kayıt (default: 20, max: 100)
+- `topicId`: Konu ID filtresi
+- `isRead`: Okundu filtresi (`true` veya `false`)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "messages": [
+    {
+      "id": "message-id-123",
+      "userId": "user-uid-123",
+      "branchId": "branch-id-123",
+      "topicId": "topic-id-123",
+      "message": "Mesaj içeriği",
+      "isRead": false,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 20
+}
+```
+
+---
+
+### 39. Create Contact Message (Mesaj Oluştur)
+**Endpoint:** `POST /api/contact-messages`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Yeni mesaj oluşturur.
+
+**Request Body:**
+```json
+{
+  "topicId": "topic-id-123",
+  "message": "Mesaj içeriği"
+}
+```
+
+**Validation Kuralları:**
+- `topicId`: Zorunlu, geçerli ve aktif topic ID olmalı
+- `message`: Zorunlu, boş olamaz, en fazla 5000 karakter
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Mesaj başarıyla gönderildi",
+  "data": {
+    "message": {
+      "id": "message-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 40. Get Contact Message by ID (Mesaj Detayı)
+**Endpoint:** `GET /api/contact-messages/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir mesajın detaylarını getirir.
+
+**Yetki Kontrolü:**
+- **User:** Sadece kendi mesajlarını görebilir
+- **Branch Manager:** Sadece kendi şubesindeki ve branch manager'a görünür konulara ait mesajları görebilir
+- **Admin:** Tüm mesajları görebilir
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": {
+    "id": "message-id-123",
+    "userId": "user-uid-123",
+    "topicId": "topic-id-123",
+    "message": "Mesaj içeriği",
+    "isRead": false,
+    ...
+  }
+}
+```
+
+---
+
+### 41. Update Contact Message (Mesaj Güncelle - Okundu İşaretleme)
+**Endpoint:** `PUT /api/contact-messages/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Mesajı okundu/okunmadı olarak işaretler.
+
+**Request Body:**
+```json
+{
+  "isRead": true
+}
+```
+
+**Validation Kuralları:**
+- `isRead`: Zorunlu, boolean
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Mesaj başarıyla güncellendi",
+  "data": {
+    "message": {
+      "id": "message-id-123",
+      "isRead": true,
+      "readBy": "admin-uid-123",
+      "readAt": "2024-01-01T00:00:00.000Z",
+      ...
+    }
+  }
+}
+```
+
+---
+
+## Trainings Endpoints (Eğitimler)
+
+### 42. Get Trainings List (Eğitim Listesi)
+**Endpoint:** `GET /api/trainings`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Eğitim listesini getirir.
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm eğitimler (aktif + pasif)
+- **Branch Manager/User:** Sadece aktif eğitimler
+
+**Query Parameters:**
+- `page`: Sayfa numarası (default: 1)
+- `limit`: Sayfa başına kayıt (default: 20, max: 100)
+- `isActive`: Aktif durum filtresi (sadece Admin)
+- `search`: Başlık arama metni
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "trainings": [
+    {
+      "id": "training-id-123",
+      "title": "Eğitim Başlığı",
+      "description": "<p>Eğitim açıklaması</p>",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "createdBy": "admin-uid-123"
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "limit": 20
+}
+```
+
+---
+
+### 43. Create Training (Eğitim Oluştur)
+**Endpoint:** `POST /api/trainings`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Yeni eğitim oluşturur.
+
+**Request Body:**
+```json
+{
+  "title": "Yeni Eğitim Başlığı",
+  "description": "<p>Eğitim açıklaması HTML formatında</p>",
+  "isActive": true,
+  "order": 1
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `description`: Opsiyonel, HTML formatında içerik
+- `isActive`: Opsiyonel, default: `true`
+- `order`: Opsiyonel, pozitif sayı (belirtilmezse en yüksek order + 1)
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Eğitim başarıyla oluşturuldu",
+  "data": {
+    "training": {
+      "id": "training-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 44. Get Training by ID (Eğitim Detayı)
+**Endpoint:** `GET /api/trainings/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir eğitimin detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "training": {
+    "id": "training-id-123",
+    "title": "Eğitim Başlığı",
+    ...
+  }
+}
+```
+
+---
+
+### 45. Update Training (Eğitim Güncelle)
+**Endpoint:** `PUT /api/trainings/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Eğitim bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "description": "<p>Güncellenmiş açıklama</p>",
+  "isActive": true,
+  "order": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Eğitim başarıyla güncellendi",
+  "data": {
+    "training": {
+      "id": "training-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 46. Delete Training (Eğitim Sil)
+**Endpoint:** `DELETE /api/trainings/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Eğitimi kalıcı olarak siler (hard delete). Altındaki tüm dersler ve içerikler cascade olarak silinir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Eğitim başarıyla silindi"
+}
+```
+
+---
+
+### 47. Bulk Training Operations (Eğitim Toplu İşlemler)
+**Endpoint:** `POST /api/trainings/bulk`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Birden fazla eğitim için toplu işlem yapar (delete, activate, deactivate).
+
+**İşlem Tipleri:**
+- `delete`: Eğitimleri kalıcı olarak siler (cascade ile tüm alt içerikler silinir)
+- `activate`: Eğitimleri aktif eder
+- `deactivate`: Eğitimleri deaktif eder
+
+**Request Body:**
+```json
+{
+  "action": "activate",
+  "trainingIds": ["training-id-1", "training-id-2", "training-id-3"]
+}
+```
+
+**Validation Kuralları:**
+- `action`: Zorunlu, sadece `"delete"`, `"activate"`, `"deactivate"`
+- `trainingIds`: Zorunlu, array, en az 1, en fazla 100 eğitim
+
+**Response (200 - Tüm işlemler başarılı):**
+```json
+{
+  "success": true,
+  "message": "3 eğitim için toplu işlem başarıyla tamamlandı",
+  "data": {
+    "success": true,
+    "successCount": 3,
+    "failureCount": 0
+  },
+  "code": "BULK_TRAINING_ACTION_SUCCESS"
+}
+```
+
+**Response (207 - Kısmi başarı):**
+```json
+{
+  "success": true,
+  "message": "Toplu işlem kısmen tamamlandı. Başarılı: 2, Başarısız: 1",
+  "data": {
+    "success": false,
+    "successCount": 2,
+    "failureCount": 1,
+    "errors": [
+      {
+        "trainingId": "training-id-3",
+        "error": "Eğitim bulunamadı"
+      }
+    ]
+  },
+  "code": "BULK_TRAINING_ACTION_PARTIAL"
+}
+```
+
+---
+
+### 48. Get Training Lessons (Eğitimin Derslerini Listele)
+**Endpoint:** `GET /api/trainings/{id}/lessons`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir eğitimin derslerini listeler.
+
+**Query Parameters:**
+- `isActive`: Aktif durum filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "lessons": [
+    {
+      "id": "lesson-id-123",
+      "trainingId": "training-id-123",
+      "title": "Ders Başlığı",
+      "description": "<p>Ders açıklaması</p>",
+      "order": 1,
+      "isActive": true,
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### 49. Create Training Lesson (Eğitime Ders Ekle)
+**Endpoint:** `POST /api/trainings/{id}/lessons`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Belirli bir eğitime yeni ders ekler.
+
+**Request Body:**
+```json
+{
+  "title": "Yeni Ders Başlığı",
+  "description": "<p>Ders açıklaması</p>",
+  "isActive": true,
+  "order": 1
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `description`: Opsiyonel, HTML formatında içerik
+- `isActive`: Opsiyonel, default: `true`
+- `order`: Opsiyonel, pozitif sayı (belirtilmezse en yüksek order + 1)
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Ders başarıyla oluşturuldu",
+  "data": {
+    "lesson": {
+      "id": "lesson-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+## Lessons Endpoints (Dersler)
+
+### 50. Get Lesson by ID (Ders Detayı)
+**Endpoint:** `GET /api/lessons/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dersin detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "lesson": {
+    "id": "lesson-id-123",
+    "trainingId": "training-id-123",
+    "title": "Ders Başlığı",
+    "description": "<p>Ders açıklaması</p>",
+    "order": 1,
+    "isActive": true,
+    ...
+  }
+}
+```
+
+---
+
+### 51. Update Lesson (Ders Güncelle)
+**Endpoint:** `PUT /api/lessons/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Ders bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "description": "<p>Güncellenmiş açıklama</p>",
+  "isActive": true,
+  "order": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Ders başarıyla güncellendi",
+  "data": {
+    "lesson": {
+      "id": "lesson-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 52. Delete Lesson (Ders Sil)
+**Endpoint:** `DELETE /api/lessons/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Dersi kalıcı olarak siler (hard delete). Altındaki tüm içerikler (video, document, test) cascade olarak silinir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Ders başarıyla silindi"
+}
+```
+
+---
+
+### 53. Get Lesson Contents (Ders İçeriklerini Listele)
+**Endpoint:** `GET /api/lessons/{id}/contents`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dersin tüm içeriklerini listeler (video, document, test birleştirilmiş).
+
+**Query Parameters:**
+- `type`: İçerik tipi filtresi (`video`, `document`, `test`)
+- `isActive`: Aktif durum filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "contents": [
+    {
+      "id": "content-id-123",
+      "type": "video",
+      "lessonId": "lesson-id-123",
+      "title": "Video Başlığı",
+      "order": 1,
+      ...
+    },
+    {
+      "id": "content-id-124",
+      "type": "document",
+      "lessonId": "lesson-id-123",
+      "title": "Doküman Başlığı",
+      "order": 2,
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### 54. Get Lesson Videos (Ders Videolarını Listele)
+**Endpoint:** `GET /api/lessons/{id}/videos`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dersin videolarını listeler.
+
+**Query Parameters:**
+- `isActive`: Aktif durum filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "videos": [
+    {
+      "id": "video-id-123",
+      "type": "video",
+      "lessonId": "lesson-id-123",
+      "title": "Video Başlığı",
+      "videoUrl": "https://example.com/video.mp4",
+      "videoSource": "youtube",
+      "order": 1,
+      "isActive": true,
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### 55. Create Lesson Video (Derse Video Ekle)
+**Endpoint:** `POST /api/lessons/{id}/videos`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Belirli bir derse yeni video ekler.
+
+**Request Body:**
+```json
+{
+  "title": "Video Başlığı",
+  "description": "Video açıklaması",
+  "videoUrl": "https://youtube.com/watch?v=...",
+  "videoSource": "youtube",
+  "thumbnailUrl": "https://example.com/thumb.jpg",
+  "duration": 3600,
+  "isActive": true,
+  "order": 1
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `videoUrl`: Zorunlu, geçerli URL
+- `videoSource`: Zorunlu, sadece `"youtube"` veya `"vimeo"`
+- `order`: Opsiyonel, pozitif sayı
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Video başarıyla oluşturuldu",
+  "data": {
+    "video": {
+      "id": "video-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 56. Get Lesson Documents (Ders Dokümanlarını Listele)
+**Endpoint:** `GET /api/lessons/{id}/documents`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dersin dokümanlarını listeler.
+
+**Query Parameters:**
+- `isActive`: Aktif durum filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "documents": [
+    {
+      "id": "document-id-123",
+      "type": "document",
+      "lessonId": "lesson-id-123",
+      "title": "Doküman Başlığı",
+      "documentUrl": "https://example.com/doc.pdf",
+      "documentType": "pdf",
+      "order": 1,
+      "isActive": true,
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### 57. Create Lesson Document (Derse Doküman Ekle)
+**Endpoint:** `POST /api/lessons/{id}/documents`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Belirli bir derse yeni doküman ekler.
+
+**Request Body:**
+```json
+{
+  "title": "Doküman Başlığı",
+  "description": "Doküman açıklaması",
+  "documentUrl": "https://example.com/document.pdf",
+  "fileSize": 1024000,
+  "isActive": true,
+  "order": 1
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `documentUrl`: Zorunlu, geçerli URL (PDF)
+- `fileSize`: Opsiyonel, bytes cinsinden
+- `order`: Opsiyonel, pozitif sayı
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Döküman başarıyla oluşturuldu",
+  "data": {
+    "document": {
+      "id": "document-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 58. Get Lesson Tests (Ders Testlerini Listele)
+**Endpoint:** `GET /api/lessons/{id}/tests`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dersin testlerini listeler.
+
+**Query Parameters:**
+- `isActive`: Aktif durum filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "tests": [
+    {
+      "id": "test-id-123",
+      "type": "test",
+      "lessonId": "lesson-id-123",
+      "title": "Test Başlığı",
+      "questions": [
+        {
+          "id": "q-1",
+          "question": "Soru metni",
+          "type": "multiple_choice",
+          "options": [
+            {
+              "id": "opt-1",
+              "text": "Seçenek 1",
+              "isCorrect": true
+            }
+          ]
+        }
+      ],
+      "timeLimit": 3600,
+      "order": 1,
+      "isActive": true,
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### 59. Create Lesson Test (Derse Test Ekle)
+**Endpoint:** `POST /api/lessons/{id}/tests`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Belirli bir derse yeni test ekler.
+
+**Request Body:**
+```json
+{
+  "title": "Test Başlığı",
+  "description": "Test açıklaması",
+  "questions": [
+    {
+      "question": "Soru metni",
+      "type": "multiple_choice",
+      "options": [
+        {
+          "text": "Seçenek 1",
+          "isCorrect": true
+        },
+        {
+          "text": "Seçenek 2",
+          "isCorrect": false
+        }
+      ]
+    }
+  ],
+  "timeLimit": 3600,
+  "isActive": true,
+  "order": 1
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 2 karakter, en fazla 200 karakter
+- `questions`: Zorunlu, array, en az 1 soru
+- `timeLimit`: Opsiyonel, saniye cinsinden
+- `order`: Opsiyonel, pozitif sayı
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Test başarıyla oluşturuldu",
+  "data": {
+    "test": {
+      "id": "test-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+## Content Endpoints (İçerikler)
+
+### 60. Get Video by ID (Video Detayı)
+**Endpoint:** `GET /api/videos/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir videonun detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "video": {
+    "id": "video-id-123",
+    "type": "video",
+    "lessonId": "lesson-id-123",
+    "title": "Video Başlığı",
+    "videoUrl": "https://example.com/video.mp4",
+    ...
+  }
+}
+```
+
+---
+
+### 61. Update Video (Video Güncelle)
+**Endpoint:** `PUT /api/videos/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Video bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "description": "Güncellenmiş açıklama",
+  "videoUrl": "https://example.com/new-video.mp4",
+  "videoSource": "youtube",
+  "isActive": true,
+  "order": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Video başarıyla güncellendi",
+  "data": {
+    "video": {
+      "id": "video-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 62. Delete Video (Video Sil)
+**Endpoint:** `DELETE /api/videos/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Videoyu kalıcı olarak siler (hard delete).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Video başarıyla silindi"
+}
+```
+
+---
+
+### 63. Get Document by ID (Doküman Detayı)
+**Endpoint:** `GET /api/documents/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir dokümanın detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "document": {
+    "id": "document-id-123",
+    "type": "document",
+    "lessonId": "lesson-id-123",
+    "title": "Doküman Başlığı",
+    "documentUrl": "https://example.com/doc.pdf",
+    ...
+  }
+}
+```
+
+---
+
+### 64. Update Document (Doküman Güncelle)
+**Endpoint:** `PUT /api/documents/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Doküman bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "description": "Güncellenmiş açıklama",
+  "documentUrl": "https://example.com/new-doc.pdf",
+  "isActive": true,
+  "order": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Döküman başarıyla güncellendi",
+  "data": {
+    "document": {
+      "id": "document-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 65. Delete Document (Doküman Sil)
+**Endpoint:** `DELETE /api/documents/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Dokümanı kalıcı olarak siler (hard delete).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Döküman başarıyla silindi"
+}
+```
+
+---
+
+### 66. Get Test by ID (Test Detayı)
+**Endpoint:** `GET /api/tests/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** Belirli bir testin detaylarını getirir.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "test": {
+    "id": "test-id-123",
+    "type": "test",
+    "lessonId": "lesson-id-123",
+    "title": "Test Başlığı",
+    "questions": [...],
+    ...
+  }
+}
+```
+
+---
+
+### 67. Update Test (Test Güncelle)
+**Endpoint:** `PUT /api/tests/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Test bilgilerini günceller.
+
+**Request Body:**
+```json
+{
+  "title": "Güncellenmiş Başlık",
+  "description": "Güncellenmiş açıklama",
+  "questions": [
+    {
+      "id": "q-1",
+      "question": "Güncellenmiş soru",
+      "type": "multiple_choice",
+      "options": [...]
+    }
+  ],
+  "timeLimit": 3600,
+  "isActive": true,
+  "order": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Test başarıyla güncellendi",
+  "data": {
+    "test": {
+      "id": "test-id-123",
+      ...
+    }
+  }
+}
+```
+
+---
+
+### 68. Delete Test (Test Sil)
+**Endpoint:** `DELETE /api/tests/{id}`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin  
+**Açıklama:** Testi kalıcı olarak siler (hard delete).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Test başarıyla silindi"
+}
+```
+
+---
+
 ## Validation Kuralları
 
 ### Email
@@ -1900,11 +3010,16 @@ const userResponse = await api.get('/users/me');
 ---
 
 **Son Güncelleme:** 2024-12-28  
-**Versiyon:** 1.2.0
+**Versiyon:** 2.0.0
 
 **Değişiklikler:**
 - Bulk user operations endpoint'i eklendi (`POST /api/users/bulk`)
 - News endpoints eklendi (`GET`, `POST`, `PUT`, `DELETE /api/news`)
 - Bulk news operations endpoint'i eklendi (`POST /api/news/bulk`)
 - File upload endpoint'i eklendi (`POST /api/files/{category}/upload`)
+- Topics endpoints eklendi (`GET`, `POST`, `PUT`, `DELETE /api/topics`)
+- Contact Messages endpoints eklendi (`GET`, `POST`, `PUT /api/contact-messages`)
+- Trainings endpoints eklendi (`GET`, `POST`, `PUT`, `DELETE /api/trainings`, `POST /api/trainings/bulk`, `GET`, `POST /api/trainings/{id}/lessons`)
+- Lessons endpoints eklendi (`GET`, `PUT`, `DELETE /api/lessons/{id}`, `GET /api/lessons/{id}/contents`, `GET`, `POST /api/lessons/{id}/videos`, `GET`, `POST /api/lessons/{id}/documents`, `GET`, `POST /api/lessons/{id}/tests`)
+- Content endpoints eklendi (`GET`, `PUT`, `DELETE /api/videos/{id}`, `GET`, `PUT`, `DELETE /api/documents/{id}`, `GET`, `PUT`, `DELETE /api/tests/{id}`)
 

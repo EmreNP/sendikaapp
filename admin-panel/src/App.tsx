@@ -10,6 +10,7 @@ import NewsPage from './pages/news/NewsPage';
 import TrainingsPage from './pages/trainings/TrainingsPage';
 import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
 import LessonDetailPage from './pages/trainings/LessonDetailPage';
+import ContactMessagesPage from './pages/contact-messages/ContactMessagesPage';
 
 function App() {
   return (
@@ -72,6 +73,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <LessonDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/contact-messages"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                <ContactMessagesPage />
               </ProtectedRoute>
             }
           />

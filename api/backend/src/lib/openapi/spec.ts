@@ -98,6 +98,62 @@ export const openApiSpec = {
           updatedBy: { type: 'string' },
         },
       },
+      Topic: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          isVisibleToBranchManager: { type: 'boolean', description: 'Branch manager görünürlüğü' },
+          isActive: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      ContactMessage: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          userId: { type: 'string' },
+          branchId: { type: 'string' },
+          topicId: { type: 'string' },
+          message: { type: 'string' },
+          isRead: { type: 'boolean' },
+          readBy: { type: 'string' },
+          readAt: { type: 'string', format: 'date-time' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      Training: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string', description: 'HTML içerik' },
+          isActive: { type: 'boolean' },
+          order: { type: 'integer' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+          createdBy: { type: 'string' },
+          updatedBy: { type: 'string' },
+        },
+      },
+      Lesson: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          trainingId: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string', description: 'HTML içerik' },
+          isActive: { type: 'boolean' },
+          order: { type: 'integer' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+          createdBy: { type: 'string' },
+          updatedBy: { type: 'string' },
+        },
+      },
     },
   },
   paths: {
@@ -890,48 +946,6 @@ export const openApiSpec = {
         },
       },
     },
-    '/api/branches/{id}/activate': {
-      patch: {
-        summary: 'Şube Aktif Et',
-        description: 'Şubeyi aktif eder (Admin)',
-        tags: ['Branches'],
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-        ],
-        responses: {
-          '200': {
-            description: 'Şube başarıyla aktif edildi',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/SuccessResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
-    '/api/branches/{id}/deactivate': {
-      patch: {
-        summary: 'Şube Deaktif Et',
-        description: 'Şubeyi deaktif eder (Admin)',
-        tags: ['Branches'],
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-        ],
-        responses: {
-          '200': {
-            description: 'Şube başarıyla deaktif edildi',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/SuccessResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
     '/api/news': {
       get: {
         summary: 'Haber Listesi',
@@ -1564,6 +1578,1029 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/topics': {
+      get: {
+        summary: 'Konu Listesi',
+        description: 'Aktif konuları listeler',
+        tags: ['Topics'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Konu Oluştur',
+        description: 'Yeni konu oluşturur (Admin)',
+        tags: ['Topics'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'isVisibleToBranchManager'],
+                properties: {
+                  name: { type: 'string', minLength: 2, maxLength: 100, example: 'Genel Bilgi' },
+                  isVisibleToBranchManager: { type: 'boolean', description: 'Branch manager görünürlüğü' },
+                  description: { type: 'string', example: 'Genel bilgi talepleri' },
+                  isActive: { type: 'boolean', default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Konu başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/topics/{id}': {
+      get: {
+        summary: 'Konu Detayı',
+        description: 'Belirli bir konunun detaylarını getirir',
+        tags: ['Topics'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Konu Güncelle',
+        description: 'Konu bilgilerini günceller (Admin)',
+        tags: ['Topics'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', minLength: 2, maxLength: 100 },
+                  isVisibleToBranchManager: { type: 'boolean' },
+                  description: { type: 'string' },
+                  isActive: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Konu başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Konu Sil',
+        description: 'Konuyu soft delete yapar (Admin)',
+        tags: ['Topics'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Konu başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/contact-messages': {
+      get: {
+        summary: 'Mesaj Listesi',
+        description: 'Mesaj listesini getirir',
+        tags: ['Contact Messages'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'topicId', in: 'query', schema: { type: 'string' } },
+          { name: 'isRead', in: 'query', schema: { type: 'boolean' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Mesaj Oluştur',
+        description: 'Yeni mesaj oluşturur',
+        tags: ['Contact Messages'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['topicId', 'message'],
+                properties: {
+                  topicId: { type: 'string', example: 'topic-id-123' },
+                  message: { type: 'string', maxLength: 5000, example: 'Mesaj içeriği' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Mesaj başarıyla gönderildi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/contact-messages/{id}': {
+      get: {
+        summary: 'Mesaj Detayı',
+        description: 'Belirli bir mesajın detaylarını getirir',
+        tags: ['Contact Messages'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Mesaj Güncelle',
+        description: 'Mesajı okundu/okunmadı olarak işaretler (Admin, Branch Manager)',
+        tags: ['Contact Messages'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['isRead'],
+                properties: {
+                  isRead: { type: 'boolean', example: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Mesaj başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/trainings': {
+      get: {
+        summary: 'Eğitim Listesi',
+        description: 'Eğitim listesini getirir',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Başlık arama metni' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Eğitim Oluştur',
+        description: 'Yeni eğitim oluşturur (Admin)',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200, example: 'Yeni Eğitim Başlığı' },
+                  description: { type: 'string', description: 'HTML içerik' },
+                  isActive: { type: 'boolean', default: true },
+                  order: { type: 'integer', description: 'Sıralama (opsiyonel)' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Eğitim başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/trainings/{id}': {
+      get: {
+        summary: 'Eğitim Detayı',
+        description: 'Belirli bir eğitimin detaylarını getirir',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Eğitim Güncelle',
+        description: 'Eğitim bilgilerini günceller (Admin)',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  isActive: { type: 'boolean' },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Eğitim başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Eğitim Sil',
+        description: 'Eğitimi kalıcı olarak siler (Admin, cascade delete)',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Eğitim başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/trainings/bulk': {
+      post: {
+        summary: 'Eğitim Toplu İşlemler',
+        description: 'Birden fazla eğitim için toplu işlem yapar (delete, activate, deactivate) - Sadece Admin',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['action', 'trainingIds'],
+                properties: {
+                  action: {
+                    type: 'string',
+                    enum: ['delete', 'activate', 'deactivate'],
+                    description: 'Yapılacak işlem tipi',
+                  },
+                  trainingIds: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    minItems: 1,
+                    maxItems: 100,
+                    description: 'İşlem yapılacak eğitim ID\'leri (maksimum 100)',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Tüm işlemler başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+          '207': {
+            description: 'Kısmi başarı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/trainings/{id}/lessons': {
+      get: {
+        summary: 'Eğitimin Derslerini Listele',
+        description: 'Belirli bir eğitimin derslerini listeler',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Eğitime Ders Ekle',
+        description: 'Belirli bir eğitime yeni ders ekler (Admin)',
+        tags: ['Trainings'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  isActive: { type: 'boolean', default: true },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Ders başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/lessons/{id}': {
+      get: {
+        summary: 'Ders Detayı',
+        description: 'Belirli bir dersin detaylarını getirir',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Ders Güncelle',
+        description: 'Ders bilgilerini günceller (Admin)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  isActive: { type: 'boolean' },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Ders başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Ders Sil',
+        description: 'Dersi kalıcı olarak siler (Admin, cascade delete)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Ders başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/lessons/{id}/contents': {
+      get: {
+        summary: 'Ders İçeriklerini Listele',
+        description: 'Belirli bir dersin tüm içeriklerini listeler (video, document, test birleştirilmiş)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'type', in: 'query', schema: { type: 'string', enum: ['video', 'document', 'test'] }, description: 'İçerik tipi filtresi' },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/lessons/{id}/videos': {
+      get: {
+        summary: 'Ders Videolarını Listele',
+        description: 'Belirli bir dersin videolarını listeler',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Derse Video Ekle',
+        description: 'Belirli bir derse yeni video ekler (Admin)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'videoUrl', 'videoSource'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  videoUrl: { type: 'string', format: 'uri' },
+                  videoSource: { type: 'string', enum: ['youtube', 'vimeo'] },
+                  thumbnailUrl: { type: 'string', format: 'uri' },
+                  duration: { type: 'integer', description: 'Saniye cinsinden' },
+                  isActive: { type: 'boolean', default: true },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Video başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/lessons/{id}/documents': {
+      get: {
+        summary: 'Ders Dokümanlarını Listele',
+        description: 'Belirli bir dersin dokümanlarını listeler',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Derse Doküman Ekle',
+        description: 'Belirli bir derse yeni doküman ekler (Admin)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'documentUrl'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  documentUrl: { type: 'string', format: 'uri' },
+                  fileSize: { type: 'integer', description: 'Bytes cinsinden' },
+                  isActive: { type: 'boolean', default: true },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Döküman başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/lessons/{id}/tests': {
+      get: {
+        summary: 'Ders Testlerini Listele',
+        description: 'Belirli bir dersin testlerini listeler',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'isActive', in: 'query', schema: { type: 'boolean' }, description: 'Aktif durum filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Derse Test Ekle',
+        description: 'Belirli bir derse yeni test ekler (Admin)',
+        tags: ['Lessons'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'questions'],
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  questions: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        question: { type: 'string' },
+                        type: { type: 'string', enum: ['multiple_choice'] },
+                        options: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              text: { type: 'string' },
+                              isCorrect: { type: 'boolean' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  timeLimit: { type: 'integer', description: 'Saniye cinsinden' },
+                  isActive: { type: 'boolean', default: true },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Test başarıyla oluşturuldu',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/videos/{id}': {
+      get: {
+        summary: 'Video Detayı',
+        description: 'Belirli bir videonun detaylarını getirir',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Video Güncelle',
+        description: 'Video bilgilerini günceller (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  videoUrl: { type: 'string', format: 'uri' },
+                  videoSource: { type: 'string', enum: ['youtube', 'vimeo'] },
+                  thumbnailUrl: { type: 'string', format: 'uri' },
+                  duration: { type: 'integer' },
+                  isActive: { type: 'boolean' },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Video başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Video Sil',
+        description: 'Videoyu kalıcı olarak siler (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Video başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/documents/{id}': {
+      get: {
+        summary: 'Doküman Detayı',
+        description: 'Belirli bir dokümanın detaylarını getirir',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Doküman Güncelle',
+        description: 'Doküman bilgilerini günceller (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  documentUrl: { type: 'string', format: 'uri' },
+                  fileSize: { type: 'integer' },
+                  isActive: { type: 'boolean' },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Döküman başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Doküman Sil',
+        description: 'Dokümanı kalıcı olarak siler (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Döküman başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/tests/{id}': {
+      get: {
+        summary: 'Test Detayı',
+        description: 'Belirli bir testin detaylarını getirir',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Başarılı',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      put: {
+        summary: 'Test Güncelle',
+        description: 'Test bilgilerini günceller (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 2, maxLength: 200 },
+                  description: { type: 'string' },
+                  questions: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string' },
+                        question: { type: 'string' },
+                        type: { type: 'string', enum: ['multiple_choice'] },
+                        options: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'string' },
+                              text: { type: 'string' },
+                              isCorrect: { type: 'boolean' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  timeLimit: { type: 'integer' },
+                  isActive: { type: 'boolean' },
+                  order: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Test başarıyla güncellendi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'Test Sil',
+        description: 'Testi kalıcı olarak siler (Admin)',
+        tags: ['Content'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Test başarıyla silindi',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
               },
             },
           },
