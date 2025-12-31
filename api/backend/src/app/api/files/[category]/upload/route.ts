@@ -4,6 +4,7 @@ import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import { validateImage, sanitizeFileName } from '@/lib/utils/validation/imageValidation';
 import { validateDocument } from '@/lib/utils/validation/documentValidation';
+import { validateVideo } from '@/lib/utils/validation/videoValidation';
 import {
   successResponse,
   validationError,
@@ -13,7 +14,7 @@ import {
 } from '@/lib/utils/response';
 
 // İzin verilen kategoriler
-const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents'] as const;
+const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
@@ -43,6 +44,27 @@ function getCategoryPermissions(category: string, userRole: string): {
         error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
+      };
+    
+    case 'videos':
+      // Videos: Sadece admin
+      return {
+        canUpload: userRole === USER_ROLE.ADMIN,
+        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+      };
+    
+    case 'video-thumbnails':
+      // Video thumbnails: Sadece admin
+      return {
+        canUpload: userRole === USER_ROLE.ADMIN,
+        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+      };
+    
+    case 'lesson-documents':
+      // Lesson documents: Sadece admin
+      return {
+        canUpload: userRole === USER_ROLE.ADMIN,
+        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     default:
@@ -120,6 +142,34 @@ export async function POST(
       let validation;
       if (category === 'user-documents') {
         validation = validateDocument(fileObj.type, fileObj.size, fileObj.name);
+      } else if (category === 'videos') {
+        validation = validateVideo(fileObj.type, fileObj.size, fileObj.name);
+      } else if (category === 'lesson-documents') {
+        // Lesson documents için sadece PDF ve 20MB limit
+        const allowedTypes = ['application/pdf'];
+        const allowedExtensions = ['.pdf'];
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        
+        if (!allowedTypes.includes(fileObj.type.toLowerCase())) {
+          validation = { valid: false, error: 'Geçersiz dosya formatı. Sadece PDF dosyası yüklenebilir.' };
+        } else if (fileObj.size > maxSize) {
+          validation = { valid: false, error: 'Dosya boyutu çok büyük. Maksimum boyut: 20MB' };
+        } else {
+          const extension = fileObj.name.toLowerCase().substring(fileObj.name.lastIndexOf('.'));
+          if (!allowedExtensions.includes(extension)) {
+            validation = { valid: false, error: 'Geçersiz dosya uzantısı. Sadece .pdf uzantılı dosyalar yüklenebilir.' };
+          } else {
+            validation = { valid: true };
+          }
+        }
+      } else if (category === 'video-thumbnails') {
+        // Video thumbnails için görsel validasyonu (max 2MB)
+        const thumbnailValidation = validateImage(fileObj.type, fileObj.size, fileObj.name);
+        if (thumbnailValidation.valid && fileObj.size > 2 * 1024 * 1024) {
+          validation = { valid: false, error: 'Thumbnail görseli en fazla 2MB olabilir' };
+        } else {
+          validation = thumbnailValidation;
+        }
       } else {
         validation = validateImage(fileObj.type, fileObj.size, fileObj.name);
       }
@@ -226,11 +276,30 @@ export async function POST(
       
       const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
 
+      // Response mesajı ve kod kategoriye göre
+      let message = 'Dosya başarıyla yüklendi';
+      let code = 'FILE_UPLOAD_SUCCESS';
+      if (category === 'user-documents' || category === 'lesson-documents') {
+        message = 'Döküman başarıyla yüklendi';
+        code = 'DOCUMENT_UPLOAD_SUCCESS';
+      } else if (category === 'videos') {
+        message = 'Video başarıyla yüklendi';
+        code = 'VIDEO_UPLOAD_SUCCESS';
+      } else if (category === 'video-thumbnails') {
+        message = 'Thumbnail başarıyla yüklendi';
+        code = 'THUMBNAIL_UPLOAD_SUCCESS';
+      } else {
+        message = 'Görsel başarıyla yüklendi';
+        code = 'IMAGE_UPLOAD_SUCCESS';
+      }
+
       return successResponse(
-        category === 'user-documents' ? 'Döküman başarıyla yüklendi' : 'Görsel başarıyla yüklendi',
+        message,
         {
           imageUrl: publicUrl, // Backward compatibility için
-          documentUrl: publicUrl, // User documents için
+          documentUrl: publicUrl, // Documents için
+          videoUrl: publicUrl, // Videos için
+          thumbnailUrl: publicUrl, // Thumbnails için
           fileUrl: publicUrl, // Generic
           fileName: fileName,
           size: fileObj.size,
@@ -238,7 +307,7 @@ export async function POST(
           category: category,
         },
         201,
-        category === 'user-documents' ? 'DOCUMENT_UPLOAD_SUCCESS' : 'IMAGE_UPLOAD_SUCCESS'
+        code
       );
     } catch (error: unknown) {
       console.error('❌ Upload image error:', error);

@@ -33,6 +33,36 @@ async function getBranchManagers(branchId: string) {
   });
 }
 
+// Helper: Branch'in etkinlik sayısını getir
+async function getBranchEventCount(branchId: string): Promise<number> {
+  try {
+    const eventsSnapshot = await db.collection('events')
+      .where('branchId', '==', branchId)
+      .get();
+    
+    return eventsSnapshot.size;
+  } catch (error) {
+    // Collection yoksa veya hata olursa 0 döndür
+    console.warn(`⚠️  Could not get event count for branch ${branchId}:`, error);
+    return 0;
+  }
+}
+
+// Helper: Branch'in eğitim sayısını getir
+async function getBranchEducationCount(branchId: string): Promise<number> {
+  try {
+    const educationsSnapshot = await db.collection('educations')
+      .where('branchId', '==', branchId)
+      .get();
+    
+    return educationsSnapshot.size;
+  } catch (error) {
+    // Collection yoksa veya hata olursa 0 döndür
+    console.warn(`⚠️  Could not get education count for branch ${branchId}:`, error);
+    return 0;
+  }
+}
+
 // GET - Tek şube detayı
 export async function GET(
   request: NextRequest,
@@ -66,9 +96,17 @@ export async function GET(
         return unauthorizedError('Bu şubeye erişim yetkiniz yok');
       }
       
+      // Etkinlik ve eğitim sayılarını hesapla
+      const [eventCount, educationCount] = await Promise.all([
+        getBranchEventCount(branchDoc.id),
+        getBranchEducationCount(branchDoc.id),
+      ]);
+      
       const branch: Branch = {
         id: branchDoc.id,
         ...branchData,
+        eventCount,
+        educationCount,
       } as Branch;
       
       // Manager bilgilerini ekle

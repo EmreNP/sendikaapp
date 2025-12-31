@@ -33,6 +33,95 @@ async function getBranchManagers(branchId: string) {
   });
 }
 
+// Helper: Branch'in etkinlik sayısını getir
+async function getBranchEventCount(branchId: string): Promise<number> {
+  try {
+    const eventsSnapshot = await db.collection('events')
+      .where('branchId', '==', branchId)
+      .get();
+    
+    return eventsSnapshot.size;
+  } catch (error) {
+    // Collection yoksa veya hata olursa 0 döndür
+    console.warn(`⚠️  Could not get event count for branch ${branchId}:`, error);
+    return 0;
+  }
+}
+
+// Helper: Branch'in eğitim sayısını getir
+async function getBranchEducationCount(branchId: string): Promise<number> {
+  try {
+    const educationsSnapshot = await db.collection('educations')
+      .where('branchId', '==', branchId)
+      .get();
+    
+    return educationsSnapshot.size;
+  } catch (error) {
+    // Collection yoksa veya hata olursa 0 döndür
+    console.warn(`⚠️  Could not get education count for branch ${branchId}:`, error);
+    return 0;
+  }
+}
+
+// Helper: Birden fazla branch için etkinlik ve eğitim sayılarını batch olarak getir
+async function getBranchCountsBatch(branchIds: string[]): Promise<Record<string, { eventCount: number; educationCount: number }>> {
+  const result: Record<string, { eventCount: number; educationCount: number }> = {};
+  
+  // Tüm branch'ler için sayıları 0 ile başlat
+  for (const branchId of branchIds) {
+    result[branchId] = { eventCount: 0, educationCount: 0 };
+  }
+  
+  // Etkinlik sayılarını toplu olarak getir
+  try {
+    // Firestore 'in' operatörü max 10 item destekler, chunking yap
+    const chunkSize = 10;
+    for (let i = 0; i < branchIds.length; i += chunkSize) {
+      const chunk = branchIds.slice(i, i + chunkSize);
+      
+      const eventsSnapshot = await db.collection('events')
+        .where('branchId', 'in', chunk)
+        .get();
+      
+      // Sayıları branchId'ye göre grupla
+      eventsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const branchId = data.branchId as string;
+        if (branchId && result[branchId]) {
+          result[branchId].eventCount++;
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not get event counts:', error);
+  }
+  
+  // Eğitim sayılarını toplu olarak getir
+  try {
+    const chunkSize = 10;
+    for (let i = 0; i < branchIds.length; i += chunkSize) {
+      const chunk = branchIds.slice(i, i + chunkSize);
+      
+      const educationsSnapshot = await db.collection('educations')
+        .where('branchId', 'in', chunk)
+        .get();
+      
+      // Sayıları branchId'ye göre grupla
+      educationsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const branchId = data.branchId as string;
+        if (branchId && result[branchId]) {
+          result[branchId].educationCount++;
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not get education counts:', error);
+  }
+  
+  return result;
+}
+
 // Helper: Birden fazla branch'in manager'larını batch olarak getir (N+1 query problemini çözer)
 // Firestore 'in' operatörü max 10 item destekler, bu yüzden chunking yapıyoruz
 async function getBranchManagersBatch(branchIds: string[]): Promise<Record<string, Array<{ uid: string; firstName: string; lastName: string; email: string }>>> {
@@ -111,21 +200,30 @@ export async function GET(request: NextRequest) {
           .get();
           
         if (!branchDoc.exists) {
-        return successResponse(
-          'Şubeler başarıyla getirildi',
-          { 
-            branches: [],
-            total: 0,
-            page: 1,
-            limit: limit
-          }
-        );
+          return successResponse(
+            'Şubeler başarıyla getirildi',
+            { 
+              branches: [],
+              total: 0,
+              page: 1,
+              limit: limit
+            }
+          );
         }
         
         const branchData = branchDoc.data();
+        
+        // Etkinlik ve eğitim sayılarını hesapla
+        const [eventCount, educationCount] = await Promise.all([
+          getBranchEventCount(branchDoc.id),
+          getBranchEducationCount(branchDoc.id),
+        ]);
+        
         const branch: Branch = {
           id: branchDoc.id,
           ...branchData,
+          eventCount,
+          educationCount,
         } as Branch;
         
         // Branch manager kendi şubesinin manager'larını görebilir
@@ -150,19 +248,27 @@ export async function GET(request: NextRequest) {
         // Tüm branch ID'lerini topla
         const branchIds = snapshot.docs.map(doc => doc.id);
         
-        // Tüm manager'ları tek batch query ile getir (N+1 query problemini çözer)
-        const managersByBranch = await getBranchManagersBatch(branchIds);
+        // Tüm manager'ları ve sayıları tek batch query ile getir (N+1 query problemini çözer)
+        const [managersByBranch, countsByBranch] = await Promise.all([
+          getBranchManagersBatch(branchIds),
+          getBranchCountsBatch(branchIds),
+        ]);
         
-        // Branch'leri manager'larla birleştir
+        // Branch'leri manager'larla ve sayılarla birleştir
         const allBranches: BranchWithManagers[] = snapshot.docs.map(doc => {
+          const branchId = doc.id;
+          const counts = countsByBranch[branchId] || { eventCount: 0, educationCount: 0 };
+          
           const branch: Branch = {
-            id: doc.id,
+            id: branchId,
             ...doc.data(),
+            eventCount: counts.eventCount,
+            educationCount: counts.educationCount,
           } as Branch;
           
           return { 
             ...branch, 
-            managers: managersByBranch[doc.id] || [] 
+            managers: managersByBranch[branchId] || [] 
           };
         });
         
@@ -187,10 +293,21 @@ export async function GET(request: NextRequest) {
       const snapshot = await db.collection('branches')
         .where('isActive', '==', true)
         .get();
-      const allBranches: Branch[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Branch));
+      
+      const branchIds = snapshot.docs.map(doc => doc.id);
+      const countsByBranch = await getBranchCountsBatch(branchIds);
+      
+      const allBranches: Branch[] = snapshot.docs.map(doc => {
+        const branchId = doc.id;
+        const counts = countsByBranch[branchId] || { eventCount: 0, educationCount: 0 };
+        
+        return {
+          id: branchId,
+          ...doc.data(),
+          eventCount: counts.eventCount,
+          educationCount: counts.educationCount,
+        } as Branch;
+      });
       
       // Sayfalama
       const total = allBranches.length;

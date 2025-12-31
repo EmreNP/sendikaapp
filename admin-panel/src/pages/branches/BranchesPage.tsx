@@ -15,6 +15,8 @@ interface Branch {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  eventCount?: number;
+  educationCount?: number;
 }
 
 export default function BranchesPage() {
@@ -190,6 +192,12 @@ export default function BranchesPage() {
                         Email
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Etkinlik
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Eğitim
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durum
                       </th>
                       {user?.role === 'admin' && (
@@ -234,6 +242,16 @@ export default function BranchesPage() {
                         <td className="px-4 py-3">
                           <div className="text-sm text-gray-600">
                             {branch.email || '-'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-900 font-medium">
+                            {branch.eventCount ?? 0}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-900 font-medium">
+                            {branch.educationCount ?? 0}
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">

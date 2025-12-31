@@ -10,6 +10,8 @@ export interface Branch {
   phone?: string;
   email?: string;
   isActive: boolean;
+  eventCount?: number; // Etkinlik sayısı
+  educationCount?: number; // Eğitim sayısı
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
 }

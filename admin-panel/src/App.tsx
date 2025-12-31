@@ -7,6 +7,9 @@ import BranchDashboard from './pages/dashboard/BranchDashboard';
 import UsersPage from './pages/users/UsersPage';
 import BranchesPage from './pages/branches/BranchesPage';
 import NewsPage from './pages/news/NewsPage';
+import TrainingsPage from './pages/trainings/TrainingsPage';
+import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
+import LessonDetailPage from './pages/trainings/LessonDetailPage';
 
 function App() {
   return (
@@ -45,6 +48,30 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <NewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/trainings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <TrainingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/trainings/detail"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <TrainingDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/lessons/detail"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <LessonDetailPage />
               </ProtectedRoute>
             }
           />

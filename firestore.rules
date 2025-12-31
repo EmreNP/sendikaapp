@@ -88,6 +88,66 @@ service cloud.firestore {
       // Güncelleme ve silme: Sadece server-side
       allow update, delete: if false;
     }
+    
+    // Trainings collection
+    match /trainings/{trainingId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece aktif olanları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
+    
+    // Lessons collection
+    match /lessons/{lessonId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece aktif olanları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
+    
+    // Video contents collection
+    match /video_contents/{videoId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece aktif olanları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
+    
+    // Document contents collection
+    match /document_contents/{documentId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece aktif olanları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
+    
+    // Test contents collection
+    match /test_contents/{testId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece aktif olanları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isActive == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
   }
 }
 

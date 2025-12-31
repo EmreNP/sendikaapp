@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Newspaper, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface SidebarItem {
@@ -33,6 +33,12 @@ const sidebarItems: SidebarItem[] = [
     icon: Newspaper,
     label: 'Haberler & Duyurular',
     path: '/admin/news',
+    roles: ['admin'],
+  },
+  {
+    icon: BookOpen,
+    label: 'Eğitimler',
+    path: '/admin/trainings',
     roles: ['admin'],
   },
 ];

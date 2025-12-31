@@ -275,25 +275,28 @@ export function handleFirestoreError(error: unknown): NextResponse<ApiErrorRespo
 export function serializeTimestamp(timestamp: any): any {
   if (!timestamp) return null;
   
-  // Firebase Admin SDK Timestamp
-  if (timestamp.seconds !== undefined) {
-    return {
-      seconds: timestamp.seconds,
-      nanoseconds: timestamp.nanoseconds || 0,
-    };
+  // Firestore Timestamp objesi (toDate() metodu varsa - Client SDK)
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate().toISOString();
+  }
+  
+  // Firebase Admin SDK Timestamp (admin.firestore.Timestamp)
+  // Admin SDK'da Timestamp objesi sadece seconds ve nanoseconds property'lerine sahip
+  if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+    const seconds = timestamp.seconds;
+    const nanoseconds = timestamp.nanoseconds || 0;
+    // ISO string formatına çevir (frontend için)
+    const date = new Date(seconds * 1000 + nanoseconds / 1000000);
+    return date.toISOString();
   }
   
   // Date objesi
   if (timestamp instanceof Date) {
-    const seconds = Math.floor(timestamp.getTime() / 1000);
-    return {
-      seconds,
-      nanoseconds: (timestamp.getTime() % 1000) * 1000000,
-    };
+    return timestamp.toISOString();
   }
   
-  // Zaten serialize edilmiş
-  if (typeof timestamp === 'object' && 'seconds' in timestamp) {
+  // Zaten ISO string formatında
+  if (typeof timestamp === 'string' && (timestamp.includes('T') || timestamp.includes('Z'))) {
     return timestamp;
   }
   
@@ -367,6 +370,118 @@ export function serializeAnnouncementTimestamps(announcement: any): any {
   }
   
   return serialized;
+}
+
+/**
+ * Training objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeTrainingTimestamps(training: any): any {
+  if (!training) return training;
+  
+  const serialized = { ...training };
+  
+  if (training.createdAt) {
+    serialized.createdAt = serializeTimestamp(training.createdAt);
+  }
+  
+  if (training.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(training.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Lesson objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeLessonTimestamps(lesson: any): any {
+  if (!lesson) return lesson;
+  
+  const serialized = { ...lesson };
+  
+  if (lesson.createdAt) {
+    serialized.createdAt = serializeTimestamp(lesson.createdAt);
+  }
+  
+  if (lesson.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(lesson.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Video Content objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeVideoContentTimestamps(video: any): any {
+  if (!video) return video;
+  
+  const serialized = { ...video };
+  
+  if (video.createdAt) {
+    serialized.createdAt = serializeTimestamp(video.createdAt);
+  }
+  
+  if (video.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(video.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Document Content objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeDocumentContentTimestamps(document: any): any {
+  if (!document) return document;
+  
+  const serialized = { ...document };
+  
+  if (document.createdAt) {
+    serialized.createdAt = serializeTimestamp(document.createdAt);
+  }
+  
+  if (document.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(document.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Test Content objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeTestContentTimestamps(test: any): any {
+  if (!test) return test;
+  
+  const serialized = { ...test };
+  
+  if (test.createdAt) {
+    serialized.createdAt = serializeTimestamp(test.createdAt);
+  }
+  
+  if (test.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(test.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Generic Content serializer (type'a göre uygun serializer'ı kullanır)
+ */
+export function serializeContentTimestamps(content: any): any {
+  if (!content) return content;
+  
+  if (content.type === 'video') {
+    return serializeVideoContentTimestamps(content);
+  } else if (content.type === 'document') {
+    return serializeDocumentContentTimestamps(content);
+  } else if (content.type === 'test') {
+    return serializeTestContentTimestamps(content);
+  }
+  
+  return content;
 }
 
 

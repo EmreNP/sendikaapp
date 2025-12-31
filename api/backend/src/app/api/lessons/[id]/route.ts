@@ -1,0 +1,225 @@
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/firebase/admin';
+import admin from 'firebase-admin';
+import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
+import { USER_ROLE } from '@shared/constants/roles';
+import type { Lesson, UpdateLessonRequest } from '@shared/types/training';
+import { validateUpdateLesson } from '@/lib/utils/validation/lessonValidation';
+import { sanitizeHtml } from '@/lib/utils/sanitize';
+import { shiftOrdersUp } from '@/lib/utils/orderManagement';
+import { 
+  successResponse, 
+  validationError,
+  unauthorizedError,
+  notFoundError,
+  serverError,
+  isErrorWithMessage,
+  serializeLessonTimestamps
+} from '@/lib/utils/response';
+
+// GET - Tek ders detayı
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withAuth(request, async (req, user) => {
+    try {
+      const lessonId = params.id;
+      
+      const { error, user: currentUserData } = await getCurrentUser(user.uid);
+      if (error) return error;
+      
+      const userRole = currentUserData!.role;
+      
+      const lessonDoc = await db.collection('lessons').doc(lessonId).get();
+      
+      if (!lessonDoc.exists) {
+        return notFoundError('Ders');
+      }
+      
+      const lessonData = lessonDoc.data();
+      
+      // USER/BRANCH_MANAGER için sadece aktif dersler
+      if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
+        if (!lessonData?.isActive) {
+          return notFoundError('Ders');
+        }
+      }
+      
+      const lesson: Lesson = {
+        id: lessonDoc.id,
+        ...lessonData,
+      } as Lesson;
+      
+      const serializedLesson = serializeLessonTimestamps(lesson);
+      
+      return successResponse(
+        'Ders başarıyla getirildi',
+        { lesson: serializedLesson }
+      );
+    } catch (error: unknown) {
+      console.error('❌ Get lesson error:', error);
+      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+      return serverError('Ders getirilirken bir hata oluştu', errorMessage);
+    }
+  });
+}
+
+// PUT - Ders güncelle (sadece admin)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withAuth(request, async (req, user) => {
+    try {
+      const lessonId = params.id;
+      
+      const { error, user: currentUserData } = await getCurrentUser(user.uid);
+      if (error) return error;
+      
+      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      }
+      
+      const lessonDoc = await db.collection('lessons').doc(lessonId).get();
+      
+      if (!lessonDoc.exists) {
+        return notFoundError('Ders');
+      }
+      
+      const body: UpdateLessonRequest = await request.json();
+      const validation = validateUpdateLesson(body);
+      if (!validation.valid) {
+        const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
+        return validationError(firstError);
+      }
+      
+      const currentLessonData = lessonDoc.data();
+      const currentOrder = currentLessonData?.order || 0;
+      const trainingId = currentLessonData?.trainingId;
+      
+      const updateData: Record<string, any> = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: user.uid,
+      };
+      
+      // Sadece gönderilen alanları güncelle
+      if (body.title !== undefined) updateData.title = body.title.trim();
+      
+      if (body.description !== undefined) {
+        updateData.description = body.description ? sanitizeHtml(body.description) : null;
+      }
+      
+      if (body.isActive !== undefined) {
+        updateData.isActive = body.isActive;
+      }
+      
+      // Order yönetimi
+      if (body.order !== undefined && body.order !== currentOrder && trainingId) {
+        const newOrder = body.order;
+        
+        // Yeni order mevcut order'dan farklıysa ve > 0 ise shift işlemi yap
+        if (newOrder > 0) {
+          await shiftOrdersUp('lessons', 'trainingId', trainingId, newOrder, lessonId);
+        }
+        
+        updateData.order = newOrder;
+      }
+      
+      await db.collection('lessons').doc(lessonId).update(updateData);
+      
+      // Güncellenmiş dersi getir
+      const updatedLessonDoc = await db.collection('lessons').doc(lessonId).get();
+      const updatedLessonData = updatedLessonDoc.data();
+      const lesson: Lesson = {
+        id: lessonId,
+        ...updatedLessonData,
+      } as Lesson;
+      
+      const serializedLesson = serializeLessonTimestamps(lesson);
+      
+      return successResponse(
+        'Ders başarıyla güncellendi',
+        { lesson: serializedLesson },
+        200,
+        'LESSON_UPDATE_SUCCESS'
+      );
+    } catch (error: unknown) {
+      console.error('❌ Update lesson error:', error);
+      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+      return serverError('Ders güncellenirken bir hata oluştu', errorMessage);
+    }
+  });
+}
+
+// DELETE - Ders sil (sadece admin, hard delete + cascade content'ler)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withAuth(request, async (req, user) => {
+    try {
+      const lessonId = params.id;
+      
+      const { error, user: currentUserData } = await getCurrentUser(user.uid);
+      if (error) return error;
+      
+      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      }
+      
+      const lessonDoc = await db.collection('lessons').doc(lessonId).get();
+      
+      if (!lessonDoc.exists) {
+        return notFoundError('Ders');
+      }
+      
+      // Cascade delete: Altındaki content'leri sil
+      const contentDeletes: Promise<any>[] = [];
+      
+      // Video contents
+      const videoSnapshot = await db.collection('video_contents')
+        .where('lessonId', '==', lessonId)
+        .get();
+      videoSnapshot.docs.forEach(doc => {
+        contentDeletes.push(doc.ref.delete());
+      });
+      
+      // Document contents
+      const documentSnapshot = await db.collection('document_contents')
+        .where('lessonId', '==', lessonId)
+        .get();
+      documentSnapshot.docs.forEach(doc => {
+        contentDeletes.push(doc.ref.delete());
+      });
+      
+      // Test contents
+      const testSnapshot = await db.collection('test_contents')
+        .where('lessonId', '==', lessonId)
+        .get();
+      testSnapshot.docs.forEach(doc => {
+        contentDeletes.push(doc.ref.delete());
+      });
+      
+      // Tüm content'leri sil
+      await Promise.all(contentDeletes);
+      
+      // Lesson'ı sil
+      await db.collection('lessons').doc(lessonId).delete();
+      
+      console.log(`✅ Lesson ${lessonId} deleted with cascade`);
+      
+      return successResponse(
+        'Ders başarıyla silindi',
+        undefined,
+        200,
+        'LESSON_DELETE_SUCCESS'
+      );
+    } catch (error: unknown) {
+      console.error('❌ Delete lesson error:', error);
+      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+      return serverError('Ders silinirken bir hata oluştu', errorMessage);
+    }
+  });
+}
+
