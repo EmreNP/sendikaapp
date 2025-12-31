@@ -6,41 +6,39 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkNewsActionRequest, BulkNewsActionResult } from '@shared/types/news';
 import {
   successResponse,
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 // POST - Toplu işlem (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
 
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 
-      const body: BulkNewsActionRequest = await request.json();
+    const body = await parseJsonBody<BulkNewsActionRequest>(req);
       const { action, newsIds } = body;
 
       // Validation
       if (!action || !['delete', 'publish', 'unpublish'].includes(action)) {
-        return validationError('Geçersiz işlem tipi. İzin verilen: delete, publish, unpublish');
+      throw new AppValidationError('Geçersiz işlem tipi. İzin verilen: delete, publish, unpublish');
       }
 
       if (!newsIds || !Array.isArray(newsIds) || newsIds.length === 0) {
-        return validationError('Haber ID listesi boş veya geçersiz');
+      throw new AppValidationError('Haber ID listesi boş veya geçersiz');
       }
 
       if (newsIds.length > 100) {
-        return validationError('Maksimum 100 haber için toplu işlem yapılabilir');
+      throw new AppValidationError('Maksimum 100 haber için toplu işlem yapılabilir');
       }
 
       const results: BulkNewsActionResult = {
@@ -132,12 +130,6 @@ export async function POST(request: NextRequest) {
           207, // Multi-Status
           'BULK_NEWS_ACTION_PARTIAL'
         );
-      }
-    } catch (error: unknown) {
-      console.error('❌ Bulk news action error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Toplu işlem sırasında bir hata oluştu', errorMessage);
-    }
   });
-}
+  });
 

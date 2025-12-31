@@ -7,11 +7,10 @@ import { validateDocument } from '@/lib/utils/validation/documentValidation';
 import { validateVideo } from '@/lib/utils/validation/videoValidation';
 import {
   successResponse,
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { AppValidationError, AppAuthorizationError, AppInternalServerError, AppBadGatewayError } from '@/lib/utils/errors/AppError';
+import { isErrorWithMessage } from '@/lib/utils/response';
 
 // İzin verilen kategoriler
 const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents'] as const;
@@ -76,55 +75,54 @@ function getCategoryPermissions(category: string, userRole: string): {
 }
 
 // POST - Generic görsel yükleme
-export async function POST(
+export const POST = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { category: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
-      const category = params.category as AllowedCategory;
+    const category = params.category as AllowedCategory;
 
-      // Kategori validasyonu
-      if (!ALLOWED_CATEGORIES.includes(category)) {
-        return validationError(
-          `Geçersiz kategori. İzin verilen kategoriler: ${ALLOWED_CATEGORIES.join(', ')}`
-        );
-      }
-
-      // Kullanıcı bilgilerini al
-      const { error, user: currentUserData } = await getCurrentUser(user.uid);
-
-      if (error) {
-        return error;
-      }
-
-      if (!currentUserData) {
-        return unauthorizedError('Kullanıcı bilgileri alınamadı');
-      }
-
-      // Kategori bazlı yetki kontrolü
-      const permissions = getCategoryPermissions(
-        category,
-        currentUserData.role
+    // Kategori validasyonu
+    if (!ALLOWED_CATEGORIES.includes(category)) {
+      throw new AppValidationError(
+        `Geçersiz kategori. İzin verilen kategoriler: ${ALLOWED_CATEGORIES.join(', ')}`
       );
+    }
 
-      if (!permissions.canUpload) {
-        return unauthorizedError(permissions.error || 'Bu işlem için yetkiniz yok');
-      }
+    // Kullanıcı bilgilerini al
+    const { error, user: currentUserData } = await getCurrentUser(user.uid);
+
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
+
+    if (!currentUserData) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
+
+    // Kategori bazlı yetki kontrolü
+    const permissions = getCategoryPermissions(
+      category,
+      currentUserData.role
+    );
+
+    if (!permissions.canUpload) {
+      throw new AppAuthorizationError(permissions.error || 'Bu işlem için yetkiniz yok');
+    }
 
       const formData = await req.formData();
 
       // Dosyayı al
-      const file = formData.get('file');
+    const file = formData.get('file');
 
-      if (!file) {
-        return validationError('Dosya bulunamadı');
-      }
+    if (!file) {
+      throw new AppValidationError('Dosya bulunamadı');
+    }
 
-      // File tipini kontrol et
-      if (!(file instanceof File) && typeof file !== 'object') {
-        return validationError('Geçersiz dosya formatı');
-      }
+    // File tipini kontrol et
+    if (!(file instanceof File) && typeof file !== 'object') {
+      throw new AppValidationError('Geçersiz dosya formatı');
+    }
 
       // File objesini oluştur (Next.js FormData'dan gelen dosya için)
       let fileObj: File;
@@ -173,10 +171,10 @@ export async function POST(
       } else {
         validation = validateImage(fileObj.type, fileObj.size, fileObj.name);
       }
-      
-      if (!validation.valid) {
-        return validationError(validation.error || 'Geçersiz dosya');
-      }
+    
+    if (!validation.valid) {
+      throw new AppValidationError(validation.error || 'Geçersiz dosya');
+    }
 
       // Dosya adını sanitize et
       const sanitizedFileName = sanitizeFileName(fileObj.name);
@@ -187,11 +185,11 @@ export async function POST(
       // Storage path oluştur - kategoriye göre
       let storagePath: string;
       if (category === 'user-documents') {
-        // user-documents için userId parametresi gerekli
-        const userId = formData.get('userId') as string;
-        if (!userId) {
-          return validationError('User ID gerekli');
-        }
+      // user-documents için userId parametresi gerekli
+      const userId = formData.get('userId') as string;
+      if (!userId) {
+        throw new AppValidationError('User ID gerekli');
+      }
         storagePath = `${category}/${userId}/${fileName}`;
       } else {
         storagePath = `${category}/${fileName}`;
@@ -223,20 +221,19 @@ export async function POST(
           throw new Error(`Storage bucket '${bucket.name}' mevcut değil. Lütfen Firebase Console'dan bucket oluşturun veya doğru bucket name'i belirtin.`);
         }
         
-      } catch (bucketError: unknown) {
-        const errorMessage = isErrorWithMessage(bucketError) ? bucketError.message : 'Bilinmeyen hata';
-        console.error('❌ Bucket initialization error:', bucketError);
-        
-        // 404 hatası için özel mesaj
-        if (errorMessage.includes('does not exist') || errorMessage.includes('mevcut değil')) {
-          return serverError(
-            `Storage bucket bulunamadı. Lütfen Firebase Console'dan Storage bucket'ı oluşturun veya .env dosyasına doğru FIREBASE_STORAGE_BUCKET değerini ekleyin.`,
-            errorMessage
-          );
-        }
-        
-        return serverError('Storage bucket yapılandırma hatası', errorMessage);
+    } catch (bucketError: unknown) {
+      const errorMessage = isErrorWithMessage(bucketError) ? bucketError.message : 'Bilinmeyen hata';
+      console.error('❌ Bucket initialization error:', bucketError);
+      
+      // 404 hatası için özel mesaj
+      if (errorMessage.includes('does not exist') || errorMessage.includes('mevcut değil')) {
+        throw new AppBadGatewayError(
+          `Storage bucket bulunamadı. Lütfen Firebase Console'dan Storage bucket'ı oluşturun veya .env dosyasına doğru FIREBASE_STORAGE_BUCKET değerini ekleyin.`
+        );
       }
+      
+      throw new AppBadGatewayError('Storage bucket yapılandırma hatası');
+    }
 
       // Dosyayı buffer'a çevir
       const arrayBuffer = await fileObj.arrayBuffer();
@@ -257,11 +254,11 @@ export async function POST(
           },
         });
         console.log(`✅ File saved to storage: ${storagePath}`);
-      } catch (saveError: unknown) {
-        const errorMessage = isErrorWithMessage(saveError) ? saveError.message : 'Bilinmeyen hata';
-        console.error('❌ Storage save error:', saveError);
-        return serverError(`Dosya storage'a kaydedilemedi: ${errorMessage}`, errorMessage);
-      }
+    } catch (saveError: unknown) {
+      const errorMessage = isErrorWithMessage(saveError) ? saveError.message : 'Bilinmeyen hata';
+      console.error('❌ Storage save error:', saveError);
+      throw new AppInternalServerError(`Dosya storage'a kaydedilemedi: ${errorMessage}`);
+    }
 
       // Public URL al
       try {
@@ -309,27 +306,6 @@ export async function POST(
         201,
         code
       );
-    } catch (error: unknown) {
-      console.error('❌ Upload image error:', error);
-      
-      // Detaylı hata mesajı
-      let errorMessage = 'Bilinmeyen hata';
-      if (isErrorWithMessage(error)) {
-        errorMessage = error.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      // Firebase Storage hatalarını yakala
-      if (errorMessage.includes('storage') || errorMessage.includes('bucket')) {
-        return serverError(
-          'Storage yapılandırma hatası. Lütfen Firebase Storage ayarlarını kontrol edin.',
-          errorMessage
-        );
-      }
-      
-      return serverError('Görsel yüklenirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

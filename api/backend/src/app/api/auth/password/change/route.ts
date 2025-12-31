@@ -4,43 +4,41 @@ import { withAuth } from '@/lib/middleware/auth';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
 import { 
   successResponse, 
-  validationError, 
-  handleFirebaseAuthError,
-  serverError,
-  isErrorWithMessage,
-  isFirebaseError
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppInternalServerError } from '@/lib/utils/errors/AppError';
+import { isErrorWithMessage } from '@/lib/utils/response';
 
 interface PasswordChangeRequest {
   currentPassword: string;
   newPassword: string;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
-      const body: PasswordChangeRequest = await request.json();
+    const body = await parseJsonBody<PasswordChangeRequest>(req);
       const { currentPassword, newPassword } = body;
       
       // 1️⃣ VALIDATION
       if (!currentPassword || !newPassword) {
-        return validationError('Mevcut şifre ve yeni şifre gerekli');
+      throw new AppValidationError('Mevcut şifre ve yeni şifre gerekli');
       }
       
       if (currentPassword === newPassword) {
-        return validationError('Yeni şifre mevcut şifre ile aynı olamaz');
+      throw new AppValidationError('Yeni şifre mevcut şifre ile aynı olamaz');
       }
       
       const passwordValidation = validatePassword(newPassword);
       if (!passwordValidation.valid) {
-        return validationError(passwordValidation.error || 'Geçersiz şifre');
+      throw new AppValidationError(passwordValidation.error || 'Geçersiz şifre');
       }
       
       // 2️⃣ KULLANICI BİLGİLERİNİ AL
       const userRecord = await auth.getUser(user.uid);
       
       if (!userRecord.email) {
-        return validationError('Kullanıcının e-posta adresi bulunamadı');
+      throw new AppValidationError('Kullanıcının e-posta adresi bulunamadı');
       }
       
       // 3️⃣ MEVCUT ŞİFREYİ DOĞRULA (Firebase Auth REST API ile)
@@ -48,7 +46,7 @@ export async function POST(request: NextRequest) {
       
       if (!firebaseWebApiKey) {
         console.error('❌ FIREBASE_WEB_API_KEY not configured');
-        return serverError('Sunucu yapılandırma hatası');
+        throw new AppInternalServerError('Sunucu yapılandırma hatası');
       }
       
       try {
@@ -72,19 +70,24 @@ export async function POST(request: NextRequest) {
           
           // Şifre hatalı ise
           if (errorMessage.includes('INVALID_PASSWORD') || errorMessage.includes('INVALID_LOGIN_CREDENTIALS')) {
-            return validationError('Mevcut şifre hatalı');
+            throw new AppValidationError('Mevcut şifre hatalı');
           }
           
           // Diğer hatalar için
           console.error('❌ Password verification error:', errorMessage);
-          return validationError('Mevcut şifre doğrulanamadı');
+          throw new AppValidationError('Mevcut şifre doğrulanamadı');
         }
         
         console.log(`✅ Current password verified for user: ${user.uid}`);
       } catch (verifyError: unknown) {
+        // Eğer zaten AppError ise, re-throw et
+        if (verifyError instanceof AppValidationError) {
+          throw verifyError;
+        }
+        // Diğer hatalar için
         const errorMessage = isErrorWithMessage(verifyError) ? verifyError.message : 'Bilinmeyen hata';
         console.error('❌ Password verification error:', errorMessage);
-        return serverError('Mevcut şifre doğrulanırken bir hata oluştu');
+        throw new AppInternalServerError('Mevcut şifre doğrulanırken bir hata oluştu');
       }
       
       // 4️⃣ ŞİFREYİ GÜNCELLE
@@ -101,21 +104,6 @@ export async function POST(request: NextRequest) {
         200,
         'PASSWORD_CHANGE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Password change error:', error);
-      
-      // Firebase Auth hatalarını yakala
-      if (isFirebaseError(error) && error.code.startsWith('auth/')) {
-        return handleFirebaseAuthError(error);
-      }
-      
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Şifre değiştirilirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

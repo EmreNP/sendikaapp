@@ -8,28 +8,25 @@ import { validateUpdateAnnouncement } from '@/lib/utils/validation/announcementV
 import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeAnnouncementTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, validateBodySize } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Tek duyuru detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const announcementId = params.id;
       
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       const userRole = currentUserData!.role;
@@ -37,7 +34,7 @@ export async function GET(
       const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
       if (!announcementDoc.exists) {
-        return notFoundError('Duyuru');
+      throw new AppNotFoundError('Duyuru');
       }
       
       const announcementData = announcementDoc.data();
@@ -45,7 +42,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece yayınlanan duyurular
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!announcementData?.isPublished) {
-          return notFoundError('Duyuru');
+        throw new AppNotFoundError('Duyuru');
         }
       }
       
@@ -61,53 +58,40 @@ export async function GET(
         'Duyuru başarıyla getirildi',
         { announcement: serializedAnnouncement }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get announcement error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Duyuru getirilirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // PUT - Duyuru güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const announcementId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
       if (!announcementDoc.exists) {
-        return notFoundError('Duyuru');
+      throw new AppNotFoundError('Duyuru');
       }
       
       const currentAnnouncementData = announcementDoc.data();
       
       // Request body size kontrolü (max 1MB)
-      const contentLength = request.headers.get('content-length');
-      if (contentLength && parseInt(contentLength) > 1024 * 1024) {
-        return validationError('İstek boyutu çok büyük. Maksimum 1MB olabilir.');
-      }
+    validateBodySize(req, 1024 * 1024);
       
-      const body: UpdateAnnouncementRequest = await request.json();
+    const body = await parseJsonBody<UpdateAnnouncementRequest>(req);
       const { title, content, externalUrl, imageUrl, isPublished, isFeatured, publishedAt } = body;
       
       // Mevcut değerlerle birleştirilmiş validation
@@ -118,7 +102,7 @@ export async function PUT(
       
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const updateData: Record<string, any> = {
@@ -185,42 +169,32 @@ export async function PUT(
         200,
         'ANNOUNCEMENT_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update announcement error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Duyuru güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // DELETE - Duyuru sil (sadece admin, hard delete)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const announcementId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const announcementDoc = await db.collection('announcements').doc(announcementId).get();
       
       if (!announcementDoc.exists) {
-        return notFoundError('Duyuru');
+      throw new AppNotFoundError('Duyuru');
       }
       
       // Hard delete - belgeyi tamamen sil
@@ -234,15 +208,6 @@ export async function DELETE(
         200,
         'ANNOUNCEMENT_DELETE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Delete announcement error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Duyuru silinirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

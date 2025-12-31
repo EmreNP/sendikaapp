@@ -6,49 +6,48 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkUserActionRequest, BulkUserActionResult } from '@shared/types/user';
 import {
   successResponse,
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { isErrorWithMessage } from '@/lib/utils/response';
 
 // POST - Toplu işlem
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
 
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
       const userRole = currentUserData!.role;
 
       // User rolü bulk işlem yapamaz
       if (userRole === USER_ROLE.USER) {
-        return unauthorizedError('Bu işlem için yetkiniz yok');
+      throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
       }
 
-      const body: BulkUserActionRequest = await request.json();
+    const body = await parseJsonBody<BulkUserActionRequest>(req);
       const { action, userIds } = body;
 
       // Validation
       if (!action || !['delete', 'activate', 'deactivate'].includes(action)) {
-        return validationError('Geçersiz işlem tipi. İzin verilen: delete, activate, deactivate');
+      throw new AppValidationError('Geçersiz işlem tipi. İzin verilen: delete, activate, deactivate');
       }
 
       if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-        return validationError('Kullanıcı ID listesi boş veya geçersiz');
+      throw new AppValidationError('Kullanıcı ID listesi boş veya geçersiz');
       }
 
       if (userIds.length > 100) {
-        return validationError('Maksimum 100 kullanıcı için toplu işlem yapılabilir');
+      throw new AppValidationError('Maksimum 100 kullanıcı için toplu işlem yapılabilir');
       }
 
       // Delete sadece admin yapabilir
       if (action === 'delete' && userRole !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Toplu silme işlemi için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Toplu silme işlemi için admin yetkisi gerekli');
       }
 
       // Her kullanıcı için işlemi yap
@@ -231,12 +230,6 @@ export async function POST(request: NextRequest) {
           207, // Multi-Status
           'BULK_USER_ACTION_PARTIAL'
         );
-      }
-    } catch (error: unknown) {
-      console.error('❌ Bulk user action error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Toplu işlem sırasında bir hata oluştu', errorMessage);
-    }
   });
-}
+  });
 

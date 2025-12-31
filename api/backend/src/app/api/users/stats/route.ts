@@ -6,29 +6,26 @@ import { USER_ROLE } from '@shared/constants/roles';
 import { USER_STATUS } from '@shared/constants/status';
 import { 
   successResponse, 
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 // GET /api/users/stats - Kullanıcı istatistikleri
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
-      // Kullanıcının rolünü kontrol et
-      const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      
-      if (error) {
-        return error;
-      }
-      
-      const userRole = currentUserData!.role;
-      
-      // User istatistikleri göremez
-      if (userRole === USER_ROLE.USER) {
-        return unauthorizedError('Bu işlem için yetkiniz yok');
-      }
+    // Kullanıcının rolünü kontrol et
+    const { error, user: currentUserData } = await getCurrentUser(user.uid);
+    
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
+    
+    const userRole = currentUserData!.role;
+    
+    // User istatistikleri göremez
+    if (userRole === USER_ROLE.USER) {
+      throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
+    }
       
       // Query oluştur
       let query: Query = db.collection('users');
@@ -112,15 +109,6 @@ export async function GET(request: NextRequest) {
           stats,
         }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get stats error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'İstatistikler alınırken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+});
 

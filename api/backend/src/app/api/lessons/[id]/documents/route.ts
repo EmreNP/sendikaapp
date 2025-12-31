@@ -8,33 +8,32 @@ import { validateCreateDocumentContent } from '@/lib/utils/validation/documentCo
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeDocumentContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
 // GET - Dersin dökümanlarını listele
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       const lessonId = params.id;
-      const { searchParams } = new URL(request.url);
-      const isActiveParam = searchParams.get('isActive');
+    const url = new URL(request.url);
+    const isActiveParam = url.searchParams.get('isActive');
       
       // Lesson'ın var olup olmadığını kontrol et
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
       let query = db.collection('document_contents')
@@ -60,26 +59,22 @@ export async function GET(
         'Dökümanlar başarıyla getirildi',
         { documents: serializedDocuments }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get documents error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Dökümanlar getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // POST - Yeni döküman ekle (sadece admin)
-export async function POST(
+export const POST = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const lessonId = params.id;
@@ -87,10 +82,10 @@ export async function POST(
       // Lesson'ın var olup olmadığını kontrol et
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
-      const body: CreateDocumentContentRequest = await request.json();
+    const body = await parseJsonBody<CreateDocumentContentRequest>(req);
       
       // lessonId'yi body'den al veya params'tan kullan
       const documentData: CreateDocumentContentRequest = {
@@ -102,7 +97,7 @@ export async function POST(
       const validation = validateCreateDocumentContent(documentData);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       // Order yönetimi
@@ -134,7 +129,7 @@ export async function POST(
       const documentDoc = await documentRef.get();
       
       if (!documentDoc.exists) {
-        return serverError('Döküman oluşturuldu ancak veri alınamadı');
+      throw new AppInternalServerError('Döküman oluşturuldu ancak veri alınamadı');
       }
       
       const docData = documentDoc.data();
@@ -152,11 +147,6 @@ export async function POST(
         201,
         'DOCUMENT_CONTENT_CREATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Create document content error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Döküman oluşturulurken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

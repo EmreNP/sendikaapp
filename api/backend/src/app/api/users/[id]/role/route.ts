@@ -6,33 +6,31 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { UserRole, UserRoleUpdateData } from '@shared/types/user';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // PATCH /api/users/[id]/role - Kullanıcı rolünü güncelle
-export async function PATCH(
+export const PATCH = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const targetUserId = params.id;
-      const body = await request.json();
+    const body = await parseJsonBody<{ role: string; branchId?: string }>(req);
       const { role: newRole, branchId } = body;
       
       // Validasyon
       if (!newRole) {
-        return validationError('Role alanı zorunludur');
+      throw new AppValidationError('Role alanı zorunludur');
       }
       
       // Role geçerli mi kontrol et
       const validRoles = Object.values(USER_ROLE);
       if (!validRoles.includes(newRole as UserRole)) {
-        return validationError('Geçersiz rol değeri');
+      throw new AppValidationError('Geçersiz rol değeri');
       }
       
       // Kullanıcının rolünü kontrol et
@@ -46,14 +44,14 @@ export async function PATCH(
       
       // Sadece Admin rol güncelleyebilir
       if (userRole !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       // Hedef kullanıcıyı getir
       const targetUserDoc = await db.collection('users').doc(targetUserId).get();
       
       if (!targetUserDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       const targetUserData = targetUserDoc.data();
@@ -61,20 +59,20 @@ export async function PATCH(
       
       // Branch Manager rolü için branchId zorunlu
       if (newRole === USER_ROLE.BRANCH_MANAGER && !branchId) {
-        return validationError('Branch manager rolü için branchId zorunludur');
+      throw new AppValidationError('Branch manager rolü için branchId zorunludur');
       }
       
       // Branch ID varsa kontrol et
       if (branchId) {
         const branchDoc = await db.collection('branches').doc(branchId).get();
         if (!branchDoc.exists) {
-          return validationError('Geçersiz şube ID');
+        throw new AppValidationError('Geçersiz şube ID');
         }
       }
       
       // Kendinin rolünü değiştirmeye izin verme
       if (targetUserId === user.uid) {
-        return validationError('Kendi rolünüzü değiştiremezsiniz');
+      throw new AppValidationError('Kendi rolünüzü değiştiremezsiniz');
       }
       
       // Rol'ü güncelle
@@ -107,15 +105,6 @@ export async function PATCH(
         200,
         'USER_ROLE_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update role error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Kullanıcı rolü güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

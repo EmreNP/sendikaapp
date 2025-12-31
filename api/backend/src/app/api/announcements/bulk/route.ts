@@ -6,41 +6,39 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkAnnouncementActionRequest, BulkAnnouncementActionResult } from '@shared/types/announcement';
 import {
   successResponse,
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 // POST - Toplu işlem (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
 
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 
-      const body: BulkAnnouncementActionRequest = await request.json();
+    const body = await parseJsonBody<BulkAnnouncementActionRequest>(req);
       const { action, announcementIds } = body;
 
       // Validation
       if (!action || !['delete', 'publish', 'unpublish'].includes(action)) {
-        return validationError('Geçersiz işlem tipi. İzin verilen: delete, publish, unpublish');
+      throw new AppValidationError('Geçersiz işlem tipi. İzin verilen: delete, publish, unpublish');
       }
 
       if (!announcementIds || !Array.isArray(announcementIds) || announcementIds.length === 0) {
-        return validationError('Duyuru ID listesi boş veya geçersiz');
+      throw new AppValidationError('Duyuru ID listesi boş veya geçersiz');
       }
 
       if (announcementIds.length > 100) {
-        return validationError('Maksimum 100 duyuru için toplu işlem yapılabilir');
+      throw new AppValidationError('Maksimum 100 duyuru için toplu işlem yapılabilir');
       }
 
       const results: BulkAnnouncementActionResult = {
@@ -132,12 +130,6 @@ export async function POST(request: NextRequest) {
           207, // Multi-Status
           'BULK_ANNOUNCEMENT_ACTION_PARTIAL'
         );
-      }
-    } catch (error: unknown) {
-      console.error('❌ Bulk announcement action error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Toplu işlem sırasında bir hata oluştu', errorMessage);
-    }
   });
-}
+  });
 

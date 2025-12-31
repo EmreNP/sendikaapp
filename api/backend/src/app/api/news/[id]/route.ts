@@ -8,28 +8,25 @@ import { validateUpdateNews } from '@/lib/utils/validation/newsValidation';
 import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeNewsTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, validateBodySize } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Tek haber detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const newsId = params.id;
       
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       const userRole = currentUserData!.role;
@@ -37,7 +34,7 @@ export async function GET(
       const newsDoc = await db.collection('news').doc(newsId).get();
       
       if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      throw new AppNotFoundError('Haber');
       }
       
       const newsData = newsDoc.data();
@@ -45,7 +42,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece yayınlanan haberler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!newsData?.isPublished) {
-          return notFoundError('Haber');
+        throw new AppNotFoundError('Haber');
         }
       }
       
@@ -61,53 +58,40 @@ export async function GET(
         'Haber başarıyla getirildi',
         { news: serializedNews }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get news error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Haber getirilirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // PUT - Haber güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const newsId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const newsDoc = await db.collection('news').doc(newsId).get();
       
       if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      throw new AppNotFoundError('Haber');
       }
       
       const currentNewsData = newsDoc.data();
       
       // Request body size kontrolü (max 1MB)
-      const contentLength = request.headers.get('content-length');
-      if (contentLength && parseInt(contentLength) > 1024 * 1024) {
-        return validationError('İstek boyutu çok büyük. Maksimum 1MB olabilir.');
-      }
+    validateBodySize(req, 1024 * 1024);
       
-      const body: UpdateNewsRequest = await request.json();
+    const body = await parseJsonBody<UpdateNewsRequest>(req);
       const { title, content, imageUrl, isPublished, isFeatured, publishedAt } = body;
       
       // Mevcut değerlerle birleştirilmiş validation
@@ -117,7 +101,7 @@ export async function PUT(
       
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const updateData: Record<string, any> = {
@@ -180,42 +164,32 @@ export async function PUT(
         200,
         'NEWS_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update news error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Haber güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // DELETE - Haber sil (sadece admin, hard delete)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const newsId = params.id;
       
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const newsDoc = await db.collection('news').doc(newsId).get();
       
       if (!newsDoc.exists) {
-        return notFoundError('Haber');
+      throw new AppNotFoundError('Haber');
       }
       
       // Hard delete - belgeyi tamamen sil
@@ -229,15 +203,6 @@ export async function DELETE(
         200,
         'NEWS_DELETE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Delete news error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Haber silinirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

@@ -8,33 +8,31 @@ import { validateCreateNews } from '@/lib/utils/validation/newsValidation';
 import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
   serializeNewsTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 // GET - Tüm haberleri listele
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       const userRole = currentUserData!.role;
       
       // Query parametreleri
-      const { searchParams } = new URL(request.url);
-      const page = parseInt(searchParams.get('page') || '1');
-      const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // Max 100
-      const isPublishedParam = searchParams.get('isPublished');
-      const isFeaturedParam = searchParams.get('isFeatured');
-      const search = searchParams.get('search');
+    const url = new URL(request.url);
+    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
+    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const isPublishedParam = url.searchParams.get('isPublished');
+    const isFeaturedParam = url.searchParams.get('isFeatured');
+    const search = url.searchParams.get('search');
       
       // Query oluştur
       let query = db.collection('news') as admin.firestore.Query;
@@ -89,47 +87,34 @@ export async function GET(request: NextRequest) {
           limit,
         }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get news error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Haberler getirilirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // POST - Yeni haber oluştur (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Admin kontrolü
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       // Request body size kontrolü (max 1MB)
-      const contentLength = request.headers.get('content-length');
-      if (contentLength && parseInt(contentLength) > 1024 * 1024) {
-        return validationError('İstek boyutu çok büyük. Maksimum 1MB olabilir.');
-      }
+    validateBodySize(req, 1024 * 1024);
       
-      const body: CreateNewsRequest = await request.json();
+    const body = await parseJsonBody<CreateNewsRequest>(req);
       const { title, content, imageUrl, isPublished, isFeatured } = body;
       
       // Validation
       const validation = validateCreateNews(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       // HTML sanitization
@@ -166,15 +151,6 @@ export async function POST(request: NextRequest) {
         201,
         'NEWS_CREATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Create news error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Haber oluşturulurken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

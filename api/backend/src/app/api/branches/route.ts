@@ -7,61 +7,15 @@ import type { Branch,  BranchWithManagers, CreateBranchRequest } from '@shared/t
 import { validateBranchName, validateBranchEmail, validateBranchPhone } from '@/lib/utils/validation/branchValidation';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
+import { getBranchDetails } from '@/lib/utils/branchQueries';
 
-// Helper: Tek bir branch'in manager'larını getir
-async function getBranchManagers(branchId: string) {
-  const managersSnapshot = await db.collection('users')
-    .where('branchId', '==', branchId)
-    .where('role', '==', USER_ROLE.BRANCH_MANAGER)
-    .where('isActive', '==', true)
-    .get();
-  
-  return managersSnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      uid: doc.id,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-    };
-  });
-}
-
-// Helper: Branch'in etkinlik sayısını getir
-async function getBranchEventCount(branchId: string): Promise<number> {
-  try {
-    const eventsSnapshot = await db.collection('events')
-      .where('branchId', '==', branchId)
-      .get();
-    
-    return eventsSnapshot.size;
-  } catch (error) {
-    // Collection yoksa veya hata olursa 0 döndür
-    console.warn(`⚠️  Could not get event count for branch ${branchId}:`, error);
-    return 0;
-  }
-}
-
-// Helper: Branch'in eğitim sayısını getir
-async function getBranchEducationCount(branchId: string): Promise<number> {
-  try {
-    const educationsSnapshot = await db.collection('educations')
-      .where('branchId', '==', branchId)
-      .get();
-    
-    return educationsSnapshot.size;
-  } catch (error) {
-    // Collection yoksa veya hata olursa 0 döndür
-    console.warn(`⚠️  Could not get education count for branch ${branchId}:`, error);
-    return 0;
-  }
-}
+// Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
+// artık getBranchDetails() utility fonksiyonu kullanılıyor (src/lib/utils/branchQueries.ts)
 
 // Helper: Birden fazla branch için etkinlik ve eğitim sayılarını batch olarak getir
 async function getBranchCountsBatch(branchIds: string[]): Promise<Record<string, { eventCount: number; educationCount: number }>> {
@@ -177,21 +131,20 @@ async function getBranchManagersBatch(branchIds: string[]): Promise<Record<strin
 }
 
 // GET - Tüm şubeleri listele
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   // Email verification kontrolünü bypass et - kullanıcılar kayıt sırasında şubeleri görebilmeli
   return withAuth(request, async (req, user) => {
-    try {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
       if (!userData) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
 
       // Query parametreleri
-      const { searchParams } = new URL(request.url);
-      const page = parseInt(searchParams.get('page') || '1');
-      const limit = parseInt(searchParams.get('limit') || '20');
+    const url = new URL(request.url);
+    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
+    const limit = parseQueryParamAsNumber(url, 'limit', 20, 1);
 
       // Branch manager sadece kendi şubesini görebilir
       if (userData.role === USER_ROLE.BRANCH_MANAGER && userData.branchId) {
@@ -213,11 +166,8 @@ export async function GET(request: NextRequest) {
         
         const branchData = branchDoc.data();
         
-        // Etkinlik ve eğitim sayılarını hesapla
-        const [eventCount, educationCount] = await Promise.all([
-          getBranchEventCount(branchDoc.id),
-          getBranchEducationCount(branchDoc.id),
-        ]);
+        // Tüm branch bilgilerini tek seferde getir (optimize edilmiş ✅)
+        const { eventCount, educationCount, managers } = await getBranchDetails(branchDoc.id);
         
         const branch: Branch = {
           id: branchDoc.id,
@@ -227,7 +177,6 @@ export async function GET(request: NextRequest) {
         } as Branch;
         
         // Branch manager kendi şubesinin manager'larını görebilir
-        const managers = await getBranchManagers(branchDoc.id);
         const branchWithManagers: BranchWithManagers = { ...branch, managers };
         
         return successResponse(
@@ -324,50 +273,40 @@ export async function GET(request: NextRequest) {
           limit
         }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get branches error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Şubeler getirilirken bir hata oluştu',
-        errorMessage
-      );
-    }
   }, { skipEmailVerification: true });
-}
+});
 
 // POST - Yeni şube oluştur (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Admin kontrolü
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
       if (!userData || userData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
-      const body: CreateBranchRequest = await request.json();
+    const body = await parseJsonBody<CreateBranchRequest>(req);
       const { name, code, address, city, district, phone, email } = body;
       
       // Validation
       const nameValidation = validateBranchName(name || '');
       if (!nameValidation.valid) {
-        return validationError(nameValidation.error || 'Geçersiz şube adı');
+      throw new AppValidationError(nameValidation.error || 'Geçersiz şube adı');
       }
       
       if (email) {
         const emailValidation = validateBranchEmail(email);
         if (!emailValidation.valid) {
-          return validationError(emailValidation.error || 'Geçersiz e-posta');
+        throw new AppValidationError(emailValidation.error || 'Geçersiz e-posta');
         }
       }
       
       if (phone) {
         const phoneValidation = validateBranchPhone(phone);
         if (!phoneValidation.valid) {
-          return validationError(phoneValidation.error || 'Geçersiz telefon');
+        throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon');
         }
       }
       
@@ -398,15 +337,6 @@ export async function POST(request: NextRequest) {
         201,
         'BRANCH_CREATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Create branch error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Şube oluşturulurken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

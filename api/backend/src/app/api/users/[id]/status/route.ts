@@ -8,33 +8,37 @@ import type { UserStatus, UserStatusUpdateData, UserRegistrationLog } from '@sha
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
+import { isErrorWithMessage } from '@/lib/utils/response';
 
 // PATCH /api/users/[id]/status - Kullanıcı durumunu güncelle
-export async function PATCH(
+export const PATCH = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const targetUserId = params.id;
-      const body = await request.json();
+    const body = await parseJsonBody<{ 
+      status: string; 
+      rejectionReason?: string; 
+      documentUrl?: string; 
+      note?: string;
+    }>(req);
       const { status: newStatus, rejectionReason, documentUrl, note } = body;
       
       // Validasyon
       if (!newStatus) {
-        return validationError('Status alanı zorunludur');
+      throw new AppValidationError('Status alanı zorunludur');
       }
       
       // Status geçerli mi kontrol et
       const validStatuses = Object.values(USER_STATUS);
       if (!validStatuses.includes(newStatus as UserStatus)) {
-        return validationError('Geçersiz status değeri');
+      throw new AppValidationError('Geçersiz status değeri');
       }
       
       // Kullanıcının rolünü kontrol et
@@ -48,14 +52,14 @@ export async function PATCH(
       
       // User status güncelleyemez
       if (userRole === USER_ROLE.USER) {
-        return unauthorizedError('Bu işlem için yetkiniz yok');
+      throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
       }
       
       // Hedef kullanıcıyı getir
       const targetUserDoc = await db.collection('users').doc(targetUserId).get();
       
       if (!targetUserDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       const targetUserData = targetUserDoc.data();
@@ -65,7 +69,7 @@ export async function PATCH(
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
         // Sadece kendi şubesindeki kullanıcılar
         if (targetUserData?.branchId !== currentUserData!.branchId) {
-          return unauthorizedError('Bu kullanıcıya erişim yetkiniz yok');
+        throw new AppAuthorizationError('Bu kullanıcıya erişim yetkiniz yok');
         }
         
         // Branch Manager sadece belirli status geçişlerini yapabilir
@@ -79,24 +83,24 @@ export async function PATCH(
         const allowed = allowedTransitions[currentStatus as string] || [];
         
         if (!allowed.includes(newStatus)) {
-          return unauthorizedError('Bu status değişikliğine yetkiniz yok. Sadece pending_branch_review durumundaki kullanıcıları pending_admin_approval veya pending_details yapabilirsiniz.');
+        throw new AppAuthorizationError('Bu status değişikliğine yetkiniz yok. Sadece pending_branch_review durumundaki kullanıcıları pending_admin_approval veya pending_details yapabilirsiniz.');
         }
         
         // Branch Manager active ve rejected yapamaz
         if (newStatus === USER_STATUS.ACTIVE || newStatus === USER_STATUS.REJECTED) {
-          return unauthorizedError('Branch Manager kullanıcıyı active veya rejected yapamaz');
+        throw new AppAuthorizationError('Branch Manager kullanıcıyı active veya rejected yapamaz');
         }
         
         // Admin'e gönderme durumunda PDF zorunlu
         if (newStatus === USER_STATUS.PENDING_ADMIN_APPROVAL && !documentUrl) {
-          return validationError('Admin onayına göndermek için PDF belgesi zorunludur');
+        throw new AppValidationError('Admin onayına göndermek için PDF belgesi zorunludur');
         }
       }
       
       // Admin her şeyi yapabilir
       // Rejected durumu için rejection reason kontrolü
       if (newStatus === USER_STATUS.REJECTED && !rejectionReason) {
-        return validationError('Reddetme nedeni belirtilmelidir');
+      throw new AppValidationError('Reddetme nedeni belirtilmelidir');
       }
       
       // Status'u güncelle
@@ -268,15 +272,6 @@ export async function PATCH(
         200,
         'USER_STATUS_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update status error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Kullanıcı durumu güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

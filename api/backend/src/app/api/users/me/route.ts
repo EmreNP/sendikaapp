@@ -7,23 +7,21 @@ import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
 import { 
   successResponse, 
-  validationError, 
-  unauthorizedError,
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppNotFoundError, AppAuthorizationError, AppConflictError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
 // GET /api/users/me - Kendi kullanıcı bilgilerini getir
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Firestore'dan kullanıcı bilgilerini al
       const userDoc = await db.collection('users').doc(user.uid).get();
       
       if (!userDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       const userData = userDoc.data();
@@ -37,29 +35,19 @@ export async function GET(request: NextRequest) {
           },
         }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get me error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Kullanıcı bilgileri alınırken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // PUT /api/users/me - Kendi bilgilerini güncelle
-export async function PUT(request: NextRequest) {
+export const PUT = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
-      const body = await request.json();
+    const body = await parseJsonBody<any>(req);
       
       // Firestore'dan mevcut kullanıcı bilgilerini al
       const userDoc = await db.collection('users').doc(user.uid).get();
       
       if (!userDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       // Güncellenebilir alanlar
@@ -87,48 +75,48 @@ export async function PUT(request: NextRequest) {
       const hasRestrictedField = restrictedFields.some(field => field in body);
       
       if (hasRestrictedField) {
-        return unauthorizedError('Bu alanları güncelleyemezsiniz');
+      throw new AppAuthorizationError('Bu alanları güncelleyemezsiniz');
       }
       
       // Validation
       if (body.firstName !== undefined) {
         const nameValidation = validateName(body.firstName, 'Ad');
         if (!nameValidation.valid) {
-          return validationError(nameValidation.error || 'Geçersiz ad');
+        throw new AppValidationError(nameValidation.error || 'Geçersiz ad');
         }
       }
       
       if (body.lastName !== undefined) {
         const nameValidation = validateName(body.lastName, 'Soyad');
         if (!nameValidation.valid) {
-          return validationError(nameValidation.error || 'Geçersiz soyad');
+        throw new AppValidationError(nameValidation.error || 'Geçersiz soyad');
         }
       }
       
       if (body.birthDate !== undefined) {
         const ageValidation = validateAge(body.birthDate);
         if (!ageValidation.valid) {
-          return validationError(ageValidation.error || 'Geçersiz doğum tarihi');
+        throw new AppValidationError(ageValidation.error || 'Geçersiz doğum tarihi');
         }
       }
       
       if (body.gender !== undefined) {
         if (body.gender !== GENDER.MALE && body.gender !== GENDER.FEMALE) {
-          return validationError('Cinsiyet sadece male veya female olabilir');
+        throw new AppValidationError('Cinsiyet sadece male veya female olabilir');
         }
       }
       
       if (body.phone !== undefined) {
         const phoneValidation = validateUserPhone(body.phone);
         if (!phoneValidation.valid) {
-          return validationError(phoneValidation.error || 'Geçersiz telefon numarası');
+        throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon numarası');
         }
       }
       
       if (body.tcKimlikNo !== undefined) {
         const tcValidation = validateTCKimlikNo(body.tcKimlikNo);
         if (!tcValidation.valid) {
-          return validationError(tcValidation.error || 'Geçersiz TC Kimlik No');
+        throw new AppValidationError(tcValidation.error || 'Geçersiz TC Kimlik No');
         }
         
         // TC Kimlik No'nun başka kullanıcıda olup olmadığını kontrol et
@@ -139,27 +127,27 @@ export async function PUT(request: NextRequest) {
           .get();
         
         if (!existingUser.empty) {
-          return validationError('Bu TC Kimlik No zaten kullanılıyor');
+        throw new AppConflictError('Bu TC Kimlik No zaten kullanılıyor');
         }
       }
       
       if (body.fatherName !== undefined && body.fatherName) {
         const nameValidation = validateName(body.fatherName, 'Baba adı');
         if (!nameValidation.valid) {
-          return validationError(nameValidation.error || 'Geçersiz baba adı');
+        throw new AppValidationError(nameValidation.error || 'Geçersiz baba adı');
         }
       }
       
       if (body.motherName !== undefined && body.motherName) {
         const nameValidation = validateName(body.motherName, 'Anne adı');
         if (!nameValidation.valid) {
-          return validationError(nameValidation.error || 'Geçersiz anne adı');
+        throw new AppValidationError(nameValidation.error || 'Geçersiz anne adı');
         }
       }
       
       if (body.education !== undefined && body.education) {
         if (!Object.values(EDUCATION_LEVEL).includes(body.education)) {
-          return validationError('Geçersiz eğitim seviyesi');
+        throw new AppValidationError('Geçersiz eğitim seviyesi');
         }
       }
       
@@ -197,15 +185,6 @@ export async function PUT(request: NextRequest) {
         200,
         'USER_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update me error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Bilgiler güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

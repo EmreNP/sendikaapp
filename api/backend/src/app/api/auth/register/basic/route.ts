@@ -10,13 +10,11 @@ import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
   validationError, 
-  handleFirebaseAuthError, 
-  handleFirestoreError,
-  serverError,
-  isErrorWithMessage,
-  isErrorWithCode,
-  isFirebaseError
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppConflictError } from '@/lib/utils/errors/AppError';
+import { isErrorWithMessage } from '@/lib/utils/response';
 import admin from 'firebase-admin';
 
 interface RegisterBasicRequest {
@@ -28,9 +26,9 @@ interface RegisterBasicRequest {
   gender: 'male' | 'female';
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: RegisterBasicRequest = await request.json();
+export const POST = asyncHandler(async (request: NextRequest) => {
+  // JSON body parsing with error handling
+  const body = await parseJsonBody<RegisterBasicRequest>(request);
     const {
       firstName,
       lastName,
@@ -42,26 +40,26 @@ export async function POST(request: NextRequest) {
     
     // 1️⃣ VALIDATION
     if (!firstName || !lastName || !email || !password || !birthDate || !gender) {
-      return validationError('Tüm alanlar zorunludur');
+    throw new AppValidationError('Tüm alanlar zorunludur');
     }
     
     if (!validateEmail(email)) {
-      return validationError('Geçersiz e-posta adresi');
+    throw new AppValidationError('Geçersiz e-posta adresi');
     }
     
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
-      return validationError(passwordValidation.error || 'Geçersiz şifre');
+    throw new AppValidationError(passwordValidation.error || 'Geçersiz şifre');
     }
     
     const ageValidation = validateAge(birthDate);
     if (!ageValidation.valid) {
-      return validationError(ageValidation.error || 'Geçersiz doğum tarihi');
+    throw new AppValidationError(ageValidation.error || 'Geçersiz doğum tarihi');
     }
     
     // Gender sadece male veya female olabilir
     if (gender !== 'male' && gender !== 'female') {
-      return validationError('Geçersiz cinsiyet değeri. Sadece male veya female olabilir.');
+    throw new AppValidationError('Geçersiz cinsiyet değeri. Sadece male veya female olabilir.');
     }
     
     // 2️⃣ FIREBASE AUTH USER OLUŞTUR
@@ -88,7 +86,7 @@ export async function POST(request: NextRequest) {
       } catch (cleanupError) {
         console.error('❌ Failed to cleanup auth user:', cleanupError);
       }
-      return validationError('Bu kullanıcı daha önce oluşturulmuş. Lütfen giriş yapın.');
+      throw new AppConflictError('Bu kullanıcı daha önce oluşturulmuş. Lütfen giriş yapın.');
     }
     
     const birthDateTimestamp = admin.firestore.Timestamp.fromDate(new Date(birthDate));
@@ -158,26 +156,5 @@ export async function POST(request: NextRequest) {
       201,
       'REGISTER_BASIC_SUCCESS'
     );
-    
-  } catch (error: unknown) {
-    console.error('❌ Register basic error:', error);
-    
-    // Firebase Auth hatalarını yakala
-    if (isFirebaseError(error) && error.code.startsWith('auth/')) {
-      return handleFirebaseAuthError(error);
-    }
-    
-    // Firestore hatalarını yakala
-    if (isErrorWithCode(error) && (error.code === 'permission-denied' || error.code === 'not-found')) {
-      return handleFirestoreError(error);
-    }
-    
-    // Genel hata
-    const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-    return serverError(
-      'Kayıt sırasında bir hata oluştu',
-      errorMessage
-    );
-  }
-}
+});
 

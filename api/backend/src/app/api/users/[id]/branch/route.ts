@@ -5,49 +5,47 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { UserBranchUpdateData } from '@shared/types/user';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
 // PATCH /api/users/[id]/branch - Kullanıcıya şube ata
-export async function PATCH(
+export const PATCH = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const targetUserId = params.id;
-      const body = await request.json();
+    const body = await parseJsonBody<{ branchId: string | null }>(req);
       const { branchId } = body;
       
       // branchId undefined olabilir (null ile şube ataması kaldırılır)
       if (branchId === undefined) {
-        return validationError('branchId alanı zorunludur (null gönderilebilir)');
+      throw new AppValidationError('branchId alanı zorunludur (null gönderilebilir)');
       }
       
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       const userRole = currentUserData!.role;
       
       // Sadece Admin şube atayabilir
       if (userRole !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       // Hedef kullanıcıyı getir
       const targetUserDoc = await db.collection('users').doc(targetUserId).get();
       
       if (!targetUserDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       const targetUserData = targetUserDoc.data();
@@ -57,12 +55,12 @@ export async function PATCH(
       if (branchId) {
         const branchDoc = await db.collection('branches').doc(branchId).get();
         if (!branchDoc.exists) {
-          return validationError('Geçersiz şube ID');
+        throw new AppValidationError('Geçersiz şube ID');
         }
         
         const branchData = branchDoc.data();
         if (!branchData?.isActive) {
-          return validationError('Bu şube aktif değil');
+        throw new AppValidationError('Bu şube aktif değil');
         }
       }
       
@@ -94,15 +92,6 @@ export async function PATCH(
         200,
         'USER_BRANCH_UPDATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Update branch error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Şube ataması güncellenirken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

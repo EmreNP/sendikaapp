@@ -4,28 +4,27 @@ import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { sendPasswordResetEmail } from '@/lib/services/firebaseEmailService';
 import { 
   successResponse, 
-  validationError, 
-  serverError,
-  isErrorWithMessage,
-  isErrorWithCode
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError } from '@/lib/utils/errors/AppError';
+import { isErrorWithCode } from '@/lib/utils/response';
 
 interface PasswordResetRequestRequest {
   email: string;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: PasswordResetRequestRequest = await request.json();
+export const POST = asyncHandler(async (request: NextRequest) => {
+  const body = await parseJsonBody<PasswordResetRequestRequest>(request);
     const { email } = body;
     
     // 1️⃣ VALIDATION
     if (!email) {
-      return validationError('E-posta adresi gerekli');
+    throw new AppValidationError('E-posta adresi gerekli');
     }
     
     if (!validateEmail(email)) {
-      return validationError('Geçersiz e-posta adresi formatı');
+    throw new AppValidationError('Geçersiz e-posta adresi formatı');
     }
     
     // 2️⃣ KULLANICI VAR MI KONTROL ET
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
     } catch (emailError: unknown) {
       // Email gönderilemese bile güvenlik için aynı mesajı döndür
       // Böylece email enumeration saldırıları önlenir
-      const errorMessage = isErrorWithMessage(emailError) ? emailError.message : 'Bilinmeyen hata';
+    const errorMessage = emailError instanceof Error ? emailError.message : 'Bilinmeyen hata';
       console.error('❌ Password reset email error:', errorMessage);
       // Hata olsa bile devam et (güvenlik için aynı response)
     }
@@ -67,15 +66,5 @@ export async function POST(request: NextRequest) {
       200,
       'PASSWORD_RESET_REQUEST_SUCCESS'
     );
-    
-  } catch (error: unknown) {
-    console.error('❌ Password reset request error:', error);
-    
-    const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-    return serverError(
-      'Şifre sıfırlama isteği oluşturulurken bir hata oluştu',
-      errorMessage
-    );
-  }
-}
+});
 

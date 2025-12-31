@@ -9,32 +9,31 @@ import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeLessonTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Tek ders detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const lessonId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
       const lessonData = lessonDoc.data();
@@ -42,7 +41,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece aktif dersler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!lessonData?.isActive) {
-          return notFoundError('Ders');
+        throw new AppNotFoundError('Ders');
         }
       }
       
@@ -57,41 +56,37 @@ export async function GET(
         'Ders başarıyla getirildi',
         { lesson: serializedLesson }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get lesson error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Ders getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // PUT - Ders güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const lessonId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
-      const body: UpdateLessonRequest = await request.json();
+    const body = await parseJsonBody<UpdateLessonRequest>(req);
       const validation = validateUpdateLesson(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const currentLessonData = lessonDoc.data();
@@ -144,34 +139,30 @@ export async function PUT(
         200,
         'LESSON_UPDATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Update lesson error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Ders güncellenirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // DELETE - Ders sil (sadece admin, hard delete + cascade content'ler)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const lessonId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
       // Cascade delete: Altındaki content'leri sil
@@ -215,11 +206,6 @@ export async function DELETE(
         200,
         'LESSON_DELETE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Delete lesson error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Ders silinirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

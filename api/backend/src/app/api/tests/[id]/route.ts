@@ -8,32 +8,31 @@ import { validateUpdateTestContent } from '@/lib/utils/validation/testContentVal
 import { shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeTestContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Test detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const testId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       
       const testDoc = await db.collection('test_contents').doc(testId).get();
       
       if (!testDoc.exists) {
-        return notFoundError('Test');
+      throw new AppNotFoundError('Test');
       }
       
       const testData = testDoc.data();
@@ -41,7 +40,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece aktif testler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!testData?.isActive) {
-          return notFoundError('Test');
+        throw new AppNotFoundError('Test');
         }
       }
       
@@ -57,41 +56,37 @@ export async function GET(
         'Test başarıyla getirildi',
         { test: serializedTest }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get test error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Test getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // PUT - Test güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const testId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const testDoc = await db.collection('test_contents').doc(testId).get();
       
       if (!testDoc.exists) {
-        return notFoundError('Test');
+      throw new AppNotFoundError('Test');
       }
       
-      const body: UpdateTestContentRequest = await request.json();
+    const body = await parseJsonBody<UpdateTestContentRequest>(req);
       const validation = validateUpdateTestContent(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const currentTestData = testDoc.data();
@@ -154,34 +149,30 @@ export async function PUT(
         200,
         'TEST_CONTENT_UPDATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Update test error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Test güncellenirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // DELETE - Test sil (sadece admin, hard delete)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const testId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const testDoc = await db.collection('test_contents').doc(testId).get();
       
       if (!testDoc.exists) {
-        return notFoundError('Test');
+      throw new AppNotFoundError('Test');
       }
       
       // Hard delete
@@ -195,11 +186,6 @@ export async function DELETE(
         200,
         'TEST_CONTENT_DELETE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Delete test error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Test silinirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

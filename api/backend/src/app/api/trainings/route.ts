@@ -9,26 +9,26 @@ import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { getNextTrainingOrder } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
   serializeTrainingTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 // GET - Tüm eğitimleri listele
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
-      const { searchParams } = new URL(request.url);
-      const page = parseInt(searchParams.get('page') || '1');
-      const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
-      const isActiveParam = searchParams.get('isActive');
-      const search = searchParams.get('search');
+    const url = new URL(request.url);
+    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
+    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const isActiveParam = url.searchParams.get('isActive');
+    const search = url.searchParams.get('search');
       
       let query = db.collection('trainings') as admin.firestore.Query;
       
@@ -75,30 +75,26 @@ export async function GET(request: NextRequest) {
           limit,
         }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get trainings error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Eğitimler getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // POST - Yeni eğitim oluştur (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
-      const body: CreateTrainingRequest = await request.json();
+    const body = await parseJsonBody<CreateTrainingRequest>(req);
       const validation = validateCreateTraining(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       // Description sanitization
@@ -158,11 +154,6 @@ export async function POST(request: NextRequest) {
         201,
         'TRAINING_CREATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Create training error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Eğitim oluşturulurken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

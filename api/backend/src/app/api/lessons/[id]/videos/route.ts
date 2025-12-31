@@ -8,33 +8,32 @@ import { validateCreateVideoContent } from '@/lib/utils/validation/videoContentV
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeVideoContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
 // GET - Dersin videolarını listele
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       const lessonId = params.id;
-      const { searchParams } = new URL(request.url);
-      const isActiveParam = searchParams.get('isActive');
+    const url = new URL(request.url);
+    const isActiveParam = url.searchParams.get('isActive');
       
       // Lesson'ın var olup olmadığını kontrol et
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
       let query = db.collection('video_contents')
@@ -60,26 +59,22 @@ export async function GET(
         'Videolar başarıyla getirildi',
         { videos: serializedVideos }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get videos error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Videolar getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // POST - Yeni video ekle (sadece admin)
-export async function POST(
+export const POST = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const lessonId = params.id;
@@ -87,10 +82,10 @@ export async function POST(
       // Lesson'ın var olup olmadığını kontrol et
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
-      const body: CreateVideoContentRequest = await request.json();
+    const body = await parseJsonBody<CreateVideoContentRequest>(req);
       
       // lessonId'yi body'den al veya params'tan kullan
       const videoData: CreateVideoContentRequest = {
@@ -102,7 +97,7 @@ export async function POST(
       const validation = validateCreateVideoContent(videoData);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       // Order yönetimi
@@ -135,7 +130,7 @@ export async function POST(
       const videoDoc = await videoRef.get();
       
       if (!videoDoc.exists) {
-        return serverError('Video oluşturuldu ancak veri alınamadı');
+      throw new AppInternalServerError('Video oluşturuldu ancak veri alınamadı');
       }
       
       const docData = videoDoc.data();
@@ -153,11 +148,6 @@ export async function POST(
         201,
         'VIDEO_CONTENT_CREATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Create video content error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Video oluşturulurken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

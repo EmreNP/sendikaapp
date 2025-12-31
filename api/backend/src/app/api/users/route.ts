@@ -10,42 +10,40 @@ import { validatePassword } from '@/lib/utils/validation/authValidation';
 import { sendEmailVerification } from '@/lib/services/firebaseEmailService';
 import { 
   successResponse, 
-  validationError, 
   unauthorizedError,
   notFoundError,
-  handleFirebaseAuthError,
-  serverError,
   isErrorWithMessage,
-  isFirebaseError
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
 // GET /api/users - Kullanıcı listesi
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
       
       if (error) {
-        return error;
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
       const userRole = currentUserData!.role;
       
       // User rolü liste göremez
       if (userRole === USER_ROLE.USER) {
-        return unauthorizedError('Bu işlem için yetkiniz yok');
+      throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
       }
       
       // Query parametreleri
-      const { searchParams } = new URL(request.url);
-      const status = searchParams.get('status');
-      const role = searchParams.get('role');
-      const branchId = searchParams.get('branchId');
-      const page = parseInt(searchParams.get('page') || '1');
-      const limit = parseInt(searchParams.get('limit') || '20');
-      const search = searchParams.get('search');
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const role = url.searchParams.get('role');
+    const branchId = url.searchParams.get('branchId');
+    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
+    const limit = parseQueryParamAsNumber(url, 'limit', 20, 1);
+    const search = url.searchParams.get('search');
       
       // Query oluştur
       let query: Query = db.collection('users');
@@ -105,23 +103,13 @@ export async function GET(request: NextRequest) {
           limit,
         }
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Get users error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Kullanıcılar alınırken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 
 // POST /api/users - Kullanıcı oluştur
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
-      const body = await request.json();
+    const body = await parseJsonBody<any>(req);
       
       // Kullanıcının rolünü kontrol et
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
@@ -134,7 +122,7 @@ export async function POST(request: NextRequest) {
       
       // User rolü kullanıcı oluşturamaz
       if (userRole === USER_ROLE.USER) {
-        return unauthorizedError('Bu işlem için yetkiniz yok');
+      throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
       }
       
       // Gerekli alanlar
@@ -153,30 +141,30 @@ export async function POST(request: NextRequest) {
       
       // Validasyon
       if (!firstName || !lastName || !email || !password) {
-        return validationError('Gerekli alanlar eksik');
+      throw new AppValidationError('Gerekli alanlar eksik');
       }
       
       // Email validasyonu
       if (!validateEmail(email)) {
-        return validationError('Geçersiz e-posta adresi');
+      throw new AppValidationError('Geçersiz e-posta adresi');
       }
       
       // Şifre validasyonu
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.valid) {
-        return validationError(passwordValidation.error || 'Geçersiz şifre');
+      throw new AppValidationError(passwordValidation.error || 'Geçersiz şifre');
       }
       
       // Branch Manager kısıtlamaları
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
         // Sadece 'user' rolü oluşturabilir
         if (role && role !== USER_ROLE.USER) {
-          return unauthorizedError('Branch Manager sadece user rolü oluşturabilir');
+        throw new AppAuthorizationError('Branch Manager sadece user rolü oluşturabilir');
         }
         
         // branchId otomatik olarak Branch Manager'ın branchId'si olur
         if (branchId && branchId !== currentUserData!.branchId) {
-          return unauthorizedError('Sadece kendi şubeniz için kullanıcı oluşturabilirsiniz');
+        throw new AppAuthorizationError('Sadece kendi şubeniz için kullanıcı oluşturabilirsiniz');
         }
       }
       
@@ -184,7 +172,7 @@ export async function POST(request: NextRequest) {
       if (userRole === USER_ROLE.ADMIN) {
         // Branch manager oluşturuluyorsa branchId zorunlu
         if (role === USER_ROLE.BRANCH_MANAGER && !branchId) {
-          return validationError('Branch manager için branchId zorunludur');
+        throw new AppValidationError('Branch manager için branchId zorunludur');
         }
       }
       
@@ -252,21 +240,6 @@ export async function POST(request: NextRequest) {
         201,
         'USER_CREATE_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Create user error:', error);
-      
-      // Firebase Auth hatalarını yakala
-      if (isFirebaseError(error) && error.code.startsWith('auth/')) {
-        return handleFirebaseAuthError(error);
-      }
-      
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Kullanıcı oluşturulurken bir hata oluştu',
-        errorMessage
-      );
-    }
   });
-}
+  });
 

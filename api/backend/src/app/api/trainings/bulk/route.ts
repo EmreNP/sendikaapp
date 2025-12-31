@@ -6,37 +6,38 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkTrainingActionRequest, BulkTrainingActionResult } from '@shared/types/training';
 import {
   successResponse,
-  validationError,
-  unauthorizedError,
-  serverError,
-  isErrorWithMessage,
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { deleteLessonsContentsBatch } from '@/lib/utils/batchQueries';
 
 // POST - Toplu işlem (sadece admin)
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
-      const body: BulkTrainingActionRequest = await request.json();
+    const body = await parseJsonBody<BulkTrainingActionRequest>(req);
       const { action, trainingIds } = body;
       
       // Validation
       if (!action || !['delete', 'activate', 'deactivate'].includes(action)) {
-        return validationError('Geçersiz işlem tipi. İzin verilen: delete, activate, deactivate');
+      throw new AppValidationError('Geçersiz işlem tipi. İzin verilen: delete, activate, deactivate');
       }
       
       if (!trainingIds || !Array.isArray(trainingIds) || trainingIds.length === 0) {
-        return validationError('Eğitim ID listesi boş veya geçersiz');
+      throw new AppValidationError('Eğitim ID listesi boş veya geçersiz');
       }
       
       if (trainingIds.length > 100) {
-        return validationError('Maksimum 100 eğitim için toplu işlem yapılabilir');
+      throw new AppValidationError('Maksimum 100 eğitim için toplu işlem yapılabilir');
       }
       
       const results: BulkTrainingActionResult = {
@@ -69,25 +70,8 @@ export async function POST(request: NextRequest) {
               
               const lessonIds = lessonsSnapshot.docs.map(doc => doc.id);
               
-              // Content'leri sil
-              const contentDeletes: Promise<any>[] = [];
-              for (const lessonId of lessonIds) {
-                const videoSnapshot = await db.collection('video_contents')
-                  .where('lessonId', '==', lessonId)
-                  .get();
-                videoSnapshot.docs.forEach(doc => contentDeletes.push(doc.ref.delete()));
-                
-                const documentSnapshot = await db.collection('document_contents')
-                  .where('lessonId', '==', lessonId)
-                  .get();
-                documentSnapshot.docs.forEach(doc => contentDeletes.push(doc.ref.delete()));
-                
-                const testSnapshot = await db.collection('test_contents')
-                  .where('lessonId', '==', lessonId)
-                  .get();
-                testSnapshot.docs.forEach(doc => contentDeletes.push(doc.ref.delete()));
-              }
-              await Promise.all(contentDeletes);
+              // Content'leri batch olarak sil (N+1 query çözüldü ✅)
+              await deleteLessonsContentsBatch(lessonIds);
               
               // Lesson'ları sil
               const lessonDeletes = lessonsSnapshot.docs.map(doc => doc.ref.delete());
@@ -151,12 +135,6 @@ export async function POST(request: NextRequest) {
           207,
           'BULK_TRAINING_ACTION_PARTIAL'
         );
-      }
-    } catch (error: unknown) {
-      console.error('❌ Bulk training action error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Toplu işlem sırasında bir hata oluştu', errorMessage);
-    }
   });
-}
+  });
 

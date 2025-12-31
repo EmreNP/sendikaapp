@@ -8,32 +8,31 @@ import { validateUpdateDocumentContent } from '@/lib/utils/validation/documentCo
 import { shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeDocumentContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Döküman detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const documentId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       
       const documentDoc = await db.collection('document_contents').doc(documentId).get();
       
       if (!documentDoc.exists) {
-        return notFoundError('Döküman');
+      throw new AppNotFoundError('Döküman');
       }
       
       const documentData = documentDoc.data();
@@ -41,7 +40,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece aktif dökümanlar
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!documentData?.isActive) {
-          return notFoundError('Döküman');
+        throw new AppNotFoundError('Döküman');
         }
       }
       
@@ -57,41 +56,37 @@ export async function GET(
         'Döküman başarıyla getirildi',
         { document: serializedDocument }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get document error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Döküman getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // PUT - Döküman güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const documentId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const documentDoc = await db.collection('document_contents').doc(documentId).get();
       
       if (!documentDoc.exists) {
-        return notFoundError('Döküman');
+      throw new AppNotFoundError('Döküman');
       }
       
-      const body: UpdateDocumentContentRequest = await request.json();
+    const body = await parseJsonBody<UpdateDocumentContentRequest>(req);
       const validation = validateUpdateDocumentContent(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const currentDocumentData = documentDoc.data();
@@ -146,34 +141,30 @@ export async function PUT(
         200,
         'DOCUMENT_CONTENT_UPDATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Update document error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Döküman güncellenirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // DELETE - Döküman sil (sadece admin, hard delete)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const documentId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const documentDoc = await db.collection('document_contents').doc(documentId).get();
       
       if (!documentDoc.exists) {
-        return notFoundError('Döküman');
+      throw new AppNotFoundError('Döküman');
       }
       
       // Hard delete
@@ -187,11 +178,6 @@ export async function DELETE(
         200,
         'DOCUMENT_CONTENT_DELETE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Delete document error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Döküman silinirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

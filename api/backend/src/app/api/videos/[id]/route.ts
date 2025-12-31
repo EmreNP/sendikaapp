@@ -8,32 +8,31 @@ import { validateUpdateVideoContent } from '@/lib/utils/validation/videoContentV
 import { shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeVideoContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Video detayı
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const videoId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       
       const videoDoc = await db.collection('video_contents').doc(videoId).get();
       
       if (!videoDoc.exists) {
-        return notFoundError('Video');
+      throw new AppNotFoundError('Video');
       }
       
       const videoData = videoDoc.data();
@@ -41,7 +40,7 @@ export async function GET(
       // USER/BRANCH_MANAGER için sadece aktif videolar
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!videoData?.isActive) {
-          return notFoundError('Video');
+        throw new AppNotFoundError('Video');
         }
       }
       
@@ -57,41 +56,37 @@ export async function GET(
         'Video başarıyla getirildi',
         { video: serializedVideo }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get video error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Video getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // PUT - Video güncelle (sadece admin)
-export async function PUT(
+export const PUT = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const videoId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const videoDoc = await db.collection('video_contents').doc(videoId).get();
       
       if (!videoDoc.exists) {
-        return notFoundError('Video');
+      throw new AppNotFoundError('Video');
       }
       
-      const body: UpdateVideoContentRequest = await request.json();
+    const body = await parseJsonBody<UpdateVideoContentRequest>(req);
       const validation = validateUpdateVideoContent(body);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       const currentVideoData = videoDoc.data();
@@ -144,34 +139,30 @@ export async function PUT(
         200,
         'VIDEO_CONTENT_UPDATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Update video error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Video güncellenirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // DELETE - Video sil (sadece admin, hard delete)
-export async function DELETE(
+export const DELETE = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const videoId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       const videoDoc = await db.collection('video_contents').doc(videoId).get();
       
       if (!videoDoc.exists) {
-        return notFoundError('Video');
+      throw new AppNotFoundError('Video');
       }
       
       // Hard delete
@@ -185,11 +176,6 @@ export async function DELETE(
         200,
         'VIDEO_CONTENT_DELETE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Delete video error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Video silinirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

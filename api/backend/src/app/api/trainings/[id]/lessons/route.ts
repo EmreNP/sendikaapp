@@ -9,34 +9,33 @@ import { sanitizeHtml } from '@/lib/utils/sanitize';
 import { getNextLessonOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
 import { 
   successResponse, 
-  validationError,
-  unauthorizedError,
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeLessonTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Eğitimin derslerini listele
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const trainingId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
-      const { searchParams } = new URL(request.url);
-      const isActiveParam = searchParams.get('isActive');
+    const url = new URL(request.url);
+    const isActiveParam = url.searchParams.get('isActive');
       
       // Training'in var olup olmadığını kontrol et
       const trainingDoc = await db.collection('trainings').doc(trainingId).get();
       if (!trainingDoc.exists) {
-        return notFoundError('Eğitim');
+      throw new AppNotFoundError('Eğitim');
       }
       
       let query = db.collection('lessons')
@@ -62,39 +61,35 @@ export async function GET(
       
       return successResponse(
         'Dersler başarıyla getirildi',
-        { lessons: serializedLessons }
+        { lessons: serializedLessons         }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get lessons error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Dersler getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 
 // POST - Yeni ders oluştur (sadece admin)
-export async function POST(
+export const POST = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const trainingId = params.id;
       
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-        return unauthorizedError('Bu işlem için admin yetkisi gerekli');
+      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
       // Training'in var olup olmadığını kontrol et
       const trainingDoc = await db.collection('trainings').doc(trainingId).get();
       if (!trainingDoc.exists) {
-        return notFoundError('Eğitim');
+      throw new AppNotFoundError('Eğitim');
       }
       
-      const body: CreateLessonRequest = await request.json();
+    const body = await parseJsonBody<CreateLessonRequest>(req);
       
       // lessonId'yi body'den al veya params'tan kullan
       const lessonData: CreateLessonRequest = {
@@ -105,7 +100,7 @@ export async function POST(
       const validation = validateCreateLesson(lessonData);
       if (!validation.valid) {
         const firstError = validation.errors ? Object.values(validation.errors)[0] : 'Geçersiz veri';
-        return validationError(firstError);
+      throw new AppValidationError(firstError);
       }
       
       // Description sanitization
@@ -151,11 +146,6 @@ export async function POST(
         201,
         'LESSON_CREATE_SUCCESS'
       );
-    } catch (error: unknown) {
-      console.error('❌ Create lesson error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('Ders oluşturulurken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

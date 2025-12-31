@@ -1,7 +1,8 @@
 import { successResponse } from '@/lib/utils/response';
 import { NextRequest } from 'next/server';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 
-export async function GET(request: NextRequest) {
+export const GET = asyncHandler(async (request: NextRequest) => {
   return successResponse(
     'API çalışıyor',
     {
@@ -12,5 +13,5 @@ export async function GET(request: NextRequest) {
     200,
     'HEALTH_CHECK_SUCCESS'
   );
-}
+});
 

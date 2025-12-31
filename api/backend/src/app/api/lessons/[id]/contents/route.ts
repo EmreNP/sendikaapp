@@ -6,32 +6,32 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { Content, ContentType } from '@shared/types/training';
 import { 
   successResponse, 
-  notFoundError,
-  serverError,
-  isErrorWithMessage,
   serializeContentTimestamps
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET - Dersin tüm içeriklerini listele (video, document, test birleştirilmiş)
-export async function GET(
+export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   return withAuth(request, async (req, user) => {
-    try {
       const { error, user: currentUserData } = await getCurrentUser(user.uid);
-      if (error) return error;
+    if (error) {
+      throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
+    }
       
       const userRole = currentUserData!.role;
       const lessonId = params.id;
-      const { searchParams } = new URL(request.url);
-      const typeParam = searchParams.get('type') as ContentType | null;
-      const isActiveParam = searchParams.get('isActive');
+    const url = new URL(request.url);
+    const typeParam = url.searchParams.get('type') as ContentType | null;
+    const isActiveParam = url.searchParams.get('isActive');
       
       // Lesson'ın var olup olmadığını kontrol et
       const lessonDoc = await db.collection('lessons').doc(lessonId).get();
       if (!lessonDoc.exists) {
-        return notFoundError('Ders');
+      throw new AppNotFoundError('Ders');
       }
       
       const contents: Content[] = [];
@@ -105,11 +105,6 @@ export async function GET(
         'İçerikler başarıyla getirildi',
         { contents: serializedContents }
       );
-    } catch (error: unknown) {
-      console.error('❌ Get contents error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError('İçerikler getirilirken bir hata oluştu', errorMessage);
-    }
   });
-}
+});
 

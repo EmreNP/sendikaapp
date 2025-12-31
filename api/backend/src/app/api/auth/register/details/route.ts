@@ -9,11 +9,11 @@ import type { UserRegisterDetailsUpdateData } from '@shared/types/user';
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  validationError, 
   notFoundError,
-  serverError,
-  isErrorWithMessage
 } from '@/lib/utils/response';
+import { asyncHandler } from '@/lib/utils/errors/errorHandler';
+import { parseJsonBody } from '@/lib/utils/request';
+import { AppValidationError, AppNotFoundError, AppConflictError } from '@/lib/utils/errors/AppError';
 
 interface RegisterDetailsRequest {
   tcKimlikNo?: string;
@@ -31,12 +31,11 @@ interface RegisterDetailsRequest {
   branchId: string;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = asyncHandler(async (request: NextRequest) => {
   // Kayıt detayları endpoint'i için email doğrulama kontrolünü bypass et
   // Kullanıcı henüz email doğrulamadan kayıt detaylarını tamamlayabilmeli
   return withAuth(request, async (req, user) => {
-    try {
-      const body: RegisterDetailsRequest = await request.json();
+    const body = await parseJsonBody<RegisterDetailsRequest>(req);
       const {
         tcKimlikNo,
         fatherName,
@@ -57,44 +56,44 @@ export async function POST(request: NextRequest) {
       const userDoc = await db.collection('users').doc(user.uid).get();
       
       if (!userDoc.exists) {
-        return notFoundError('Kullanıcı');
+      throw new AppNotFoundError('Kullanıcı');
       }
       
       const userData = userDoc.data();
       
       // İlk adım tamamlanmamışsa
       if (!userData?.firstName || !userData?.lastName) {
-        return validationError('Önce temel bilgileri tamamlayın');
+      throw new AppValidationError('Önce temel bilgileri tamamlayın');
       }
       
       // Zaten aktif veya onay bekliyorsa
       if (userData?.status === USER_STATUS.ACTIVE || 
           userData?.status === USER_STATUS.PENDING_BRANCH_REVIEW ||
           userData?.status === USER_STATUS.PENDING_ADMIN_APPROVAL) {
-        return validationError('Kayıt zaten tamamlanmış veya onay bekliyor');
+      throw new AppValidationError('Kayıt zaten tamamlanmış veya onay bekliyor');
       }
       
       // 2️⃣ VALIDATION
       // branchId zorunlu
       if (!branchId) {
-        return validationError('Şube ID (branchId) zorunludur');
+      throw new AppValidationError('Şube ID (branchId) zorunludur');
       }
       
       // Branch'in gerçekten var olup olmadığını kontrol et
       const branchDoc = await db.collection('branches').doc(branchId).get();
       if (!branchDoc.exists) {
-        return validationError('Geçersiz şube ID');
+      throw new AppValidationError('Geçersiz şube ID');
       }
       
       const branchData = branchDoc.data();
       if (!branchData?.isActive) {
-        return validationError('Bu şube aktif değil');
+      throw new AppValidationError('Bu şube aktif değil');
       }
       
       if (tcKimlikNo) {
         const tcValidation = validateTCKimlikNo(tcKimlikNo);
         if (!tcValidation.valid) {
-          return validationError(tcValidation.error || 'Geçersiz TC Kimlik No');
+        throw new AppValidationError(tcValidation.error || 'Geçersiz TC Kimlik No');
         }
         
         // TC Kimlik No'nun başka kullanıcıda olup olmadığını kontrol et
@@ -105,19 +104,19 @@ export async function POST(request: NextRequest) {
           .get();
         
         if (!existingUser.empty) {
-          return validationError('Bu TC Kimlik No zaten kullanılıyor');
+        throw new AppConflictError('Bu TC Kimlik No zaten kullanılıyor');
         }
       }
       
       if (phone) {
         const phoneValidation = validateUserPhone(phone);
         if (!phoneValidation.valid) {
-          return validationError(phoneValidation.error || 'Geçersiz telefon numarası');
+        throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon numarası');
         }
       }
       
       if (education && !Object.values(EDUCATION_LEVEL).includes(education as any)) {
-        return validationError('Geçersiz eğitim seviyesi');
+      throw new AppValidationError('Geçersiz eğitim seviyesi');
       }
       
       // 3️⃣ STATUS BELİRLEME
@@ -174,15 +173,6 @@ export async function POST(request: NextRequest) {
         200,
         'REGISTER_DETAILS_SUCCESS'
       );
-      
-    } catch (error: unknown) {
-      console.error('❌ Register details error:', error);
-      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      return serverError(
-        'Detayları kaydederken bir hata oluştu',
-        errorMessage
-      );
-    }
   }, { skipEmailVerification: true });
-}
+});
 
