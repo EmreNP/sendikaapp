@@ -587,6 +587,7 @@ export default function ContactMessagesPage() {
             setSelectedMessage(null);
           }}
           onUpdate={fetchMessages}
+          topics={topics}
         />
       )}
 

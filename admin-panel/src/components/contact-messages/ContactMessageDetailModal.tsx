@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, User, Tag, Building2, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { contactService } from '@/services/api/contactService';
 import { apiRequest } from '@/utils/api';
@@ -9,6 +9,7 @@ interface ContactMessageDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
+  topics?: Array<{ id: string; name: string }>; // Topics listesi (mesaj listesinden)
 }
 
 interface UserInfo {
@@ -30,6 +31,7 @@ export default function ContactMessageDetailModal({
   isOpen,
   onClose,
   onUpdate,
+  topics = [],
 }: ContactMessageDetailModalProps) {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
@@ -37,49 +39,152 @@ export default function ContactMessageDetailModal({
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasMarkedAsReadRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen && message) {
+      // Reset state when modal opens
+      setUserInfo(null);
+      setBranchInfo(null);
+      setTopicInfo(null);
+      
+      // Önce mesajda zaten populate edilmiş bilgileri kullan
+      if (message.user) {
+        setUserInfo({
+          firstName: message.user.firstName || '',
+          lastName: message.user.lastName || '',
+          email: message.user.email || '',
+        });
+      }
+      
+      if (message.branch) {
+        setBranchInfo({
+          name: message.branch.name || '',
+        });
+      }
+      
+      if (message.topic) {
+        setTopicInfo({
+          name: message.topic.name || '',
+        });
+      } else if (topics.length > 0) {
+        // Topics listesinden topic ismini bul
+        const topic = topics.find(t => t.id === message.topicId);
+        if (topic) {
+          setTopicInfo({
+            name: topic.name || '',
+          });
+        }
+      }
+      
+      // Eksik bilgileri API'den çek
       fetchRelatedData();
+      
+      // Mesaj okunmamışsa ve daha önce işaretlenmemişse otomatik olarak okundu işaretle
+      // Rate limiting'i önlemek için biraz gecikme ekle
+      if (!message.isRead && hasMarkedAsReadRef.current !== message.id) {
+        setTimeout(() => {
+          markAsReadAutomatically();
+        }, 500); // 500ms gecikme
+      }
+    } else if (!isOpen) {
+      // Modal kapandığında ref'i resetle
+      hasMarkedAsReadRef.current = null;
     }
-  }, [isOpen, message]);
+  }, [isOpen, message?.id]);
+
+  const markAsReadAutomatically = async () => {
+    if (!message || hasMarkedAsReadRef.current === message.id || message.isRead) {
+      return; // Prevent multiple calls or if already read
+    }
+    
+    try {
+      hasMarkedAsReadRef.current = message.id;
+      await contactService.markMessageAsRead(message.id, true);
+      // Mesajı güncelle ve sayfayı yenile
+      onUpdate();
+    } catch (err: any) {
+      console.error('Error marking message as read:', err);
+      // Rate limiting hatası ise ref'i sıfırlama, diğer hatalar için sıfırla
+      if (err.message && err.message.includes('Çok fazla istek')) {
+        // Rate limiting - bir sonraki açılışta tekrar dene
+        console.warn('Rate limit reached, will retry on next open');
+      } else {
+        hasMarkedAsReadRef.current = null; // Reset on other errors
+      }
+      // Hata olsa bile devam et
+    }
+  };
 
   const fetchRelatedData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // User bilgisini getir
-      if (message.userId) {
+      // User bilgisini getir (sadece mesajda yoksa)
+      if (message.userId && !message.user) {
         try {
-          const userData = await apiRequest<{ user: UserInfo }>(`/api/users/${message.userId}`);
-          setUserInfo(userData.user);
-        } catch (err) {
-          console.error('Error fetching user:', err);
+          const response = await apiRequest<{ user: UserInfo }>(`/api/users/${message.userId}`);
+          if (response?.user) {
+            setUserInfo({
+              firstName: response.user.firstName || '',
+              lastName: response.user.lastName || '',
+              email: response.user.email || '',
+            });
+          }
+        } catch (err: any) {
+          // 500 hatası veya rate limiting hatası ise sessizce devam et
+          if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
+            console.error('Error fetching user:', err);
+          }
+          // Hata durumunda sessizce devam et
         }
       }
 
-      // Branch bilgisini getir
-      if (message.branchId) {
+      // Branch bilgisini getir (sadece mesajda yoksa)
+      if (message.branchId && !message.branch) {
         try {
-          const branchData = await apiRequest<{ branch: BranchInfo }>(`/api/branches/${message.branchId}`);
-          setBranchInfo(branchData.branch);
-        } catch (err) {
-          console.error('Error fetching branch:', err);
+          const response = await apiRequest<{ branch: BranchInfo }>(`/api/branches/${message.branchId}`);
+          if (response?.branch) {
+            setBranchInfo({
+              name: response.branch.name || '',
+            });
+          }
+        } catch (err: any) {
+          // 500 hatası veya rate limiting hatası ise sessizce devam et
+          if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
+            console.error('Error fetching branch:', err);
+          }
+          // Hata durumunda sessizce devam et
         }
       }
 
-      // Topic bilgisini getir
-      if (message.topicId) {
-        try {
-          const topicData = await contactService.getTopicById(message.topicId);
-          setTopicInfo(topicData.topic);
-        } catch (err) {
-          console.error('Error fetching topic:', err);
+      // Topic bilgisini getir (sadece mesajda ve topics listesinde yoksa)
+      if (message.topicId && !message.topic) {
+        // Önce topics listesinden kontrol et
+        const topicFromList = topics.find(t => t.id === message.topicId);
+        if (topicFromList) {
+          setTopicInfo({
+            name: topicFromList.name || '',
+          });
+        } else {
+          // Topics listesinde yoksa API'den çek
+          try {
+            const topicData = await contactService.getTopicById(message.topicId);
+            if (topicData?.topic) {
+              setTopicInfo({
+                name: topicData.topic.name || '',
+              });
+            }
+          } catch (err: any) {
+            console.error('Error fetching topic:', err);
+            // Hata durumunda sessizce devam et
+          }
         }
       }
     } catch (err: any) {
       console.error('Error fetching related data:', err);
-      setError('İlgili bilgiler yüklenirken bir hata oluştu');
+      // Hata durumunda sessizce devam et, kullanıcıya gösterme
     } finally {
       setLoading(false);
     }
@@ -226,24 +331,30 @@ export default function ContactMessageDetailModal({
                 {/* Topic */}
                 <div className="flex items-start gap-3">
                   <Tag className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Konu</label>
-                    <p className="text-sm text-gray-900">{topicInfo?.name || '-'}</p>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {topicInfo?.name || message.topic?.name || '-'}
+                    </p>
                   </div>
                 </div>
 
                 {/* User */}
                 <div className="flex items-start gap-3">
                   <User className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Gönderen</label>
-                    <p className="text-sm text-gray-900">
-                      {userInfo
-                        ? `${userInfo.firstName} ${userInfo.lastName}`
-                        : '-'}
-                    </p>
-                    {userInfo && (
-                      <p className="text-xs text-gray-500">{userInfo.email}</p>
+                    {userInfo || message.user ? (
+                      <>
+                        <p className="text-sm text-gray-900 font-medium">
+                          {(userInfo || message.user)?.firstName} {(userInfo || message.user)?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">{(userInfo || message.user)?.email}</p>
+                      </>
+                    ) : loading ? (
+                      <p className="text-sm text-gray-400">Yükleniyor...</p>
+                    ) : (
+                      <p className="text-sm text-gray-900">-</p>
                     )}
                   </div>
                 </div>
@@ -251,18 +362,20 @@ export default function ContactMessageDetailModal({
                 {/* Branch */}
                 <div className="flex items-start gap-3">
                   <Building2 className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Şube</label>
-                    <p className="text-sm text-gray-900">{branchInfo?.name || '-'}</p>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {branchInfo?.name || message.branch?.name || '-'}
+                    </p>
                   </div>
                 </div>
 
                 {/* Date */}
                 <div className="flex items-start gap-3">
                   <Calendar className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Gönderilme Tarihi</label>
-                    <p className="text-sm text-gray-900">{formatDate(message.createdAt)}</p>
+                    <p className="text-sm text-gray-900 font-medium">{formatDate(message.createdAt)}</p>
                     <p className="text-xs text-gray-500">{formatRelativeDate(message.createdAt)}</p>
                   </div>
                 </div>
@@ -276,26 +389,6 @@ export default function ContactMessageDetailModal({
                 >
                   Kapat
                 </button>
-                {!message.isRead && (
-                  <button
-                    onClick={() => handleMarkAsRead(true)}
-                    disabled={updating}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {updating ? 'İşaretleniyor...' : 'Okundu İşaretle'}
-                  </button>
-                )}
-                {message.isRead && (
-                  <button
-                    onClick={() => handleMarkAsRead(false)}
-                    disabled={updating}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                  >
-                    <Clock className="w-4 h-4" />
-                    {updating ? 'İşaretleniyor...' : 'Okunmadı İşaretle'}
-                  </button>
-                )}
               </div>
             </>
           )}
