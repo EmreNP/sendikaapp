@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import ActionButton from '@/components/common/ActionButton';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -363,7 +364,19 @@ export default function UsersPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Kullanıcı ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm"
+            />
+          </div>
+          
           <div className="flex items-center gap-3">
             {/* Status Filter - Only for users */}
             {userTypeFilter === 'users' && (
@@ -411,18 +424,6 @@ export default function UsersPage() {
                 ))}
               </select>
             )}
-            
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Kullanıcı ara..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm w-64"
-              />
-            </div>
           </div>
         </div>
 
@@ -559,7 +560,9 @@ export default function UsersPage() {
                         <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             {userItem.isActive ? (
-                              <button
+                              <ActionButton
+                                icon={XCircle}
+                                variant="deactivate"
                                 onClick={() => {
                                   setConfirmDialog({
                                     isOpen: true,
@@ -572,14 +575,13 @@ export default function UsersPage() {
                                     },
                                   });
                                 }}
-                                disabled={processing}
-                                className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
                                 title="Deaktif Et"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
+                                disabled={processing}
+                              />
                             ) : (
-                              <button
+                              <ActionButton
+                                icon={CheckCircle}
+                                variant="activate"
                                 onClick={() => {
                                   setConfirmDialog({
                                     isOpen: true,
@@ -592,28 +594,22 @@ export default function UsersPage() {
                                     },
                                   });
                                 }}
-                                disabled={processing}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
                                 title="Aktif Et"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
+                                disabled={processing}
+                              />
                             )}
                             {user?.role === 'admin' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setSelectedUserIdForRole(userItem.uid);
-                                    setSelectedUserRole(userItem.role);
-                                    setIsRoleModalOpen(true);
-                                  }}
-                                  disabled={processing || userItem.uid === user?.uid}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title={userItem.uid === user?.uid ? 'Kendi rolünüzü değiştiremezsiniz' : 'Rol Değiştir'}
-                                >
-                                  <UserCog className="w-4 h-4" />
-                                </button>
-                              </>
+                              <ActionButton
+                                icon={UserCog}
+                                variant="role"
+                                onClick={() => {
+                                  setSelectedUserIdForRole(userItem.uid);
+                                  setSelectedUserRole(userItem.role);
+                                  setIsRoleModalOpen(true);
+                                }}
+                                title={userItem.uid === user?.uid ? 'Kendi rolünüzü değiştiremezsiniz' : 'Rol Değiştir'}
+                                disabled={processing || userItem.uid === user?.uid}
+                              />
                             )}
                           </div>
                         </td>

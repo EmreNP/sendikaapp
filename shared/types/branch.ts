@@ -1,14 +1,24 @@
 import { Timestamp } from './user';
 
+// Çalışma saatleri interface'i
+export interface WorkingHours {
+  weekday?: string; // Hafta içi (örn: "09:00 - 18:00")
+  saturday?: string; // Cumartesi (örn: "09:00 - 13:00")
+  sunday?: string; // Pazar (örn: "Kapalı")
+}
+
 export interface Branch {
   id: string;
   name: string;
-  code?: string; // Şube kodu (opsiyonel)
-  address?: string;
-  city?: string;
-  district?: string;
-  phone?: string;
+  desc?: string; // Açıklama
+  location?: { // Koordinat (haritadan seçilen)
+    latitude: number;
+    longitude: number;
+  };
+  address?: string; // Açık adres (reverse geocoding ile alınan)
+  phone?: string; // Telefon (Sabit hat)
   email?: string;
+  workingHours?: WorkingHours; // Çalışma saatleri
   isActive: boolean;
   eventCount?: number; // Etkinlik sayısı
   educationCount?: number; // Eğitim sayısı
@@ -19,22 +29,28 @@ export interface Branch {
 // API Request/Response Types
 export interface CreateBranchRequest {
   name: string;
-  code?: string;
+  desc?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
   address?: string;
-  city?: string;
-  district?: string;
   phone?: string;
   email?: string;
+  workingHours?: WorkingHours;
 }
 
 export interface UpdateBranchRequest {
   name?: string;
-  code?: string;
+  desc?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
   address?: string;
-  city?: string;
-  district?: string;
   phone?: string;
   email?: string;
+  workingHours?: WorkingHours;
   isActive?: boolean;
 }
 
@@ -55,12 +71,15 @@ export type FirestoreTimestamp = any; // admin.firestore.FieldValue.serverTimest
 export interface BranchUpdateData {
   updatedAt: FirestoreTimestamp;
   name?: string;
-  code?: string | null;
+  desc?: string | null;
+  location?: {
+    latitude: number;
+    longitude: number;
+  } | null;
   address?: string | null;
-  city?: string | null;
-  district?: string | null;
   phone?: string | null;
   email?: string | null;
+  workingHours?: WorkingHours | null;
   isActive?: boolean;
 }
 

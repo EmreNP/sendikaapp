@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Edit, Trash2, Video, FileText, ClipboardList, Search } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import ActionButton from '@/components/common/ActionButton';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import VideoFormModal from '@/components/trainings/VideoFormModal';
 import DocumentFormModal from '@/components/trainings/DocumentFormModal';
@@ -319,10 +320,11 @@ export default function LessonDetailPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                        <ActionButton
+                          icon={Edit}
+                          variant="edit"
+                          onClick={() => {
                             setSelectedContent(content);
                             if (content.type === 'video') {
                               setIsVideoModalOpen(true);
@@ -332,14 +334,12 @@ export default function LessonDetailPage() {
                               setIsTestModalOpen(true);
                             }
                           }}
-                          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Düzenle"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                        />
+                        <ActionButton
+                          icon={Trash2}
+                          variant="delete"
+                          onClick={() => {
                             setConfirmDialog({
                               open: true,
                               title: 'İçeriği Sil',
@@ -350,11 +350,8 @@ export default function LessonDetailPage() {
                               },
                             });
                           }}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        />
                       </div>
                     </div>
                   </div>

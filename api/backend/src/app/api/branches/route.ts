@@ -288,7 +288,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       }
       
     const body = await parseJsonBody<CreateBranchRequest>(req);
-      const { name, code, address, city, district, phone, email } = body;
+      const { name, desc, location, address, phone, email, workingHours } = body;
       
       // Validation
       const nameValidation = validateBranchName(name || '');
@@ -306,19 +306,23 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       if (phone) {
         const phoneValidation = validateBranchPhone(phone);
         if (!phoneValidation.valid) {
-        throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon');
+          console.log('Phone validation failed for:', phone);
+          throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon');
         }
       }
       
       // Yeni şube oluştur
+      // Telefon numarasını normalize et (boşlukları kaldır)
+      const normalizedPhone = phone?.trim().replace(/\s/g, '') || null;
+      
       const branchData = {
         name: name.trim(),
-        code: code?.trim() || null,
+        desc: desc?.trim() || null,
+        location: location || null,
         address: address?.trim() || null,
-        city: city?.trim() || null,
-        district: district?.trim() || null,
-        phone: phone?.trim() || null,
+        phone: normalizedPhone,
         email: email?.trim() || null,
+        workingHours: workingHours || null,
         isActive: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

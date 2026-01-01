@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit, Trash2, BookOpen, Search, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, BookOpen, Search, Eye, EyeOff, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import LessonFormModal from '@/components/trainings/LessonFormModal';
@@ -227,7 +227,7 @@ export default function TrainingDetailPage() {
                             className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                             title="İçeriklere Git"
                           >
-                            <BookOpen className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -236,15 +236,15 @@ export default function TrainingDetailPage() {
                             }}
                             className={`p-2 rounded-lg transition-colors ${
                               lesson.isActive
-                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                                ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
+                                : 'text-green-600 hover:text-green-700 hover:bg-green-50'
                             }`}
                             title={lesson.isActive ? 'Pasifleştir' : 'Aktifleştir'}
                           >
                             {lesson.isActive ? (
-                              <Eye className="w-4 h-4" />
+                              <XCircle className="w-4 h-4" />
                             ) : (
-                              <EyeOff className="w-4 h-4" />
+                              <CheckCircle className="w-4 h-4" />
                             )}
                           </button>
                           <button

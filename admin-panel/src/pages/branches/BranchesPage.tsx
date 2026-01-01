@@ -1,19 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Trash2, XCircle, CheckCircle, Edit } from 'lucide-react';
+import { Building2, Search, Trash2, XCircle, CheckCircle, Edit, Plus } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import ActionButton from '@/components/common/ActionButton';
 import BranchFormModal from '@/components/branches/BranchFormModal';
+import BranchDetailModal from '@/components/branches/BranchDetailModal';
 import { useAuth } from '@/context/AuthContext';
 
 interface Branch {
   id: string;
   name: string;
-  code?: string;
+  desc?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
   address?: string;
-  city?: string;
-  district?: string;
   phone?: string;
   email?: string;
+  workingHours?: {
+    weekday?: string;
+    saturday?: string;
+    sunday?: string;
+  };
   isActive?: boolean;
   eventCount?: number;
   educationCount?: number;
@@ -27,7 +36,9 @@ export default function BranchesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [processing, setProcessing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -72,8 +83,7 @@ export default function BranchesPage() {
     const matchesSearch =
       searchTerm === '' ||
       branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      branch.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      branch.city?.toLowerCase().includes(searchTerm.toLowerCase());
+      branch.address?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -132,17 +142,33 @@ export default function BranchesPage() {
   return (
     <AdminLayout>
       <div className="space-y-4">
-        {/* Filters */}
-        <div className="flex items-center justify-end">
-          <div className="relative">
+        {/* Filters and Actions */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Şube ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm w-64"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
             />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => {
+                  setSelectedBranch(null);
+                  setIsFormModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Yeni Şube Ekle
+              </button>
+            )}
           </div>
         </div>
 
@@ -180,9 +206,6 @@ export default function BranchesPage() {
                         Şube Adı
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Kod
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Konum
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -200,18 +223,20 @@ export default function BranchesPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durum
                       </th>
-                      {user?.role === 'admin' && (
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          İşlemler
-                        </th>
-                      )}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        İşlemler
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredBranches.map((branch) => (
                       <tr 
                         key={branch.id} 
-                        className="hover:bg-gray-50 transition-colors"
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedBranchId(branch.id);
+                          setIsDetailModalOpen(true);
+                        }}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -224,14 +249,8 @@ export default function BranchesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm text-gray-600">
-                            {branch.code || '-'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-600">
-                            {branch.district && `${branch.district}, `}
-                            {branch.city || '-'}
+                          <div className="text-sm text-gray-600 max-w-xs truncate" title={branch.address || ''}>
+                            {branch.address || '-'}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -259,83 +278,81 @@ export default function BranchesPage() {
                             {branch.isActive ? 'Aktif' : 'Pasif'}
                           </span>
                         </td>
-                        {user?.role === 'admin' && (
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedBranch(branch);
-                                  setIsFormModalOpen(true);
-                                }}
-                                disabled={processing}
-                                className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Düzenle"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              {branch.isActive ? (
-                                <button
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            {user?.role === 'admin' && (
+                              <>
+                                <ActionButton
+                                  icon={Edit}
+                                  variant="edit"
+                                  onClick={() => {
+                                    setSelectedBranch(branch);
+                                    setIsFormModalOpen(true);
+                                  }}
+                                  title="Düzenle"
+                                  disabled={processing}
+                                />
+                                {branch.isActive ? (
+                                  <ActionButton
+                                    icon={XCircle}
+                                    variant="deactivate"
+                                    onClick={() => {
+                                      setConfirmDialog({
+                                        isOpen: true,
+                                        title: 'Şubeyi Pasif Et',
+                                        message: `${branch.name} şubesini pasif etmek istediğinizden emin misiniz?`,
+                                        variant: 'warning',
+                                        onConfirm: () => {
+                                          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                          handleToggleActive(branch.id, branch.isActive ?? false);
+                                        },
+                                      });
+                                    }}
+                                    title="Pasif Et"
+                                    disabled={processing}
+                                  />
+                                ) : (
+                                  <ActionButton
+                                    icon={CheckCircle}
+                                    variant="activate"
+                                    onClick={() => {
+                                      setConfirmDialog({
+                                        isOpen: true,
+                                        title: 'Şubeyi Aktif Et',
+                                        message: `${branch.name} şubesini aktif etmek istediğinizden emin misiniz?`,
+                                        variant: 'info',
+                                        onConfirm: () => {
+                                          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                          handleToggleActive(branch.id, branch.isActive ?? false);
+                                        },
+                                      });
+                                    }}
+                                    title="Aktif Et"
+                                    disabled={processing}
+                                  />
+                                )}
+                                <ActionButton
+                                  icon={Trash2}
+                                  variant="delete"
                                   onClick={() => {
                                     setConfirmDialog({
                                       isOpen: true,
-                                      title: 'Şubeyi Pasif Et',
-                                      message: `${branch.name} şubesini pasif etmek istediğinizden emin misiniz?`,
-                                      variant: 'warning',
+                                      title: 'Şubeyi Sil',
+                                      message: `${branch.name} şubesini silmek istediğinizden emin misiniz? Bu şubeye bağlı kullanıcılar varsa işlem başarısız olacaktır.`,
+                                      variant: 'danger',
                                       onConfirm: () => {
                                         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                        handleToggleActive(branch.id, branch.isActive ?? false);
+                                        handleDeleteBranch(branch.id);
                                       },
                                     });
                                   }}
+                                  title="Sil"
                                   disabled={processing}
-                                  className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Pasif Et"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setConfirmDialog({
-                                      isOpen: true,
-                                      title: 'Şubeyi Aktif Et',
-                                      message: `${branch.name} şubesini aktif etmek istediğinizden emin misiniz?`,
-                                      variant: 'info',
-                                      onConfirm: () => {
-                                        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                        handleToggleActive(branch.id, branch.isActive ?? false);
-                                      },
-                                    });
-                                  }}
-                                  disabled={processing}
-                                  className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Aktif Et"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: 'Şubeyi Sil',
-                                    message: `${branch.name} şubesini silmek istediğinizden emin misiniz? Bu şubeye bağlı kullanıcılar varsa işlem başarısız olacaktır.`,
-                                    variant: 'danger',
-                                    onConfirm: () => {
-                                      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                      handleDeleteBranch(branch.id);
-                                    },
-                                  });
-                                }}
-                                disabled={processing}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Sil"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        )}
+                                />
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -361,6 +378,16 @@ export default function BranchesPage() {
           setSelectedBranch(null);
         }}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Branch Detail Modal */}
+      <BranchDetailModal
+        branchId={selectedBranchId}
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedBranchId(null);
+        }}
       />
 
       {/* Confirm Dialog */}

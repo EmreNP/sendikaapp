@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Newspaper, Plus, Search, Trash2, Edit, Eye, EyeOff, User, Megaphone, X } from 'lucide-react';
+import { Newspaper, Plus, Search, Trash2, Edit, Eye, EyeOff, User, Megaphone, X, XCircle, CheckCircle } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import ActionButton from '@/components/common/ActionButton';
 import NewsFormModal from '@/components/news/NewsFormModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import AnnouncementFormModal from '@/components/announcements/AnnouncementFormModal';
@@ -523,7 +524,19 @@ export default function NewsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder={activeTab === 'news' ? 'Haber ara...' : 'Duyuru ara...'}
+              value={activeTab === 'news' ? searchTerm : announcementsSearchTerm}
+              onChange={(e) => activeTab === 'news' ? setSearchTerm(e.target.value) : setAnnouncementsSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm"
+            />
+          </div>
+          
           <div className="flex items-center gap-3">
             {/* Status Filter */}
             <div className="inline-flex bg-gray-100 rounded-lg p-1">
@@ -591,18 +604,6 @@ export default function NewsPage() {
               >
                 Normal
               </button>
-            </div>
-            
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder={activeTab === 'news' ? 'Haber ara...' : 'Duyuru ara...'}
-                value={activeTab === 'news' ? searchTerm : announcementsSearchTerm}
-                onChange={(e) => activeTab === 'news' ? setSearchTerm(e.target.value) : setAnnouncementsSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm w-64"
-              />
             </div>
           </div>
         </div>
@@ -745,28 +746,28 @@ export default function NewsPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            <button
+                            <ActionButton
+                              icon={Eye}
+                              variant="preview"
                               onClick={() => {
                                 setSelectedNews(item);
                                 setIsPreviewModalOpen(true);
                               }}
-                              className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                               title="Önizle"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
+                            />
+                            <ActionButton
+                              icon={Edit}
+                              variant="edit"
                               onClick={() => {
                                 setSelectedNews(item);
                                 setIsFormModalOpen(true);
                               }}
-                              disabled={processing}
-                              className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Düzenle"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
+                              disabled={processing}
+                            />
+                            <ActionButton
+                              icon={item.isPublished ? XCircle : CheckCircle}
+                              variant={item.isPublished ? 'unpublish' : 'publish'}
                               onClick={() => {
                                 setConfirmDialog({
                                   isOpen: true,
@@ -781,17 +782,12 @@ export default function NewsPage() {
                                   },
                                 });
                               }}
-                              disabled={processing}
-                              className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
                               title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
-                            >
-                              {item.isPublished ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
+                              disabled={processing}
+                            />
+                            <ActionButton
+                              icon={Trash2}
+                              variant="delete"
                               onClick={() => {
                                 setConfirmDialog({
                                   isOpen: true,
@@ -804,12 +800,9 @@ export default function NewsPage() {
                                   },
                                 });
                               }}
-                              disabled={processing}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                               title="Sil"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              disabled={processing}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -956,28 +949,28 @@ export default function NewsPage() {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-2">
-                              <button
+                              <ActionButton
+                                icon={Eye}
+                                variant="preview"
                                 onClick={() => {
                                   setSelectedAnnouncement(item);
                                   setIsAnnouncementPreviewModalOpen(true);
                                 }}
-                                className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                                 title="Önizle"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
+                              />
+                              <ActionButton
+                                icon={Edit}
+                                variant="edit"
                                 onClick={() => {
                                   setSelectedAnnouncement(item);
                                   setIsAnnouncementFormModalOpen(true);
                                 }}
-                                disabled={announcementsProcessing}
-                                className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Düzenle"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
+                                disabled={announcementsProcessing}
+                              />
+                              <ActionButton
+                                icon={item.isPublished ? XCircle : CheckCircle}
+                                variant={item.isPublished ? 'unpublish' : 'publish'}
                                 onClick={() => {
                                   setConfirmDialog({
                                     isOpen: true,
@@ -992,17 +985,12 @@ export default function NewsPage() {
                                     },
                                   });
                                 }}
-                                disabled={announcementsProcessing}
-                                className="p-2 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
                                 title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
-                              >
-                                {item.isPublished ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </button>
-                              <button
+                                disabled={announcementsProcessing}
+                              />
+                              <ActionButton
+                                icon={Trash2}
+                                variant="delete"
                                 onClick={() => {
                                   setConfirmDialog({
                                     isOpen: true,
@@ -1015,12 +1003,9 @@ export default function NewsPage() {
                                     },
                                   });
                                 }}
-                                disabled={announcementsProcessing}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                                 title="Sil"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                                disabled={announcementsProcessing}
+                              />
                             </div>
                           </td>
                         </tr>

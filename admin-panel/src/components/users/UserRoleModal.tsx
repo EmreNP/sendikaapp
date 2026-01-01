@@ -187,7 +187,7 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
                       <option value="">Şube seçiniz</option>
                       {branches.map((branch) => (
                         <option key={branch.id} value={branch.id}>
-                          {branch.name} {branch.code && `(${branch.code})`}
+                          {branch.name}
                         </option>
                       ))}
                     </select>

@@ -98,7 +98,7 @@ export const PUT = asyncHandler(async (
       }
       
     const body = await parseJsonBody<UpdateBranchRequest>(req);
-      const { name, code, address, city, district, phone, email, isActive } = body;
+      const { name, desc, location, address, phone, email, workingHours, isActive } = body;
       
       // Validation
       if (name !== undefined) {
@@ -128,12 +128,13 @@ export const PUT = asyncHandler(async (
       
       // Sadece gönderilen alanları güncelle
       if (name !== undefined) updateData.name = name.trim();
-      if (code !== undefined) updateData.code = code?.trim() || null;
+      if (desc !== undefined) updateData.desc = desc?.trim() || null;
+      if (location !== undefined) updateData.location = location || null;
       if (address !== undefined) updateData.address = address?.trim() || null;
-      if (city !== undefined) updateData.city = city?.trim() || null;
-      if (district !== undefined) updateData.district = district?.trim() || null;
-      if (phone !== undefined) updateData.phone = phone?.trim() || null;
+      // Telefon numarasını normalize et (boşlukları kaldır)
+      if (phone !== undefined) updateData.phone = phone?.trim().replace(/\s/g, '') || null;
       if (email !== undefined) updateData.email = email?.trim() || null;
+      if (workingHours !== undefined) updateData.workingHours = workingHours || null;
       if (isActive !== undefined) updateData.isActive = isActive;
       
       await db.collection('branches').doc(branchId).update(updateData as any);

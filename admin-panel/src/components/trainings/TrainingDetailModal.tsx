@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Edit, Trash2, Eye, EyeOff, BookOpen } from 'lucide-react';
+import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
@@ -164,7 +164,7 @@ export default function TrainingDetailModal({
                 }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
               >
-                <BookOpen className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4" />
                 Derslere Git
               </button>
               <button
@@ -180,18 +180,18 @@ export default function TrainingDetailModal({
                 onClick={onToggleActive}
                 className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm ${
                   trainingData.isActive
-                    ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100 focus:ring-yellow-500'
+                    ? 'border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100 focus:ring-orange-500'
                     : 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100 focus:ring-green-500'
                 }`}
               >
                 {trainingData.isActive ? (
                   <>
-                    <EyeOff className="w-4 h-4" />
+                    <XCircle className="w-4 h-4" />
                     Pasifleştir
                   </>
                 ) : (
                   <>
-                    <Eye className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                     Aktifleştir
                   </>
                 )}

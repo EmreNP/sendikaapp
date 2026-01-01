@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Plus, Search, Trash2, Edit, Eye, EyeOff, X, XCircle } from 'lucide-react';
+import { BookOpen, Plus, Search, Trash2, Edit, Eye, EyeOff, X, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
+import ActionButton from '@/components/common/ActionButton';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import TrainingFormModal from '@/components/trainings/TrainingFormModal';
 import TrainingDetailModal from '@/components/trainings/TrainingDetailModal';
@@ -335,47 +336,38 @@ export default function TrainingsPage() {
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            <button
+                            <ActionButton
+                              icon={ExternalLink}
+                              variant="view"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate('/admin/trainings/detail', { state: { trainingId: training.id } });
                               }}
-                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                               title="Derslere Git"
-                            >
-                              <BookOpen className="w-4 h-4" />
-                            </button>
-                            <button
+                            />
+                            <ActionButton
+                              icon={training.isActive ? XCircle : CheckCircle}
+                              variant={training.isActive ? 'deactivate' : 'activate'}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleToggleActive(training.id, training.isActive);
                               }}
-                              className={`p-2 rounded-lg transition-colors ${
-                                training.isActive
-                                  ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                  : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                              }`}
                               title={training.isActive ? 'Pasifleştir' : 'Aktifleştir'}
                               disabled={processing}
-                            >
-                              {training.isActive ? (
-                                <Eye className="w-4 h-4" />
-                              ) : (
-                                <EyeOff className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
+                            />
+                            <ActionButton
+                              icon={Edit}
+                              variant="edit"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedTraining(training);
                                 setIsFormModalOpen(true);
                               }}
-                              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                               title="Düzenle"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
+                            />
+                            <ActionButton
+                              icon={Trash2}
+                              variant="delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setConfirmDialog({
@@ -388,11 +380,8 @@ export default function TrainingsPage() {
                                   },
                                 });
                               }}
-                              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Sil"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            />
                           </div>
                         </td>
                       </tr>

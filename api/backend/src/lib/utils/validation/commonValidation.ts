@@ -8,9 +8,29 @@ export const validateEmail = (email: string): boolean => {
 };
 
 export const validatePhoneNumber = (phone: string): boolean => {
+  if (!phone || typeof phone !== 'string') {
+    return false;
+  }
+  
   // Türkiye telefon numarası formatı
-  const phoneRegex = /^(\+90|0)?[0-9]{10}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+  // Sabit hat: 02161234567 (11 haneli, 0 ile başlar) veya +902161234567 (13 haneli)
+  // Cep telefonu: 05321234567 (11 haneli, 0 ile başlar) veya +905321234567 (13 haneli)
+  // Normalize edilmiş format (boşluklar ve tire/parantez gibi karakterler kaldırılmış)
+  const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // 0 ile başlayan 11 haneli (sabit hat veya cep)
+  // Örn: 02161234567, 05321234567
+  if (/^0[0-9]{10}$/.test(normalizedPhone)) {
+    return true;
+  }
+  
+  // +90 ile başlayan 13 haneli (sabit hat veya cep)
+  // Örn: +902161234567, +905321234567
+  if (/^\+90[0-9]{10}$/.test(normalizedPhone)) {
+    return true;
+  }
+  
+  return false;
 };
 
 export const validateStringLength = (

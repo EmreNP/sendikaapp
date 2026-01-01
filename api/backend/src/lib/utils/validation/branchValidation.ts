@@ -30,26 +30,26 @@ export const validateBranchPhone = (phone: string): { valid: boolean; error?: st
     return { valid: true }; // Opsiyonel alan
   }
   
-  if (!validatePhoneNumber(phone)) {
-    return { valid: false, error: 'Geçersiz telefon numarası formatı' };
+  // Telefon numarasını normalize et (boşlukları ve özel karakterleri kaldır)
+  const normalizedPhone = phone.trim().replace(/[\s\-\(\)]/g, '');
+  
+  if (!normalizedPhone) {
+    return { valid: true }; // Sadece boşluklardan oluşuyorsa opsiyonel kabul et
   }
   
-  return { valid: true };
-};
-
-export const validateBranchCode = (code: string): { valid: boolean; error?: string } => {
-  if (!code) {
-    return { valid: true }; // Opsiyonel alan
+  // Karakter sayısını kontrol et
+  if (normalizedPhone.length < 11 || normalizedPhone.length > 13) {
+    return { 
+      valid: false, 
+      error: `Telefon numarası ${normalizedPhone.length} karakter. Sabit hat için 11 karakter (02161234567) veya 13 karakter (+902161234567) olmalıdır.` 
+    };
   }
   
-  const lengthValidation = validateStringLength(code, 'Şube kodu', 1, 20);
-  if (!lengthValidation.valid) {
-    return lengthValidation;
-  }
-  
-  // Şube kodu sadece harf, rakam ve tire/alt çizgi içerebilir
-  if (!/^[a-zA-Z0-9_-]+$/.test(code)) {
-    return { valid: false, error: 'Şube kodu sadece harf, rakam, tire ve alt çizgi içerebilir' };
+  if (!validatePhoneNumber(normalizedPhone)) {
+    return { 
+      valid: false, 
+      error: `Geçersiz telefon numarası formatı. Sabit hat için: 02161234567 (11 karakter) veya +902161234567 (13 karakter). Girdiğiniz: ${normalizedPhone}` 
+    };
   }
   
   return { valid: true };
@@ -63,7 +63,6 @@ export interface BranchValidationResult {
 
 export const validateCreateBranch = (data: {
   name?: string;
-  code?: string;
   email?: string;
   phone?: string;
 }): BranchValidationResult => {
@@ -72,13 +71,6 @@ export const validateCreateBranch = (data: {
   const nameValidation = validateBranchName(data.name || '');
   if (!nameValidation.valid) {
     errors.name = nameValidation.error || 'Geçersiz şube adı';
-  }
-  
-  if (data.code) {
-    const codeValidation = validateBranchCode(data.code);
-    if (!codeValidation.valid) {
-      errors.code = codeValidation.error || 'Geçersiz şube kodu';
-    }
   }
   
   if (data.email) {

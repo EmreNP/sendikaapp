@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Tag, Plus, Edit, Trash2, Search, Eye, EyeOff, Clock, CheckCircle, Calendar } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import ActionButton from '@/components/common/ActionButton';
 import ContactMessageDetailModal from '@/components/contact-messages/ContactMessageDetailModal';
 import TopicFormModal from '@/components/topics/TopicFormModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -544,20 +545,18 @@ export default function ContactMessagesPage() {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end gap-2">
-                              <button
+                              <ActionButton
+                                icon={Edit}
+                                variant="edit"
                                 onClick={() => handleEditTopic(topic)}
-                                className="text-blue-600 hover:text-blue-900 transition-colors"
                                 title="Düzenle"
-                              >
-                                <Edit className="w-5 h-5" />
-                              </button>
-                              <button
+                              />
+                              <ActionButton
+                                icon={Trash2}
+                                variant="delete"
                                 onClick={() => handleDeleteTopic(topic)}
-                                className="text-red-600 hover:text-red-900 transition-colors"
                                 title="Sil"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
+                              />
                             </div>
                           </td>
                         </tr>
