@@ -63,6 +63,21 @@ export const openApiSpec = {
           phone: { type: 'string' },
           email: { type: 'string' },
           isActive: { type: 'boolean' },
+          eventCount: { type: 'integer', description: 'Şubeye ait etkinlik sayısı (optimize edilmiş batch query ile getirilir)' },
+          educationCount: { type: 'integer', description: 'Şubeye ait eğitim sayısı (optimize edilmiş batch query ile getirilir)' },
+          managers: {
+            type: 'array',
+            description: 'Şube manager\'ları (Admin ve Branch Manager için görünür, optimize edilmiş batch query ile getirilir)',
+            items: {
+              type: 'object',
+              properties: {
+                uid: { type: 'string' },
+                firstName: { type: 'string' },
+                lastName: { type: 'string' },
+                email: { type: 'string' },
+              },
+            },
+          },
         },
       },
       News: {
@@ -813,7 +828,14 @@ export const openApiSpec = {
     '/api/branches': {
       get: {
         summary: 'Şube Listesi',
-        description: 'Şube listesini getirir',
+        description: `Şube listesini getirir.
+
+**Optimizasyon:** Bu endpoint optimize edilmiştir. Manager bilgileri, etkinlik ve eğitim sayıları batch query'ler ile toplu olarak getirilir (N+1 query problemi çözülmüştür).
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm şubeler (aktif + pasif), manager bilgileri ile
+- **Branch Manager:** Sadece kendi şubesi, manager bilgileri ile
+- **User:** Sadece aktif şubeler, manager bilgileri olmadan`,
         tags: ['Branches'],
         security: [{ bearerAuth: [] }],
         parameters: [
@@ -825,7 +847,28 @@ export const openApiSpec = {
             description: 'Başarılı',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/SuccessResponse' },
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            branches: {
+                              type: 'array',
+                              items: { $ref: '#/components/schemas/Branch' },
+                            },
+                            total: { type: 'integer' },
+                            page: { type: 'integer' },
+                            limit: { type: 'integer' },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
               },
             },
           },
@@ -871,7 +914,14 @@ export const openApiSpec = {
     '/api/branches/{id}': {
       get: {
         summary: 'Şube Detayı',
-        description: 'Belirli bir şubenin detaylarını getirir',
+        description: `Belirli bir şubenin detaylarını getirir.
+
+**Optimizasyon:** Bu endpoint optimize edilmiştir. Manager bilgileri, etkinlik ve eğitim sayıları \`getBranchDetails()\` utility fonksiyonu ile Promise.all kullanılarak paralel query'ler ile tek seferde getirilir (N+1 query problemi çözülmüştür).
+
+**Yetki Bazlı Görünüm:**
+- **Admin:** Tüm şubeleri görebilir (aktif + pasif), manager bilgileri ile
+- **Branch Manager:** Sadece kendi şubesini görebilir, manager bilgileri ile
+- **User:** Sadece aktif şubeleri görebilir, manager bilgileri olmadan`,
         tags: ['Branches'],
         security: [{ bearerAuth: [] }],
         parameters: [
@@ -882,7 +932,22 @@ export const openApiSpec = {
             description: 'Başarılı',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/SuccessResponse' },
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            branch: { $ref: '#/components/schemas/Branch' },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
               },
             },
           },

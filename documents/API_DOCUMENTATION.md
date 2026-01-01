@@ -1117,6 +1117,8 @@ veya dış link için:
 - `page`: Sayfa numarası (default: 1)
 - `limit`: Sayfa başına kayıt (default: 20)
 
+**Not:** Bu endpoint optimize edilmiştir. Manager bilgileri, etkinlik ve eğitim sayıları batch query'ler ile toplu olarak getirilir (N+1 query problemi çözülmüştür).
+
 **Response (200):**
 ```json
 {
@@ -1132,6 +1134,8 @@ veya dış link için:
       "phone": "02121234567",
       "email": "istanbul@sendika.com",
       "isActive": true,
+      "eventCount": 15,
+      "educationCount": 8,
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z",
       "managers": [
@@ -1162,6 +1166,8 @@ veya dış link için:
 - **Branch Manager:** Sadece kendi şubesini görebilir, manager bilgileri ile
 - **User:** Sadece aktif şubeleri görebilir, manager bilgileri olmadan
 
+**Not:** Bu endpoint optimize edilmiştir. Manager bilgileri, etkinlik ve eğitim sayıları `getBranchDetails()` utility fonksiyonu ile Promise.all kullanılarak paralel query'ler ile tek seferde getirilir (N+1 query problemi çözülmüştür).
+
 **Response (200):**
 ```json
 {
@@ -1176,6 +1182,8 @@ veya dış link için:
     "phone": "02121234567",
     "email": "istanbul@sendika.com",
     "isActive": true,
+    "eventCount": 15,
+    "educationCount": 8,
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z",
     "managers": [
