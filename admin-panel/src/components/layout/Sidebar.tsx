@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface SidebarItem {
@@ -39,6 +39,12 @@ const sidebarItems: SidebarItem[] = [
     icon: BookOpen,
     label: 'Eğitimler',
     path: '/admin/trainings',
+    roles: ['admin'],
+  },
+  {
+    icon: HelpCircle,
+    label: 'Sıkça Sorulan Sorular',
+    path: '/admin/faq',
     roles: ['admin'],
   },
   {

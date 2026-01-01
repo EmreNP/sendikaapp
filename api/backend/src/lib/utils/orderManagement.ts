@@ -85,6 +85,28 @@ export async function getNextContentOrder(lessonId: string, contentType: 'video'
 }
 
 /**
+ * FAQ için mevcut en yüksek order'ı bulur ve yeni order döndürür
+ */
+export async function getNextFAQOrder(): Promise<number> {
+  try {
+    const snapshot = await db.collection('faqs')
+      .orderBy('order', 'desc')
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      return 1;
+    }
+    
+    const maxOrder = snapshot.docs[0].data().order || 0;
+    return maxOrder + 1;
+  } catch (error) {
+    console.error('Error getting next FAQ order:', error);
+    return 1;
+  }
+}
+
+/**
  * Order değiştirildiğinde, belirtilen order ve sonrasındaki tüm order'ları bir sıra yukarı kaydırır
  * @param collectionName - Firestore collection adı
  * @param filterField - Filtreleme için kullanılacak field (örn: 'trainingId', 'lessonId')

@@ -392,6 +392,25 @@ export function serializeTrainingTimestamps(training: any): any {
 }
 
 /**
+ * FAQ objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeFAQTimestamps(faq: any): any {
+  if (!faq) return faq;
+  
+  const serialized = { ...faq };
+  
+  if (faq.createdAt) {
+    serialized.createdAt = serializeTimestamp(faq.createdAt);
+  }
+  
+  if (faq.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(faq.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
  * Lesson objesindeki tüm Timestamp'leri serialize eder
  */
 export function serializeLessonTimestamps(lesson: any): any {

@@ -167,6 +167,18 @@ service cloud.firestore {
       allow delete: if false;
     }
     
+    // FAQs collection
+    match /faqs/{faqId} {
+      // Okuma: Admin tümünü, user/branch_manager sadece yayınlananları
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.isPublished == true
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece admin (server-side)
+      allow create, update, delete: if false;
+    }
+    
     // Contact Messages collection
     match /contact_messages/{messageId} {
       // Okuma

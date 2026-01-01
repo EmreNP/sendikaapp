@@ -11,6 +11,7 @@ import TrainingsPage from './pages/trainings/TrainingsPage';
 import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
 import LessonDetailPage from './pages/trainings/LessonDetailPage';
 import ContactMessagesPage from './pages/contact-messages/ContactMessagesPage';
+import FAQPage from './pages/faq/FAQPage';
 
 function App() {
   return (
@@ -81,6 +82,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
                 <ContactMessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/faq"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <FAQPage />
               </ProtectedRoute>
             }
           />
