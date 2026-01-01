@@ -230,6 +230,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           207, // Multi-Status
           'BULK_USER_ACTION_PARTIAL'
         );
+      }
   });
-  });
+});
 

@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkNewsActionRequest, BulkNewsActionResult } from '@shared/types/news';
 import {
   successResponse,
+  isErrorWithMessage,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
@@ -130,6 +131,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           207, // Multi-Status
           'BULK_NEWS_ACTION_PARTIAL'
         );
+      }
   });
-  });
+});
 

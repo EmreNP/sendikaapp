@@ -99,3 +99,13 @@ export class AppInternalServerError extends AppError {
   }
 }
 
+/**
+ * Bad Gateway Error - 502
+ */
+export class AppBadGatewayError extends AppError {
+  constructor(message: string = 'Gateway hatası oluştu', details?: unknown) {
+    super(message, 502, 'BAD_GATEWAY', false, details);
+    Object.setPrototypeOf(this, AppBadGatewayError.prototype);
+  }
+}
+

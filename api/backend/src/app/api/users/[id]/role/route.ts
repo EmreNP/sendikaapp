@@ -77,7 +77,7 @@ export const PATCH = asyncHandler(async (
       
       // Rol'ü güncelle
       const updateData: UserRoleUpdateData = {
-        role: newRole,
+        role: newRole as UserRole,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       

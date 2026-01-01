@@ -106,10 +106,10 @@ export const PUT = asyncHandler(async (
         // Questions için ID'leri oluştur (eğer yoksa)
         const questionsWithIds: TestQuestion[] = body.questions.map((q, index) => ({
           ...q,
-          id: q.id || `q_${Date.now()}_${index}`,
+          id: (q as any).id || `q_${Date.now()}_${index}`,
           options: q.options.map((opt, optIndex) => ({
             ...opt,
-            id: opt.id || `opt_${Date.now()}_${index}_${optIndex}`,
+            id: (opt as any).id || `opt_${Date.now()}_${index}_${optIndex}`,
           })),
         }));
         updateData.questions = questionsWithIds;

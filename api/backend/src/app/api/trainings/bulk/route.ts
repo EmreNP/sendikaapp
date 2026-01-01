@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { BulkTrainingActionRequest, BulkTrainingActionResult } from '@shared/types/training';
 import {
   successResponse,
+  isErrorWithMessage,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
@@ -135,6 +136,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           207,
           'BULK_TRAINING_ACTION_PARTIAL'
         );
+      }
   });
-  });
+});
 
