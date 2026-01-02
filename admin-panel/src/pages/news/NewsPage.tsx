@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Newspaper, Plus, Search, Trash2, Edit, Eye, EyeOff, User, Megaphone, X, XCircle, CheckCircle } from 'lucide-react';
+import { Newspaper, Plus, Search, Trash2, Edit, Eye, EyeOff, User, Megaphone, X, XCircle, CheckCircle, Bell } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
 import NewsFormModal from '@/components/news/NewsFormModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import AnnouncementFormModal from '@/components/announcements/AnnouncementFormModal';
+import SendNotificationSimpleModal from '@/components/notifications/SendNotificationSimpleModal';
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
 import { authService } from '@/services/auth/authService';
 import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
+import type { NotificationType } from '@shared/constants/notifications';
 
 type TabType = 'news' | 'announcements';
 
@@ -61,6 +63,16 @@ export default function NewsPage() {
     variant: 'warning',
     onConfirm: () => {},
   });
+
+  // Notification modal states
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [notificationData, setNotificationData] = useState<{
+    type: NotificationType;
+    contentId: string;
+    title: string;
+    body: string;
+    imageUrl?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (activeTab === 'news') {
@@ -133,6 +145,29 @@ export default function NewsPage() {
       return `${user.firstName} ${user.lastName}`;
     }
     return 'Yükleniyor...';
+  };
+
+  // HTML içeriğinden düz metin çıkar ve kısalt
+  const extractPlainText = (html: string, maxLength: number = 200): string => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const text = div.textContent || div.innerText || '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  };
+
+  // Bildirim gönderme modalını aç
+  const handleOpenNotificationModal = (item: News | Announcement, type: NotificationType) => {
+    const content = 'content' in item ? item.content : '';
+    const body = content ? extractPlainText(content, 200) : item.title;
+    
+    setNotificationData({
+      type,
+      contentId: item.id,
+      title: item.title,
+      body,
+      imageUrl: item.imageUrl,
+    });
+    setIsNotificationModalOpen(true);
   };
 
   const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
@@ -786,6 +821,13 @@ export default function NewsPage() {
                               disabled={processing}
                             />
                             <ActionButton
+                              icon={Bell}
+                              variant="info"
+                              onClick={() => handleOpenNotificationModal(item, 'news')}
+                              title="Bildirim Gönder"
+                              disabled={processing}
+                            />
+                            <ActionButton
                               icon={Trash2}
                               variant="delete"
                               onClick={() => {
@@ -986,6 +1028,13 @@ export default function NewsPage() {
                                   });
                                 }}
                                 title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
+                                disabled={announcementsProcessing}
+                              />
+                              <ActionButton
+                                icon={Bell}
+                                variant="info"
+                                onClick={() => handleOpenNotificationModal(item, 'announcement')}
+                                title="Bildirim Gönder"
                                 disabled={announcementsProcessing}
                               />
                               <ActionButton
@@ -1221,21 +1270,21 @@ export default function NewsPage() {
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-slate-700">
+              <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <Megaphone className="w-6 h-6 text-white" />
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Megaphone className="w-5 h-5 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-white">Duyuru Önizleme</h2>
+                  <h2 className="text-lg font-bold text-white">Duyuru Önizleme</h2>
                 </div>
                 <button
                   onClick={() => {
                     setIsAnnouncementPreviewModalOpen(false);
                     setSelectedAnnouncement(null);
                   }}
-                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                  className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -1319,6 +1368,25 @@ export default function NewsPage() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Notification Modal */}
+      {notificationData && (
+        <SendNotificationSimpleModal
+          isOpen={isNotificationModalOpen}
+          onClose={() => {
+            setIsNotificationModalOpen(false);
+            setNotificationData(null);
+          }}
+          onSuccess={() => {
+            // İsteğe bağlı: başarılı gönderim sonrası işlemler
+          }}
+          type={notificationData.type}
+          contentId={notificationData.contentId}
+          title={notificationData.title}
+          body={notificationData.body}
+          imageUrl={notificationData.imageUrl}
+        />
+      )}
     </AdminLayout>
   );
 }

@@ -142,9 +142,6 @@ export default function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Hızlı İşlemler</h3>
             <div className="grid grid-cols-2 gap-3">
               <button className="p-4 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium">
-                Yeni Kullanıcı
-              </button>
-              <button className="p-4 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium">
                 Rapor Oluştur
               </button>
               <button className="p-4 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium">

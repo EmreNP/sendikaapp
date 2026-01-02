@@ -183,6 +183,65 @@ export const openApiSpec = {
           updatedBy: { type: 'string', description: 'Admin UID' },
         },
       },
+      NotificationHistory: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string', description: 'Bildirim başlığı (max 100 karakter)' },
+          body: { type: 'string', description: 'Bildirim mesajı (max 500 karakter)' },
+          type: { type: 'string', enum: ['announcement', 'news'], description: 'Bildirim tipi' },
+          contentId: { type: 'string', nullable: true, description: 'İlişkili içerik ID (news veya announcement)' },
+          contentName: { type: 'string', nullable: true, description: 'İlişkili içerik adı' },
+          imageUrl: { type: 'string', format: 'uri', nullable: true, description: 'Bildirim görseli URL' },
+          sentBy: { type: 'string', description: 'Gönderen kullanıcı UID' },
+          sentByUser: {
+            type: 'object',
+            nullable: true,
+            properties: {
+              uid: { type: 'string' },
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+            },
+          },
+          targetAudience: { type: 'string', enum: ['all', 'active', 'branch'], description: 'Hedef kitle' },
+          branchId: { type: 'string', nullable: true, description: 'Şube ID (targetAudience=branch ise zorunlu)' },
+          branch: {
+            type: 'object',
+            nullable: true,
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+            },
+          },
+          sentCount: { type: 'integer', description: 'Başarıyla gönderilen bildirim sayısı' },
+          failedCount: { type: 'integer', description: 'Başarısız bildirim sayısı' },
+          data: { type: 'object', nullable: true, description: 'Ekstra data (key-value pairs)' },
+          createdAt: { type: 'string', format: 'date-time', description: 'Gönderim tarihi' },
+        },
+      },
+      SendNotificationRequest: {
+        type: 'object',
+        required: ['title', 'body', 'type'],
+        properties: {
+          title: { type: 'string', minLength: 1, maxLength: 100, description: 'Bildirim başlığı' },
+          body: { type: 'string', minLength: 1, maxLength: 500, description: 'Bildirim mesajı' },
+          type: { type: 'string', enum: ['announcement', 'news'], description: 'Bildirim tipi' },
+          contentId: { type: 'string', description: 'İlişkili içerik ID (opsiyonel)' },
+          imageUrl: { type: 'string', format: 'uri', description: 'Bildirim görseli URL (opsiyonel)' },
+          targetAudience: { type: 'string', enum: ['all', 'active', 'branch'], default: 'all', description: 'Hedef kitle' },
+          branchId: { type: 'string', description: 'Şube ID (targetAudience=branch ise zorunlu)' },
+          data: { type: 'object', description: 'Ekstra data (key-value pairs, opsiyonel)' },
+        },
+      },
+      RegisterTokenRequest: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: { type: 'string', description: 'FCM token' },
+          deviceId: { type: 'string', description: 'Cihaz ID (opsiyonel)' },
+          deviceType: { type: 'string', enum: ['ios', 'android'], description: 'Cihaz tipi (opsiyonel)' },
+        },
+      },
     },
   },
   paths: {
@@ -2950,6 +3009,229 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/notifications/send': {
+      post: {
+        summary: 'Bildirim Gönder',
+        description: 'Push notification gönderir. Admin tüm kullanıcılara, Branch Manager sadece kendi şubesine bildirim gönderebilir.',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SendNotificationRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Bildirim başarıyla gönderildi',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            sent: { type: 'integer', description: 'Başarıyla gönderilen bildirim sayısı' },
+                            failed: { type: 'integer', description: 'Başarısız bildirim sayısı' },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation hatası',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '403': {
+            description: 'Yetki hatası',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/notifications/history': {
+      get: {
+        summary: 'Bildirim Geçmişi',
+        description: 'Gönderilen bildirimlerin geçmişini getirir. Admin tüm bildirimleri, Branch Manager sadece kendi şubesine ait bildirimleri görebilir.',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1, minimum: 1 }, description: 'Sayfa numarası' },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }, description: 'Sayfa başına kayıt' },
+          { name: 'type', in: 'query', schema: { type: 'string', enum: ['announcement', 'news'] }, description: 'Bildirim tipi filtresi' },
+          { name: 'targetAudience', in: 'query', schema: { type: 'string', enum: ['all', 'active', 'branch'] }, description: 'Hedef kitle filtresi' },
+          { name: 'branchId', in: 'query', schema: { type: 'string' }, description: 'Şube ID filtresi (sadece Admin)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Bildirim geçmişi başarıyla getirildi',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            notifications: {
+                              type: 'array',
+                              items: { $ref: '#/components/schemas/NotificationHistory' },
+                            },
+                            pagination: {
+                              type: 'object',
+                              properties: {
+                                page: { type: 'integer' },
+                                limit: { type: 'integer' },
+                                total: { type: 'integer' },
+                                totalPages: { type: 'integer' },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '403': {
+            description: 'Yetki hatası',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/notifications/token': {
+      post: {
+        summary: 'FCM Token Kaydet/Güncelle',
+        description: 'FCM token\'ı kaydeder veya günceller. Kullanıcı uygulamayı ilk açtığında veya farklı cihazda giriş yaptığında çağrılır.',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/RegisterTokenRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Token başarıyla kaydedildi',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            isNew: { type: 'boolean', description: 'Yeni token mı yoksa güncelleme mi?' },
+                            deviceType: { type: 'string', enum: ['ios', 'android'], nullable: true },
+                            deviceId: { type: 'string', nullable: true },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation hatası',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        summary: 'FCM Token Pasif Yap',
+        description: 'FCM token\'ı pasif yapar (kullanıcı logout olduğunda). Token silinmez, sadece isActive: false yapılır.',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token'],
+                properties: {
+                  token: { type: 'string', description: 'Pasif yapılacak FCM token' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Token başarıyla pasif yapıldı',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            token: { type: 'string', description: 'Kısmi token (güvenlik için)' },
+                            isActive: { type: 'boolean', example: false },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation hatası',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
               },
             },
           },

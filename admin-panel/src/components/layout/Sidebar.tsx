@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, User } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, User, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProfileModal from '@/components/common/ProfileModal';
 import { contactService } from '@/services/api/contactService';
@@ -53,6 +53,12 @@ const sidebarItems: SidebarItem[] = [
     icon: MessageSquare,
     label: 'İletişim Mesajları',
     path: '/admin/contact-messages',
+    roles: ['admin', 'branch_manager'],
+  },
+  {
+    icon: Bell,
+    label: 'Bildirim Geçmişi',
+    path: '/admin/notifications',
     roles: ['admin', 'branch_manager'],
   },
 ];

@@ -3017,8 +3017,250 @@ const userResponse = await api.get('/users/me');
 
 ---
 
+## Notifications Endpoints (Bildirimler)
+
+### 69. Send Notification (Bildirim Gönder)
+**Endpoint:** `POST /api/notifications/send`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Push notification gönderir. Admin tüm kullanıcılara, Branch Manager sadece kendi şubesine bildirim gönderebilir.
+
+**Hedef Kitleler:**
+- `all`: Tüm kullanıcılara (sadece Admin)
+- `active`: Aktif kullanıcılara
+- `branch`: Belirli şubedeki kullanıcılara
+
+**Request Body:**
+```json
+{
+  "title": "Bildirim Başlığı",
+  "body": "Bildirim mesajı",
+  "type": "news",
+  "contentId": "news-id-123",
+  "imageUrl": "https://example.com/image.jpg",
+  "targetAudience": "active",
+  "branchId": "branch-id-123",
+  "data": {
+    "customKey": "customValue"
+  }
+}
+```
+
+**Validation Kuralları:**
+- `title`: Zorunlu, en az 1 karakter, en fazla 100 karakter
+- `body`: Zorunlu, en az 1 karakter, en fazla 500 karakter
+- `type`: Zorunlu, sadece `"announcement"` veya `"news"`
+- `contentId`: Opsiyonel, ilişkili içerik ID (news veya announcement)
+- `imageUrl`: Opsiyonel, geçerli URL
+- `targetAudience`: Opsiyonel, default: `"all"`, sadece `"all"`, `"active"`, `"branch"`
+- `branchId`: Zorunlu (sadece `targetAudience: "branch"` ise)
+- `data`: Opsiyonel, key-value pairs
+
+**Branch Manager Kısıtlamaları:**
+- `targetAudience: "all"` kullanamaz
+- `targetAudience: "branch"` kullanıyorsa, sadece kendi şubesine bildirim gönderebilir
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Bildirim gönderildi",
+  "data": {
+    "sent": 150,
+    "failed": 5
+  },
+  "code": "NOTIFICATION_SENT"
+}
+```
+
+---
+
+### 70. Get Notification History (Bildirim Geçmişi)
+**Endpoint:** `GET /api/notifications/history`  
+**Auth:** Gerekli (Bearer token)  
+**Yetki:** Admin, Branch Manager  
+**Açıklama:** Gönderilen bildirimlerin geçmişini getirir. Admin tüm bildirimleri, Branch Manager sadece kendi şubesine ait bildirimleri görebilir.
+
+**Query Parameters:**
+- `page`: Sayfa numarası (default: 1, min: 1)
+- `limit`: Sayfa başına kayıt (default: 20, min: 1, max: 100)
+- `type`: Bildirim tipi filtresi (`announcement` veya `news`)
+- `targetAudience`: Hedef kitle filtresi (`all`, `active`, `branch`)
+- `branchId`: Şube ID filtresi (sadece Admin)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Bildirim geçmişi başarıyla getirildi",
+  "data": {
+    "notifications": [
+      {
+        "id": "notification-id-123",
+        "title": "Bildirim Başlığı",
+        "body": "Bildirim mesajı",
+        "type": "news",
+        "contentId": "news-id-123",
+        "contentName": "Haber Başlığı",
+        "imageUrl": "https://example.com/image.jpg",
+        "sentBy": "admin-uid-123",
+        "sentByUser": {
+          "uid": "admin-uid-123",
+          "firstName": "Admin",
+          "lastName": "User"
+        },
+        "targetAudience": "active",
+        "branchId": null,
+        "branch": null,
+        "sentCount": 150,
+        "failedCount": 5,
+        "data": {
+          "customKey": "customValue"
+        },
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 100,
+      "totalPages": 5
+    }
+  }
+}
+```
+
+---
+
+### 71. Register FCM Token (FCM Token Kaydet/Güncelle)
+**Endpoint:** `POST /api/notifications/token`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** FCM token'ı kaydeder veya günceller. Kullanıcı uygulamayı ilk açtığında veya farklı cihazda giriş yaptığında çağrılır.
+
+**Request Body:**
+```json
+{
+  "token": "fcm-token-string",
+  "deviceId": "device-id-123",
+  "deviceType": "ios"
+}
+```
+
+**Validation Kuralları:**
+- `token`: Zorunlu, FCM token string
+- `deviceId`: Opsiyonel, cihaz ID
+- `deviceType`: Opsiyonel, sadece `"ios"` veya `"android"`
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Token başarıyla kaydedildi",
+  "data": {
+    "isNew": true,
+    "deviceType": "ios",
+    "deviceId": "device-id-123"
+  },
+  "code": "TOKEN_REGISTERED"
+}
+```
+
+**Notlar:**
+- Aynı token zaten varsa güncellenir (userId, deviceId, deviceType)
+- Token birden fazla kullanıcıda olabilir (cihaz paylaşımı durumu)
+- Her kullanıcı için birden fazla token olabilir (farklı cihazlar)
+
+---
+
+### 72. Delete FCM Token (FCM Token Pasif Yap)
+**Endpoint:** `DELETE /api/notifications/token`  
+**Auth:** Gerekli (Bearer token)  
+**Açıklama:** FCM token'ı pasif yapar (kullanıcı logout olduğunda). Token silinmez, sadece `isActive: false` yapılır.
+
+**Request Body:**
+```json
+{
+  "token": "fcm-token-string"
+}
+```
+
+**Validation Kuralları:**
+- `token`: Zorunlu, pasif yapılacak FCM token
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Token başarıyla silindi",
+  "data": {
+    "token": "fcm-token-strin...",
+    "isActive": false
+  },
+  "code": "TOKEN_DELETED"
+}
+```
+
+**Notlar:**
+- Token silinmez, sadece pasif yapılır
+- Geçmiş bildirimler için log tutulabilir
+- Sadece kullanıcının kendi token'ları pasif yapılabilir
+
+---
+
+## Validation Kuralları
+
+### Notification Title
+- Minimum: 1 karakter
+- Maximum: 100 karakter
+
+### Notification Body
+- Minimum: 1 karakter
+- Maximum: 500 karakter
+
+### Notification Type
+- Sadece: `"announcement"` veya `"news"`
+
+### Target Audience
+- Sadece: `"all"`, `"active"`, `"branch"`
+- `"all"`: Sadece Admin kullanabilir
+- `"branch"`: `branchId` zorunlu
+
+### Device Type
+- Sadece: `"ios"` veya `"android"`
+
+---
+
+## Notlar
+
+1. **Custom Token:** Register basic endpoint'i bir `customToken` döner. Bu token ile Firebase Auth'a sign in yapılmalıdır.
+
+2. **Email Verification:** Email doğrulama client-side'da yapılmalıdır. Action code verify edildikten sonra UID backend'e gönderilir.
+
+3. **Password Reset:** Password reset linki oluşturulur ancak email servisi henüz entegre edilmemiştir (TODO).
+
+4. **Branch Manager Yetkileri:**
+   - Sadece kendi şubesindeki kullanıcıları görebilir
+   - Sadece `user` rolü oluşturabilir
+   - Status güncelleme yetkileri sınırlıdır
+   - Bildirim gönderme: Sadece kendi şubesine (`targetAudience: "branch"`)
+
+5. **Delete İşlemleri:**
+   - Branch silme işlemi hard delete'dir (kalıcı olarak silinir)
+   - Kullanıcı silme işlemi hard delete'dir (Firebase Auth ve Firestore'dan tamamen silinir)
+   - Branch silmeden önce şubeye bağlı kullanıcı olup olmadığı kontrol edilir
+
+6. **Registration Logs:** Tüm kullanıcı kayıt süreci işlemleri loglanır. Loglar, kullanıcının durum değişikliklerini, kim tarafından yapıldığını ve ilgili notları içerir.
+
+7. **Notifications:**
+   - FCM token'lar kullanıcı bazında saklanır
+   - Token'lar pasif yapılabilir ama silinmez (log tutma için)
+   - Bildirimler multicast olarak gönderilir (max 500 token per batch)
+   - Bildirim geçmişi otomatik olarak kaydedilir
+
+---
+
 **Son Güncelleme:** 2024-12-28  
-**Versiyon:** 2.0.0
+**Versiyon:** 2.1.0
 
 **Değişiklikler:**
 - Bulk user operations endpoint'i eklendi (`POST /api/users/bulk`)
@@ -3030,4 +3272,5 @@ const userResponse = await api.get('/users/me');
 - Trainings endpoints eklendi (`GET`, `POST`, `PUT`, `DELETE /api/trainings`, `POST /api/trainings/bulk`, `GET`, `POST /api/trainings/{id}/lessons`)
 - Lessons endpoints eklendi (`GET`, `PUT`, `DELETE /api/lessons/{id}`, `GET /api/lessons/{id}/contents`, `GET`, `POST /api/lessons/{id}/videos`, `GET`, `POST /api/lessons/{id}/documents`, `GET`, `POST /api/lessons/{id}/tests`)
 - Content endpoints eklendi (`GET`, `PUT`, `DELETE /api/videos/{id}`, `GET`, `PUT`, `DELETE /api/documents/{id}`, `GET`, `PUT`, `DELETE /api/tests/{id}`)
+- Notifications endpoints eklendi (`POST /api/notifications/send`, `GET /api/notifications/history`, `POST /api/notifications/token`, `DELETE /api/notifications/token`)
 
