@@ -13,7 +13,7 @@ import { AppValidationError, AppAuthorizationError, AppInternalServerError, AppB
 import { isErrorWithMessage } from '@/lib/utils/response';
 
 // İzin verilen kategoriler
-const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents'] as const;
+const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
@@ -64,6 +64,15 @@ function getCategoryPermissions(category: string, userRole: string): {
       return {
         canUpload: userRole === USER_ROLE.ADMIN,
         error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+      };
+    
+    case 'activity-images':
+      // Activity images: Admin ve branch_manager
+      return {
+        canUpload: userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
+          ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
+          : undefined,
       };
     
     default:

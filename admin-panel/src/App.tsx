@@ -7,6 +7,7 @@ import BranchDashboard from './pages/dashboard/BranchDashboard';
 import UsersPage from './pages/users/UsersPage';
 import BranchesPage from './pages/branches/BranchesPage';
 import NewsPage from './pages/news/NewsPage';
+import ActivitiesPage from './pages/activities/ActivitiesPage';
 import TrainingsPage from './pages/trainings/TrainingsPage';
 import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
 import LessonDetailPage from './pages/trainings/LessonDetailPage';
@@ -59,6 +60,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <TrainingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/activities"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                <ActivitiesPage />
               </ProtectedRoute>
             }
           />

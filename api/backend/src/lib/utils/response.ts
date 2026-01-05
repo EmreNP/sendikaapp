@@ -487,6 +487,48 @@ export function serializeTestContentTimestamps(test: any): any {
 }
 
 /**
+ * Activity Category objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeActivityCategoryTimestamps(category: any): any {
+  if (!category) return category;
+  
+  const serialized = { ...category };
+  
+  if (category.createdAt) {
+    serialized.createdAt = serializeTimestamp(category.createdAt);
+  }
+  
+  if (category.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(category.updatedAt);
+  }
+  
+  return serialized;
+}
+
+/**
+ * Activity objesindeki tüm Timestamp'leri serialize eder
+ */
+export function serializeActivityTimestamps(activity: any): any {
+  if (!activity) return activity;
+  
+  const serialized = { ...activity };
+  
+  if (activity.createdAt) {
+    serialized.createdAt = serializeTimestamp(activity.createdAt);
+  }
+  
+  if (activity.updatedAt) {
+    serialized.updatedAt = serializeTimestamp(activity.updatedAt);
+  }
+  
+  if (activity.activityDate) {
+    serialized.activityDate = serializeTimestamp(activity.activityDate);
+  }
+  
+  return serialized;
+}
+
+/**
  * Generic Content serializer (type'a göre uygun serializer'ı kullanır)
  */
 export function serializeContentTimestamps(content: any): any {

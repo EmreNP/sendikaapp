@@ -5,8 +5,19 @@
     "lib": ["ES2020"],
     "skipLibCheck": true,
     "strict": false,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["admin-panel/src/*"],
+      "@shared/*": ["shared/*"]
+    }
   },
+  "include": [
+    "admin-panel/src/**/*",
+    "admin-panel/vite.config.ts",
+    "api/backend/src/**/*",
+    "shared/**/*"
+  ],
   "exclude": [
     "node_modules",
     "**/node_modules",
@@ -14,7 +25,6 @@
     "**/api/functions/**",
     "dist",
     "build"
-  ],
-  "files": []
+  ]
 }
 

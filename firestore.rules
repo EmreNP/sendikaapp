@@ -207,6 +207,65 @@ service cloud.firestore {
       // Silme: Yok (mesajlar silinmez, sadece admin tarafından hard delete yapılabilir - server-side)
       allow delete: if false;
     }
+    
+    // Activity Categories collection - Admin only
+    match /activity_categories/{categoryId} {
+      allow read, create, update: if isAdmin();
+      allow delete: if false; // Server-side hard delete only
+    }
+    
+    // Activities collection
+    match /activities/{activityId} {
+      // Read: Admin all, Branch manager own branch, Users only published/active
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (isBranchManager() && 
+         resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId) ||
+        (resource.data.isPublished == true)
+      );
+      
+      // Create: Branch managers (own branch) and Admin
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        (isBranchManager() && 
+         request.resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId)
+      );
+      
+      // Update: Creator branch manager or Admin
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isBranchManager() && 
+         resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId)
+      );
+      
+      // Delete: Soft delete by creator or Admin
+      allow delete: if false; // Server-side hard delete only
+    }
+    
+    // FCM Tokens collection - Notification system
+    match /fcmTokens/{tokenId} {
+      // Okuma: Kullanıcı sadece kendi token'larını okuyabilir
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Oluşturma/Güncelleme/Silme: Sadece server-side (API endpoint'leri kullanılacak)
+      // Token kayıt/silme işlemleri backend API üzerinden yapılır
+      allow create, update, delete: if false;
+    }
+    
+    // Notification History collection - Notification system
+    match /notificationHistory/{historyId} {
+      // Okuma: Admin ve branch manager bildirim geçmişini görebilir
+      // Branch manager sadece kendi şubesine ait bildirimleri görebilir
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (isBranchManager() && 
+         resource.data.branchId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.branchId)
+      );
+      
+      // Oluşturma/Güncelleme/Silme: Sadece server-side
+      // Bildirim geçmişi backend tarafından otomatik oluşturulur
+      allow create, update, delete: if false;
+    }
   }
 }
 

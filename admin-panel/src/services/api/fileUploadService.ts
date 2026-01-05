@@ -1,5 +1,3 @@
-import { apiRequest } from '@/utils/api';
-
 export interface FileUploadResponse {
   documentUrl: string;
   fileName: string;
@@ -118,6 +116,45 @@ export const fileUploadService = {
 
     if (!data.success) {
       throw new Error(data.message || 'Thumbnail yüklenirken bir hata oluştu');
+    }
+
+    return {
+      documentUrl: data.data.documentUrl || data.data.fileUrl,
+      fileName: data.data.fileName,
+      size: data.data.size,
+      contentType: data.data.contentType,
+    };
+  },
+
+  /**
+   * Aktivite resmi yükle (activity-images kategorisi)
+   */
+  async uploadActivityImage(file: File): Promise<FileUploadResponse> {
+    const { api } = await import('@/config/api');
+    const { authService } = await import('@/services/auth/authService');
+    
+    const token = await authService.getIdToken();
+    if (!token) {
+      throw new Error('Giriş yapmanız gerekiyor');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = api.url('/api/files/activity-images/upload');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || 'Resim yüklenirken bir hata oluştu');
     }
 
     return {

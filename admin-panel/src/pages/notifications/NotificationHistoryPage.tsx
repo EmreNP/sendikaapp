@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, Calendar, Users, CheckCircle, XCircle, Building2 } from 'lucide-react';
+import { Bell, Search, CheckCircle, XCircle, Building2, X } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import NotificationDetailModal from '@/components/notifications/NotificationDetailModal';
 import { notificationService } from '@/services/api/notificationService';
 import type { NotificationHistory } from '@/services/api/notificationService';
-import { NOTIFICATION_TYPE, TARGET_AUDIENCE } from '@shared/constants/notifications';
+import { NOTIFICATION_TYPE } from '@shared/constants/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
 
@@ -23,15 +23,15 @@ export default function NotificationHistoryPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [limit] = useState(20);
   const [filterType, setFilterType] = useState<'all' | 'announcement' | 'news'>('all');
-  const [filterTargetAudience, setFilterTargetAudience] = useState<'all' | 'active' | 'branch'>('all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filterBranchId, setFilterBranchId] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedNotification, setSelectedNotification] = useState<NotificationHistory | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
-  }, [page, filterType, filterTargetAudience, filterBranchId]);
+  }, [page, filterType, filterBranchId, searchTerm]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -57,11 +57,20 @@ export default function NotificationHistoryPage() {
         page,
         limit,
         type: filterType === 'all' ? undefined : filterType,
-        targetAudience: filterTargetAudience === 'all' ? undefined : filterTargetAudience,
         branchId: filterBranchId || undefined,
       });
 
-      setNotifications(data.notifications || []);
+      let filteredNotifications = data.notifications || [];
+      
+      // Client-side search filtering
+      if (searchTerm) {
+        filteredNotifications = filteredNotifications.filter(notification => 
+          notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          notification.body.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      setNotifications(filteredNotifications);
       setTotal(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 0);
     } catch (error: any) {
@@ -131,98 +140,125 @@ export default function NotificationHistoryPage() {
     }
   };
 
+  const handleViewDetail = (notification: NotificationHistory) => {
+    setSelectedNotification(notification);
+    setIsDetailModalOpen(true);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Bell className="w-6 h-6" />
-            Bildirim Geçmişi
-          </h1>
-          <p className="text-gray-600 mt-1">Gönderilen tüm bildirimleri görüntüleyin</p>
-        </div>
 
-        {/* Filtreler */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Tip Filtresi */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Bildirim Tipi
-              </label>
-              <select
-                value={filterType}
-                onChange={(e) => {
-                  setFilterType(e.target.value as 'all' | 'announcement' | 'news');
+        {/* Filtreler ve Arama */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Bildirimlerde ara..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <option value="all">Tümü</option>
-                <option value={NOTIFICATION_TYPE.ANNOUNCEMENT}>Duyuru</option>
-                <option value={NOTIFICATION_TYPE.NEWS}>Haber</option>
-              </select>
-            </div>
-
-            {/* Hedef Kitle Filtresi */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hedef Kitle
-              </label>
-              <select
-                value={filterTargetAudience}
-                onChange={(e) => {
-                  setFilterTargetAudience(e.target.value as 'all' | 'active' | 'branch');
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Tümü</option>
-                <option value={TARGET_AUDIENCE.ALL}>Tüm Kullanıcılar</option>
-                <option value={TARGET_AUDIENCE.ACTIVE}>Aktif Kullanıcılar</option>
-                <option value={TARGET_AUDIENCE.BRANCH}>Belirli Şube</option>
-              </select>
-            </div>
-
-            {/* Şube Filtresi (Sadece Admin) */}
-            {user?.role === 'admin' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Şube
-                </label>
-                <select
-                  value={filterBranchId}
-                  onChange={(e) => {
-                    setFilterBranchId(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Tüm Şubeler</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <X className="w-4 h-4" />
+              </button>
             )}
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Tip Filtresi */}
+            <div className="inline-flex bg-gray-100 rounded-lg p-1">
+              <button
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterType === 'all'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => {
+                  setFilterType('all');
+                  setPage(1);
+                }}
+              >
+                Tümü
+              </button>
+              <button
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterType === NOTIFICATION_TYPE.ANNOUNCEMENT
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => {
+                  setFilterType(NOTIFICATION_TYPE.ANNOUNCEMENT);
+                  setPage(1);
+                }}
+              >
+                Duyuru
+              </button>
+              <button
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterType === NOTIFICATION_TYPE.NEWS
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => {
+                  setFilterType(NOTIFICATION_TYPE.NEWS);
+                  setPage(1);
+                }}
+              >
+                Haber
+              </button>
+            </div>
+
+            {/* Şube Filtresi */}
+            <select
+              value={filterBranchId}
+              onChange={(e) => {
+                setFilterBranchId(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
+            >
+              <option value="">Tüm Şubeler</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <XCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Notifications Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
               <p className="text-gray-500 mt-2">Yükleniyor...</p>
             </div>
           ) : notifications.length === 0 ? (
