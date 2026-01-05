@@ -243,18 +243,16 @@ export default function ActivitiesPage() {
               >
                 Aktiviteler
               </button>
-              {user?.role === 'admin' && (
-                <button
-                  onClick={() => setActiveTab('categories')}
-                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === 'categories'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Kategoriler
-                </button>
-              )}
+              <button
+                onClick={() => setActiveTab('categories')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'categories'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Kategoriler
+              </button>
             </nav>
 
             {activeTab === 'activities' && (
@@ -268,7 +266,7 @@ export default function ActivitiesPage() {
               </button>
             )}
 
-            {activeTab === 'categories' && user?.role === 'admin' && (
+            {activeTab === 'categories' && (
               <button
                 onClick={handleCreateCategory}
                 disabled={processing}
@@ -388,7 +386,7 @@ export default function ActivitiesPage() {
         )}
 
         {/* Categories Tab */}
-        {activeTab === 'categories' && user?.role === 'admin' && (
+        {activeTab === 'categories' && (
           <div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {categoriesLoading ? (
@@ -428,20 +426,24 @@ export default function ActivitiesPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-2">
-                                <ActionButton
-                                  icon={Edit}
-                                  variant="edit"
-                                  onClick={() => handleEditCategory(category)}
-                                  title="Düzenle"
-                                  disabled={processing}
-                                />
-                                <ActionButton
-                                  icon={Trash2}
-                                  variant="delete"
-                                  onClick={() => handleDeleteCategory(category)}
-                                  title="Sil"
-                                  disabled={processing}
-                                />
+                                {user?.role === 'admin' && (
+                                  <>
+                                    <ActionButton
+                                      icon={Edit}
+                                      variant="edit"
+                                      onClick={() => handleEditCategory(category)}
+                                      title="Düzenle"
+                                      disabled={processing}
+                                    />
+                                    <ActionButton
+                                      icon={Trash2}
+                                      variant="delete"
+                                      onClick={() => handleDeleteCategory(category)}
+                                      title="Sil"
+                                      disabled={processing}
+                                    />
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>

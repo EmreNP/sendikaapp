@@ -7,6 +7,7 @@ import BranchDashboard from './pages/dashboard/BranchDashboard';
 import UsersPage from './pages/users/UsersPage';
 import BranchesPage from './pages/branches/BranchesPage';
 import NewsPage from './pages/news/NewsPage';
+import BranchNewsPage from './pages/news/BranchNewsPage';
 import ActivitiesPage from './pages/activities/ActivitiesPage';
 import TrainingsPage from './pages/trainings/TrainingsPage';
 import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
@@ -118,6 +119,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['branch_manager']}>
                 <BranchDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/branch/news"
+            element={
+              <ProtectedRoute allowedRoles={['branch_manager']}>
+                <BranchNewsPage />
               </ProtectedRoute>
             }
           />

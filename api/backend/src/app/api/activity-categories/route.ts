@@ -20,16 +20,9 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
-// GET /api/activity-categories - List all categories (admin only)
+// GET /api/activity-categories - List all categories (all authenticated users)
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
-    // Kullanıcının rolünü kontrol et
-    const { error, user: currentUserData } = await getCurrentUser(user.uid);
-    
-    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
-    }
-
     // Fetch categories
     const categoriesSnapshot = await db
       .collection('activity_categories')

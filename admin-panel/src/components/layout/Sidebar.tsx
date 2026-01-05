@@ -38,6 +38,12 @@ const sidebarItems: SidebarItem[] = [
     roles: ['admin'],
   },
   {
+    icon: Newspaper,
+    label: 'Haberler & Duyurular',
+    path: '/branch/news',
+    roles: ['branch_manager'],
+  },
+  {
     icon: BookOpen,
     label: 'Eğitimler',
     path: '/admin/trainings',
