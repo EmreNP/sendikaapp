@@ -1,19 +1,34 @@
 {
   "expo": {
     "name": "Sendika App",
-    "slug": "sendika-mobile",
+    "slug": "sendikaapp-1",
     "version": "1.0.0",
-    "main": "index.js",
     "orientation": "portrait",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E40AF"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sendika.app"
+      "bundleIdentifier": "com.buyukfuat.sendikaapp"
     },
     "android": {
-      "package": "com.sendika.app"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E40AF"
+      },
+      "package": "com.buyukfuat.sendikaapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9be3f071-85c4-4918-95ee-d34c9a7d119d"
+      }
     }
   }
 }

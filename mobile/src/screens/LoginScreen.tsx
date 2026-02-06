@@ -1,3 +1,4 @@
+// Login Screen
 import React, { useState } from 'react';
 import {
   View,
@@ -10,20 +11,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZE } from '../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
-import apiService from '../services/api';
 
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { login, setUser } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,11 +57,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     setLoading(true);
     try {
       await login(email, password);
-      // Navigation is handled by AuthContext - user state güncellendiğinde
-      // AppNavigator otomatik olarak Status ekranına yönlendirecek
+      // Navigation handled by AppNavigator based on user status
     } catch (error: any) {
-      const errorMessage = error?.message || apiService.getErrorMessage(error);
-      Alert.alert('Hata', errorMessage);
+      Alert.alert('Hata', error.message || 'Giriş yapılamadı');
     } finally {
       setLoading(false);
     }
@@ -69,148 +68,167 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   return (
     <LinearGradient
       colors={[COLORS.primary, COLORS.primaryDark]}
-      style={styles.gradient}
+      style={styles.container}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          <View style={styles.header}>
-            <Text style={styles.logo}>🏢</Text>
-            <Text style={styles.title}>Sendika App</Text>
-            <Text style={styles.subtitle}>Hoş Geldiniz</Text>
-          </View>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Back Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backButtonText}>← Geri</Text>
+            </TouchableOpacity>
 
-          <View style={styles.formContainer}>
-            <CustomInput
-              label="E-posta"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setErrors({ ...errors, email: '' });
-              }}
-              placeholder="ornek@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              error={errors.email}
-              required
-            />
-
-            <CustomInput
-              label="Şifre"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setErrors({ ...errors, password: '' });
-              }}
-              placeholder="••••••••"
-              secureTextEntry
-              error={errors.password}
-              required
-            />
-
-            <CustomButton
-              title="Giriş Yap"
-              onPress={handleLogin}
-              loading={loading}
-              style={styles.loginButton}
-            />
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>veya</Text>
-              <View style={styles.dividerLine} />
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.logoCircle}>
+                <Text style={styles.logoEmoji}>🏢</Text>
+              </View>
+              <Text style={styles.title}>Giriş Yap</Text>
+              <Text style={styles.subtitle}>Hesabınıza giriş yapın</Text>
             </View>
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('RegisterBasic')}
-              style={styles.registerLink}
-            >
-              <Text style={styles.registerText}>
-                Hesabınız yok mu?{' '}
-                <Text style={styles.registerTextBold}>Kayıt Olun</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            {/* Form */}
+            <View style={styles.form}>
+              <CustomInput
+                label="E-posta"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setErrors({ ...errors, email: '' });
+                }}
+                placeholder="ornek@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                error={errors.email}
+                required
+              />
+
+              <CustomInput
+                label="Şifre"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setErrors({ ...errors, password: '' });
+                }}
+                placeholder="••••••••"
+                secureTextEntry
+                autoComplete="password"
+                error={errors.password}
+                required
+              />
+
+              <CustomButton
+                title="Giriş Yap"
+                onPress={handleLogin}
+                loading={loading}
+                size="lg"
+                style={styles.submitButton}
+              />
+
+              <View style={styles.signupContainer}>
+                <Text style={styles.signupText}>Hesabınız yok mu? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                  <Text style={styles.signupLink}>Kayıt Ol</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: {
+  container: {
     flex: 1,
   },
-  container: {
+  safeArea: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  backButton: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  backButtonText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textWhite,
   },
   header: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
-  logo: {
-    fontSize: 80,
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: SPACING.md,
-  },
-  title: {
-    fontSize: FONT_SIZE.xxxl,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.white,
-    opacity: 0.9,
-  },
-  formContainer: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
-    shadowColor: COLORS.black,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
-  loginButton: {
+  logoEmoji: {
+    fontSize: 36,
+  },
+  title: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: 'bold',
+    color: COLORS.textWhite,
+  },
+  subtitle: {
+    fontSize: FONT_SIZE.md,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: SPACING.xs,
+  },
+  form: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  submitButton: {
     marginTop: SPACING.md,
   },
-  divider: {
+  signupContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.lg,
+    justifyContent: 'center',
+    marginTop: SPACING.lg,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  dividerText: {
-    marginHorizontal: SPACING.md,
+  signupText: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
   },
-  registerLink: {
-    alignItems: 'center',
-  },
-  registerText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  registerTextBold: {
+  signupLink: {
+    fontSize: FONT_SIZE.sm,
     color: COLORS.primary,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
-
