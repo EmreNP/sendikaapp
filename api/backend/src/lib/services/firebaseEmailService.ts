@@ -32,12 +32,50 @@ if (!FIREBASE_WEB_API_KEY) {
  * @throws Error if email sending fails
  */
 export async function sendEmailVerification(email: string): Promise<void> {
+  throw new Error(
+    'sendEmailVerification(email) is not supported for VERIFY_EMAIL. Use sendEmailVerificationWithIdToken(idToken) or sendEmailVerificationWithEmailPassword(email, password).'
+  );
+}
+
+async function signInWithPassword(email: string, password: string): Promise<{ idToken: string }> {
+  if (!FIREBASE_WEB_API_KEY) {
+    throw new Error('FIREBASE_WEB_API_KEY is not configured. Please add it to your .env file.');
+  }
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      returnSecureToken: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`Firebase signInWithPassword failed: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = (await response.json()) as { idToken?: string };
+  if (!data.idToken) {
+    throw new Error('Firebase signInWithPassword did not return an idToken');
+  }
+
+  return { idToken: data.idToken };
+}
+
+export async function sendEmailVerificationWithIdToken(idToken: string): Promise<void> {
   if (!FIREBASE_WEB_API_KEY) {
     throw new Error('FIREBASE_WEB_API_KEY is not configured. Please add it to your .env file.');
   }
 
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`;
-  
+
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -46,23 +84,27 @@ export async function sendEmailVerification(email: string): Promise<void> {
       },
       body: JSON.stringify({
         requestType: 'VERIFY_EMAIL',
-        email: email,
+        idToken,
       }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Firebase email sending failed: ${error.error?.message || 'Unknown error'}`);
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`Firebase email verification sending failed: ${error.error?.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
-    console.log(`✅ Email verification sent to ${email}`);
-    return data;
+    console.log('✅ Email verification OOB code sent');
   } catch (error: unknown) {
     const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-    console.error(`❌ Failed to send email verification to ${email}:`, errorMessage);
+    console.error('❌ Failed to send email verification:', errorMessage);
     throw error;
   }
+}
+
+export async function sendEmailVerificationWithEmailPassword(email: string, password: string): Promise<void> {
+  const { idToken } = await signInWithPassword(email, password);
+  await sendEmailVerificationWithIdToken(idToken);
+  console.log(`✅ Email verification sent to ${email}`);
 }
 
 /**

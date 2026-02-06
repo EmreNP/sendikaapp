@@ -1,11 +1,34 @@
 // API Configuration
 
+import { Platform } from 'react-native';
+
 const envApiBaseUrl =
   process.env.EXPO_PUBLIC_API_BASE_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL;
 
-export const API_BASE_URL = (envApiBaseUrl || 'http://192.168.1.210:3001').replace(/\/$/, '');
+const DEFAULT_PROD_API_ORIGIN = 'https://sendikaapp.web.app';
+
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
+function getDefaultApiBaseUrl(): string {
+  // If we are on web and hosted on a real domain, prefer same-origin.
+  // If we are on localhost (expo start --web), default to production backend.
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return DEFAULT_PROD_API_ORIGIN;
+    }
+    return window.location.origin;
+  }
+
+  // Native builds: default to production backend unless overridden by env.
+  return DEFAULT_PROD_API_ORIGIN;
+}
+
+export const API_BASE_URL = normalizeBaseUrl(envApiBaseUrl || getDefaultApiBaseUrl());
 
 export const API_ENDPOINTS = {
   // Auth

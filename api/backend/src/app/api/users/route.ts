@@ -7,7 +7,7 @@ import { USER_STATUS } from '@shared/constants/status';
 import type { CreateUserData, User } from '@shared/types/user';
 import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
-import { sendEmailVerification } from '@/lib/services/firebaseEmailService';
+import { sendEmailVerificationWithEmailPassword } from '@/lib/services/firebaseEmailService';
 import { 
   successResponse, 
   unauthorizedError,
@@ -218,7 +218,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // 4️⃣ E-POSTA DOĞRULAMA EMAİLİ GÖNDER
       try {
-        await sendEmailVerification(email);
+        await sendEmailVerificationWithEmailPassword(email, password);
         console.log(`✅ Email verification sent to ${email}`);
       } catch (emailError: unknown) {
         const errorMessage = isErrorWithMessage(emailError) ? emailError.message : 'Bilinmeyen hata';

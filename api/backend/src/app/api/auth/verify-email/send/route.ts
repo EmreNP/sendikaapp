@@ -1,12 +1,18 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/lib/firebase/admin';
 import { withAuth } from '@/lib/middleware/auth';
-import { sendEmailVerification } from '@/lib/services/firebaseEmailService';
+import { sendEmailVerificationWithIdToken } from '@/lib/services/firebaseEmailService';
 import { 
   successResponse, 
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError } from '@/lib/utils/errors/AppError';
+
+function getBearerToken(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  return authHeader.split('Bearer ')[1] || null;
+}
 
 export const POST = asyncHandler(async (request: NextRequest) => {
   // Email doğrulama gönderme endpoint'i için email doğrulama kontrolünü bypass et
@@ -25,8 +31,12 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       }
       
       // 2️⃣ DOĞRULAMA EMAİLİ GÖNDER
-      // Firebase'in kendi email servisini kullanarak email gönder
-      await sendEmailVerification(userRecord.email);
+      // Firebase Auth REST API VERIFY_EMAIL, kullanıcı idToken ister
+      const idToken = getBearerToken(req);
+      if (!idToken) {
+        throw new AppValidationError('Yetkilendirme token\'ı gerekli');
+      }
+      await sendEmailVerificationWithIdToken(idToken);
       
       console.log(`✅ Email verification sent to ${userRecord.email}`);
       

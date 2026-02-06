@@ -13,11 +13,13 @@ function getAllowedOrigins(): string[] {
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:3002',
-      'http://localhost:8081', // Expo web development server
+      'http://localhost:8081', // Expo / Metro (native) development server
+      'http://localhost:19006', // Expo web development server
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       'http://127.0.0.1:3002',
-      'http://127.0.0.1:8081', // Expo web development server
+      'http://127.0.0.1:8081', // Expo / Metro (native) development server
+      'http://127.0.0.1:19006', // Expo web development server
     ];
   }
   
