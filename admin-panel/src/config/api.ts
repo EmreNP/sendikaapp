@@ -39,11 +39,17 @@ export const api = {
     
     // Base URL'den trailing slash'i kaldır
     const baseUrl = API_BASE_URL.replace(/\/$/, '');
-    
+
     // Endpoint'ten leading slash'i kaldır
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    
-    return `${baseUrl}/${cleanEndpoint}`;
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+
+    // If baseUrl already ends with '/api' (e.g. Firebase Hosting rewrite proxy) and
+    // endpoint also starts with 'api/...', avoid generating '/api/api/...'.
+    if (baseUrl.endsWith('/api') && (cleanEndpoint === 'api' || cleanEndpoint.startsWith('api/'))) {
+      cleanEndpoint = cleanEndpoint === 'api' ? '' : cleanEndpoint.slice('api/'.length);
+    }
+
+    return cleanEndpoint.length > 0 ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
   },
   
   /**

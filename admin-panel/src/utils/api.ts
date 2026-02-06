@@ -88,6 +88,17 @@ export async function apiRequest<T = any>(
       console.log('📡 Status update response status:', response.status, response.statusText);
     }
     
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      const snippet = text.slice(0, 300);
+      const error = new Error(
+        `Unexpected non-JSON response (${response.status} ${response.statusText}) from ${url}. Content-Type=${contentType}. Body starts with: ${snippet}`
+      );
+      (error as any).response = response;
+      throw error;
+    }
+
     const data: ApiResponse<T> = await response.json();
     
     if (!data.success) {
