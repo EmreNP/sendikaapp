@@ -13,6 +13,10 @@ import {
   notFoundError,
   isErrorWithMessage,
 } from '@/lib/utils/response';
+
+// Default password to use when none is provided by admin/branch manager
+const DEFAULT_PASSWORD = 'parola123.'; // Per product decision: default for new users
+
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
@@ -124,12 +128,12 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
       }
       
-      // Gerekli alanlar
+      // Gerekli alanlar (parola opsiyonel, verilmezse DEFAULT_PASSWORD kullanılır)
       const {
         firstName,
         lastName,
         email,
-        password,
+        password: providedPassword,
         role,
         branchId,
         status,
@@ -139,7 +143,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       } = body;
       
       // Validasyon
-      if (!firstName || !lastName || !email || !password) {
+      if (!firstName || !lastName || !email) {
       throw new AppValidationError('Gerekli alanlar eksik');
       }
       
@@ -148,10 +152,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppValidationError('Geçersiz e-posta adresi');
       }
       
-      // Şifre validasyonu
-      const passwordValidation = validatePassword(password);
-      if (!passwordValidation.valid) {
-      throw new AppValidationError(passwordValidation.error || 'Geçersiz şifre');
+      // Determine password: use provided or fallback to default
+      let password = providedPassword;
+      let usedDefaultPassword = false;
+      if (!password) {
+        password = DEFAULT_PASSWORD;
+        usedDefaultPassword = true;
+        console.warn('Password not provided: using DEFAULT_PASSWORD for new user creation');
+      }
+      
+      // Şifre validasyonu - only validate if explicit password provided; default password is allowed even if it would fail validation
+      if (!usedDefaultPassword) {
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.valid) {
+          throw new AppValidationError(passwordValidation.error || 'Geçersiz şifre');
+        }
       }
       
       // Branch Manager kısıtlamaları
