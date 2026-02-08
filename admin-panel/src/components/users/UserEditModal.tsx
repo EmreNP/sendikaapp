@@ -29,6 +29,7 @@ interface UserData {
   address?: string;
   city?: string;
   district?: string;
+  isMemberOfOtherUnion?: boolean;
   branchId?: string;
   role?: string;
 }
@@ -57,9 +58,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
   const [kurumSicil, setKurumSicil] = useState('');
   const [kadroUnvani, setKadroUnvani] = useState('');
   const [kadroUnvanKodu, setKadroUnvanKodu] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
+  const [isMemberOfOtherUnion, setIsMemberOfOtherUnion] = useState<boolean | ''>('');
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -99,9 +99,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       setKurumSicil(user.kurumSicil || '');
       setKadroUnvani(user.kadroUnvani || '');
       setKadroUnvanKodu(user.kadroUnvanKodu || '');
-      setAddress(user.address || '');
-      setCity(user.city || '');
       setDistrict(user.district || '');
+      setIsMemberOfOtherUnion(user.isMemberOfOtherUnion === undefined ? '' : user.isMemberOfOtherUnion);
     } catch (err: any) {
       // Eğer kullanıcı bulunamadı hatası alırsak, eksik kayıt moduna geç
       if (err.response?.status === 404 || err.message?.toLowerCase().includes('bulunamadı') || err.code === 'NOT_FOUND') {
@@ -145,9 +144,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     setKurumSicil('');
     setKadroUnvani('');
     setKadroUnvanKodu('');
-    setAddress('');
-    setCity('');
     setDistrict('');
+    setIsMemberOfOtherUnion('');
     setNote('');
     setError(null);
     setIsMissingDoc(false);
@@ -169,7 +167,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     if (!tcKimlikNo || !phone || !branchId || !birthDate || !gender || 
         !fatherName || !motherName || !birthPlace || !education || 
         !kurumSicil || !kadroUnvani || !kadroUnvanKodu || 
-        !address || !city || !district) {
+        !district || isMemberOfOtherUnion === '') {
       
       setError('Tüm alanlar zorunludur (Not alanı hariç)');
       return;
@@ -196,8 +194,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
        { key: 'kurumSicil', val: kurumSicil },
        { key: 'kadroUnvani', val: kadroUnvani },
        { key: 'kadroUnvanKodu', val: kadroUnvanKodu },
-       { key: 'address', val: address },
-       { key: 'city', val: city },
        { key: 'district', val: district },
        { key: 'note', val: note }
     ];
@@ -205,6 +201,11 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     fields.forEach(f => {
         if (f.val) body[f.key] = f.val;
     });
+    
+    // isMemberOfOtherUnion boolean alanını ekle
+    if (typeof isMemberOfOtherUnion === 'boolean') {
+      body.isMemberOfOtherUnion = isMemberOfOtherUnion;
+    }
 
     try {
       setLoading(true);
@@ -414,7 +415,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Eğitim Seviyesi <span className="text-red-500">*</span>
+                        Öğrenim <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={education}
@@ -423,13 +424,9 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                       required
                     >
                       <option value="">Seçiniz</option>
-                      <option value="primary">İlkokul</option>
-                      <option value="middle">Ortaokul</option>
-                      <option value="high">Lise</option>
-                      <option value="associate">Ön Lisans</option>
-                      <option value="bachelor">Lisans</option>
-                      <option value="master">Yüksek Lisans</option>
-                      <option value="doctorate">Doktora</option>
+                      <option value="ilköğretim">İlköğretim</option>
+                      <option value="lise">Lise</option>
+                      <option value="yüksekokul">Yüksek Okul</option>
                     </select>
                   </div>
                   <div>
@@ -467,17 +464,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Şehir <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                         İlçe <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -487,17 +473,21 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                       required
                     />
                   </div>
+
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Adres <span className="text-red-500">*</span>
+                        Başka Bir Sendikaya Üye mi? <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                    <select
+                      value={isMemberOfOtherUnion === '' ? '' : isMemberOfOtherUnion ? 'true' : 'false'}
+                      onChange={(e) => setIsMemberOfOtherUnion(e.target.value === '' ? '' : e.target.value === 'true')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      rows={2}
                       required
-                    />
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="false">Hayır</option>
+                      <option value="true">Evet</option>
+                    </select>
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label>

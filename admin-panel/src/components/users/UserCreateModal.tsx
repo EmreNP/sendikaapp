@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, CheckCircle } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
+import { KONYA_DISTRICTS } from '@shared/constants/districts';
 
 interface Props {
   isOpen: boolean;
@@ -16,57 +17,53 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
-  const [customToken, setCustomToken] = useState<string | null>(null);
 
   // Form fields - Basic
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [district, setDistrict] = useState('');
+  const [kadroUnvani, setKadroUnvani] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | ''>('');
 
   // Detailed fields
   const [branchId, setBranchId] = useState<string>('');
-  const [phone, setPhone] = useState('');
   const [tcKimlikNo, setTcKimlikNo] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [motherName, setMotherName] = useState('');
   const [birthPlace, setBirthPlace] = useState('');
   const [education, setEducation] = useState('');
   const [kurumSicil, setKurumSicil] = useState('');
-  const [kadroUnvani, setKadroUnvani] = useState('');
   const [kadroUnvanKodu, setKadroUnvanKodu] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [district, setDistrict] = useState('');
+  const [isMemberOfOtherUnion, setIsMemberOfOtherUnion] = useState<boolean | ''>('');
 
   useEffect(() => {
     if (isOpen) {
       setError(null);
       setStep('basic');
       setCreatedUserId(null);
-      setCustomToken(null);
       // Reset fields
       setFirstName('');
       setLastName('');
+      setPhone('');
       setEmail('');
       setPassword('');
       setBirthDate('');
+      setDistrict('');
+      setKadroUnvani('');
       setGender('');
       setBranchId(currentUser?.branchId || '');
-      setPhone('');
       setTcKimlikNo('');
       setFatherName('');
       setMotherName('');
       setBirthPlace('');
       setEducation('');
       setKurumSicil('');
-      setKadroUnvani('');
       setKadroUnvanKodu('');
-      setAddress('');
-      setCity('');
-      setDistrict('');
+      setIsMemberOfOtherUnion('');
 
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
         fetchBranches();
@@ -87,8 +84,8 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     e.preventDefault();
     setError(null);
 
-    if (!firstName || !lastName || !email || !birthDate || !gender) {
-      setError('Ad, soyad, e-posta, doğum tarihi ve cinsiyet zorunludur');
+    if (!firstName || !lastName || !phone || !email || !birthDate || !district || !kadroUnvani || !gender) {
+      setError('Tüm zorunlu alanlar doldurulmalıdır');
       return;
     }
 
@@ -98,9 +95,12 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     const body = {
       firstName,
       lastName,
+      phone,
       email,
       password: finalPassword,
       birthDate,
+      district,
+      kadroUnvani,
       gender,
     };
 
@@ -118,7 +118,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
 
       // Basic registration successful
       setCreatedUserId(response.uid);
-      setCustomToken(response.customToken || null);
       setStep('success');
     } catch (err: any) {
       console.error('Error creating user (basic):', err);
@@ -132,9 +131,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     setError(null);
 
     // Tüm zorunlu alanları kontrol et
-    if (!branchId || !tcKimlikNo || !phone || !fatherName || !motherName || 
-        !birthPlace || !education || !kurumSicil || !kadroUnvani || 
-        !kadroUnvanKodu || !address || !city || !district) {
+    if (!branchId || !tcKimlikNo || !fatherName || !motherName || 
+        !birthPlace || !education || !kurumSicil || 
+        !kadroUnvanKodu || isMemberOfOtherUnion === '') {
       setError('Tüm alanlar zorunludur');
       return;
     }
@@ -153,12 +152,8 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       birthPlace,
       education,
       kurumSicil,
-      kadroUnvani,
       kadroUnvanKodu,
-      phone,
-      address,
-      city,
-      district,
+      isMemberOfOtherUnion: typeof isMemberOfOtherUnion === 'boolean' ? isMemberOfOtherUnion : undefined,
     };
 
     try {
@@ -240,6 +235,20 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefon <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      placeholder="5xxxxxxxxx"
+                      maxLength={11}
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       E-posta <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -274,6 +283,36 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       value={birthDate}
                       onChange={(e) => setBirthDate(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Görev İlçesi <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      required
+                    >
+                      <option value="">Seçiniz</option>
+                      {KONYA_DISTRICTS.map((district) => (
+                        <option key={district} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Kadro Ünvanı <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      value={kadroUnvani}
+                      onChange={(e) => setKadroUnvani(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      placeholder="Öğretmen, Müdür, vb."
                       required
                     />
                   </div>
@@ -389,17 +428,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Baba Adı <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -433,7 +461,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Eğitim Seviyesi <span className="text-red-500">*</span>
+                      Öğrenim <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={education}
@@ -442,13 +470,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       required
                     >
                       <option value="">Seçiniz</option>
-                      <option value="primary">İlkokul</option>
-                      <option value="middle">Ortaokul</option>
-                      <option value="high">Lise</option>
-                      <option value="associate">Ön Lisans</option>
-                      <option value="bachelor">Lisans</option>
-                      <option value="master">Yüksek Lisans</option>
-                      <option value="doctorate">Doktora</option>
+                      <option value="ilköğretim">İlköğretim</option>
+                      <option value="lise">Lise</option>
+                      <option value="yüksekokul">Yüksek Okul</option>
                     </select>
                   </div>
                   <div>
@@ -464,17 +488,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kadro Ünvanı <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={kadroUnvani}
-                      onChange={(e) => setKadroUnvani(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Kadro Ünvan Kodu <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -484,39 +497,20 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Şehir <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      İlçe <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={district}
-                      onChange={(e) => setDistrict(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Adres <span className="text-red-500">*</span>
+                      Başka Bir Sendikaya Üye mi? <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                    <select
+                      value={isMemberOfOtherUnion === '' ? '' : isMemberOfOtherUnion ? 'true' : 'false'}
+                      onChange={(e) => setIsMemberOfOtherUnion(e.target.value === '' ? '' : e.target.value === 'true')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      rows={3}
                       required
-                    />
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="false">Hayır</option>
+                      <option value="true">Evet</option>
+                    </select>
                   </div>
                 </div>
 

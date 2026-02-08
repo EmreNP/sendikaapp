@@ -20,9 +20,12 @@ import admin from 'firebase-admin';
 interface RegisterBasicRequest {
   firstName: string;
   lastName: string;
+  phone: string;
   email: string;
   password: string;
   birthDate: string;
+  district: string; // Görev ilçesi
+  kadroUnvani: string; // Kadro Ünvanı
   gender: 'male' | 'female';
 }
 
@@ -32,20 +35,29 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     const {
       firstName,
       lastName,
+      phone,
       email,
       password,
       birthDate,
+      district,
+      kadroUnvani,
       gender,
       branchId: requestedBranchId,
     } = body;
     
     // 1️⃣ VALIDATION
-    if (!firstName || !lastName || !email || !password || !birthDate || !gender) {
+    if (!firstName || !lastName || !phone || !email || !password || !birthDate || !district || !kadroUnvani || !gender) {
     throw new AppValidationError('Tüm alanlar zorunludur');
     }
     
     if (!validateEmail(email)) {
     throw new AppValidationError('Geçersiz e-posta adresi');
+    }
+    
+    // Telefon format kontrolü (basit)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+    throw new AppValidationError('Geçersiz telefon numarası. 10-11 haneli numara giriniz.');
     }
     
     const passwordValidation = validatePassword(password);
@@ -61,6 +73,18 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     // Gender sadece male veya female olabilir
     if (gender !== 'male' && gender !== 'female') {
     throw new AppValidationError('Geçersiz cinsiyet değeri. Sadece male veya female olabilir.');
+    }
+    
+    // Email uniqueness kontrolü
+    const existingUserByEmail = await db.collection('users').where('email', '==', email).limit(1).get();
+    if (!existingUserByEmail.empty) {
+    throw new AppConflictError('Bu e-posta adresi zaten kullanılıyor.');
+    }
+    
+    // Telefon uniqueness kontrolü
+    const existingUserByPhone = await db.collection('users').where('phone', '==', phone).limit(1).get();
+    if (!existingUserByPhone.empty) {
+    throw new AppConflictError('Bu telefon numarası zaten kullanılıyor.');
     }
 
     // Optional: check if request is authenticated (admin/branch_manager creating user)
@@ -131,9 +155,12 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     const newUserDoc: any = {
       uid: userRecord.uid,
       email,
+      phone,
       firstName,
       lastName,
       birthDate: birthDateTimestamp,
+      district,
+      kadroUnvani,
       gender,
       role: USER_ROLE.USER,
       status: initialStatus,

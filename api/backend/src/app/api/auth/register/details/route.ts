@@ -21,14 +21,10 @@ interface RegisterDetailsRequest {
   fatherName: string;
   motherName: string;
   birthPlace: string;
-  education: string;
+  education: string; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil: string;
-  kadroUnvani: string;
   kadroUnvanKodu: string;
-  phone: string;
-  address: string;
-  city: string;
-  district: string;
+  isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
   branchId: string;
   // Admin overrides
   userId?: string;
@@ -49,12 +45,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         birthPlace,
         education,
         kurumSicil,
-        kadroUnvani,
         kadroUnvanKodu,
-        phone,
-        address,
-        city,
-        district,
+        isMemberOfOtherUnion,
         branchId,
         userId: targetUserIdParam,
         firstName,
@@ -152,10 +144,6 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppValidationError('TC Kimlik No zorunludur');
       }
       
-      if (!phone || phone.trim() === '') {
-        throw new AppValidationError('Telefon numarası zorunludur');
-      }
-      
       if (!fatherName || fatherName.trim() === '') {
         throw new AppValidationError('Baba adı zorunludur');
       }
@@ -169,31 +157,15 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       }
       
       if (!education || education.trim() === '') {
-        throw new AppValidationError('Eğitim seviyesi zorunludur');
+        throw new AppValidationError('Öğrenim seviyesi zorunludur');
       }
       
       if (!kurumSicil || kurumSicil.trim() === '') {
         throw new AppValidationError('Kurum sicil numarası zorunludur');
       }
       
-      if (!kadroUnvani || kadroUnvani.trim() === '') {
-        throw new AppValidationError('Kadro ünvanı zorunludur');
-      }
-      
       if (!kadroUnvanKodu || kadroUnvanKodu.trim() === '') {
         throw new AppValidationError('Kadro ünvan kodu zorunludur');
-      }
-      
-      if (!address || address.trim() === '') {
-        throw new AppValidationError('Adres zorunludur');
-      }
-      
-      if (!city || city.trim() === '') {
-        throw new AppValidationError('Şehir zorunludur');
-      }
-      
-      if (!district || district.trim() === '') {
-        throw new AppValidationError('İlçe zorunludur');
       }
       
       // Branch'in gerçekten var olup olmadığını kontrol et
@@ -224,12 +196,6 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppConflictError('Bu TC Kimlik No zaten kullanılıyor');
       }
       
-      // Telefon validasyonu
-      const phoneValidation = validateUserPhone(phone);
-      if (!phoneValidation.valid) {
-        throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon numarası');
-      }
-      
       // Eğitim seviyesi validasyonu
       if (!Object.values(EDUCATION_LEVEL).includes(education as any)) {
         throw new AppValidationError('Geçersiz eğitim seviyesi');
@@ -243,17 +209,17 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         birthPlace: birthPlace || '',
         education: education as any,
         kurumSicil: kurumSicil || '',
-        kadroUnvani: kadroUnvani || '',
         kadroUnvanKodu: kadroUnvanKodu || '',
-        phone: phone || '',
-        address: address || '',
-        city: city || '',
-        district: district || '',
         branchId: branchId,
         status: USER_STATUS.PENDING_BRANCH_REVIEW, // Onaya gönder
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         registrationCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+      
+      // isMemberOfOtherUnion boolean alanını ekle
+      if (typeof isMemberOfOtherUnion === 'boolean') {
+        updateData.isMemberOfOtherUnion = isMemberOfOtherUnion;
+      }
 
       // Admin güncelliyorsa name/email update de yapabilir
       if (isAdmin) {
@@ -264,8 +230,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Boş string kontrolü - hiçbir zorunlu alan boş olmamalı
       const requiredFields = ['tcKimlikNo', 'fatherName', 'motherName', 'birthPlace', 'education', 
-                              'kurumSicil', 'kadroUnvani', 'kadroUnvanKodu', 'phone', 
-                              'address', 'city', 'district', 'branchId'];
+                              'kurumSicil', 'kadroUnvanKodu', 'branchId'];
       
       for (const field of requiredFields) {
         if (!updateData[field] || (typeof updateData[field] === 'string' && updateData[field].trim() === '')) {

@@ -23,14 +23,13 @@ export interface User {
   fatherName?: string;
   motherName?: string;
   birthPlace?: string;
-  education?: EducationLevel;
+  education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
-  kadroUnvani?: string;
+  kadroUnvani?: string; // Kadro Ünvanı (Step 1'de doldurulur)
   kadroUnvanKodu?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  district?: string;
+  phone?: string; // Telefon (Step 1'de doldurulur)
+  district?: string; // Görev ilçesi (Step 1'de doldurulur)
+  isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
   
   // Sistem Bilgileri
   branchId?: string;
@@ -49,9 +48,12 @@ export interface User {
 export interface RegisterBasicRequest {
   firstName: string;
   lastName: string;
+  phone: string;
   email: string;
   password: string;
   birthDate: string; // ISO date string
+  district: string; // Görev ilçesi
+  kadroUnvani: string; // Kadro Ünvanı
   gender: Gender;
 }
 
@@ -61,14 +63,10 @@ export interface RegisterDetailsRequest {
   fatherName?: string;
   motherName?: string;
   birthPlace?: string;
-  education?: EducationLevel;
+  education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
-  kadroUnvani?: string;
   kadroUnvanKodu?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  district?: string;
+  isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
 }
 
 // Firestore Update Data Types
