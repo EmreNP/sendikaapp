@@ -75,25 +75,21 @@ export const PATCH = asyncHandler(async (
         // Branch Manager sadece belirli status geçişlerini yapabilir
         const allowedTransitions: Record<string, string[]> = {
           [USER_STATUS.PENDING_BRANCH_REVIEW]: [
-            USER_STATUS.PENDING_ADMIN_APPROVAL,  // Onaylama (ileri)
-            USER_STATUS.PENDING_DETAILS,         // Geri gönderme (geri)
+            USER_STATUS.ACTIVE,           // Onaylama (PDF ile direkt aktif)
+            USER_STATUS.REJECTED,         // Reddetme
+            USER_STATUS.PENDING_DETAILS,  // Geri gönderme (düzeltme gerekli)
           ]
         };
         
         const allowed = allowedTransitions[currentStatus as string] || [];
         
         if (!allowed.includes(newStatus)) {
-        throw new AppAuthorizationError('Bu status değişikliğine yetkiniz yok. Sadece pending_branch_review durumundaki kullanıcıları pending_admin_approval veya pending_details yapabilirsiniz.');
+        throw new AppAuthorizationError('Bu status değişikliğine yetkiniz yok. Sadece pending_branch_review durumundaki kullanıcıları active, rejected veya pending_details yapabilirsiniz.');
         }
         
-        // Branch Manager active ve rejected yapamaz
-        if (newStatus === USER_STATUS.ACTIVE || newStatus === USER_STATUS.REJECTED) {
-        throw new AppAuthorizationError('Branch Manager kullanıcıyı active veya rejected yapamaz');
-        }
-        
-        // Admin'e gönderme durumunda PDF zorunlu
-        if (newStatus === USER_STATUS.PENDING_ADMIN_APPROVAL && !documentUrl) {
-        throw new AppValidationError('Admin onayına göndermek için PDF belgesi zorunludur');
+        // Aktif yapma durumunda PDF zorunlu
+        if (newStatus === USER_STATUS.ACTIVE && !documentUrl) {
+        throw new AppValidationError('Kullanıcıyı onaylamak için PDF belgesi zorunludur');
         }
       }
       
@@ -129,7 +125,7 @@ export const PATCH = asyncHandler(async (
       
       // Log oluştur - Branch Manager için
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
-        if (newStatus === USER_STATUS.PENDING_ADMIN_APPROVAL) {
+        if (newStatus === USER_STATUS.ACTIVE) {
           try {
             const branchManagerLogDataRaw: any = {
               userId: targetUserId,
@@ -137,7 +133,7 @@ export const PATCH = asyncHandler(async (
               performedBy: user.uid,
               performedByRole: 'branch_manager',
               previousStatus: currentStatus,
-              newStatus: USER_STATUS.PENDING_ADMIN_APPROVAL,
+              newStatus: USER_STATUS.ACTIVE,
             };
             
             // Opsiyonel field'ları sadece varsa ekle
@@ -153,6 +149,30 @@ export const PATCH = asyncHandler(async (
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
             console.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
+          }
+        } else if (newStatus === USER_STATUS.REJECTED) {
+          try {
+            const branchManagerRejectLogDataRaw: any = {
+              userId: targetUserId,
+              action: 'branch_manager_rejection',
+              performedBy: user.uid,
+              performedByRole: 'branch_manager',
+              previousStatus: currentStatus,
+              newStatus: USER_STATUS.REJECTED,
+            };
+            
+            if (note) {
+              branchManagerRejectLogDataRaw.note = note;
+            }
+            if (rejectionReason) {
+              branchManagerRejectLogDataRaw.note = rejectionReason;
+            }
+            
+            await createRegistrationLog(branchManagerRejectLogDataRaw);
+            logCreated = true;
+          } catch (err: unknown) {
+            logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
+            console.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.PENDING_DETAILS) {
           try {
@@ -193,7 +213,7 @@ export const PATCH = asyncHandler(async (
         } else if (newStatus === USER_STATUS.REJECTED) {
           action = 'admin_rejection';
         } else {
-          // Diğer tüm durumlar için admin_return (pending_details, pending_branch_review, pending_admin_approval)
+          // Diğer tüm durumlar için admin_return (pending_details, pending_branch_review)
           action = 'admin_return';
         }
         

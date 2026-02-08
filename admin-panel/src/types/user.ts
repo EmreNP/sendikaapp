@@ -3,7 +3,6 @@ export type UserRole = 'admin' | 'branch_manager' | 'user';
 export type UserStatus = 
   | 'pending_details' 
   | 'pending_branch_review' 
-  | 'pending_admin_approval' 
   | 'active' 
   | 'rejected';
 

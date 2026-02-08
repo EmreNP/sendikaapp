@@ -6,8 +6,8 @@
 - [Kayıt Akış Diyagramı](#kayıt-akış-diyagramı)
 - [Adım 1: Temel Kayıt (Register Basic)](#adım-1-temel-kayıt-register-basic)
 - [Adım 2: Detaylı Bilgiler (Register Details)](#adım-2-detaylı-bilgiler-register-details)
-- [Adım 3: Şube Müdürü Onayı](#adım-3-şube-müdürü-onayı)
-- [Adım 4: Admin Onayı](#adım-4-admin-onayı)
+- [Adım 3: Şube Müdürü Kararı](#adım-3-şube-müdürü-kararı)
+- [Admin Yönetimi](#admin-yönetimi)
 - [Kullanıcı Durumları (Status)](#kullanıcı-durumları-status)
 - [Kayıt Logları](#kayıt-logları)
 - [Örnek Kullanım](#örnek-kullanım)
@@ -17,7 +17,7 @@
 
 ## Genel Bakış
 
-SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı kayıt sistemi kullanır. Kullanıcılar önce temel bilgilerini girer, sonra detaylı bilgilerini tamamlar ve ardından şube müdürü ve admin onayından geçerler.
+SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı kayıt sistemi kullanır. Kullanıcılar önce temel bilgilerini girer, sonra detaylı bilgilerini tamamlar ve ardından şube müdürü onayından geçerler. Şube müdürü PDF belgesi yükleyerek doğrudan kullanıcıyı aktif hale getirir.
 
 ### Kayıt Sürecinin Özellikleri
 
@@ -37,7 +37,6 @@ SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı 
 │  - İsim, Soyisim, Email, Şifre, Doğum Tarihi, Cinsiyet         │
 │  └─> Status: PENDING_DETAILS                                    │
 │      └─> Custom Token döner                                     │
-│          └─> Email doğrulama linki gönderilir                   │
 └─────────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -49,20 +48,12 @@ SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı 
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  3. ŞUBE MÜDÜRÜ ONAYI                                           │
-│  ┌─────────────────────────┬─────────────────────────┐         │
-│  │ Onayla                  │ Geri Gönder             │         │
-│  └─> PENDING_ADMIN_APPROVAL│ └─> PENDING_DETAILS     │         │
-│                            │     (Düzeltme gerekli)  │         │
+│  3. ŞUBE MÜDÜRÜ KARARI                                          │
+│  ┌──────────────────┬──────────────────┬──────────────────┐    │
+│  │ Onayla (PDF ile) │ Reddet           │ Geri Gönder      │    │
+│  └─> ACTIVE         │ └─> REJECTED     │ └─> PENDING_     │    │
+│      (Aktif üye)    │     (Reddedildi) │     DETAILS      │    │
 └─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  4. ADMIN ONAYI                                                 │
-│  ┌────────────────────┬────────────────────┬──────────────────┐ │
-│  │ Onayla             │ Reddet             │ Geri Gönder      │ │
-│  └─> ACTIVE           │ └─> REJECTED       │ └─> PENDING_*    │ │
-│      (Aktif kullanıcı)│     (Reddedildi)   │                  │ │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -231,11 +222,21 @@ PATCH /api/users/[id]/status
 - ✅ Sadece kendi şubesindeki kullanıcıları görebilir ve onaylayabilir
 - ✅ Sadece `PENDING_BRANCH_REVIEW` durumundaki kullanıcıları işleyebilir
 
-### Request Body - Onaylama
+### Request Body - Onaylama (PDF belgesi ile)
 
 ```json
 {
-  "status": "pending_admin_approval"
+  "status": "active",
+  "documentUrl": "https://storage.example.com/user-docs/user-id/belge.pdf"
+}
+```
+
+### Request Body - Reddetme
+
+```json
+{
+  "status": "rejected",
+  "rejectionReason": "Başvuru kriterlerini karşılamıyor"
 }
 ```
 
@@ -253,9 +254,10 @@ PATCH /api/users/[id]/status
 1. **Yetki Kontrolü**: Kullanıcı branch manager rolünde ve kullanıcı aynı şubede olmalı
 2. **Durum Kontrolü**: Hedef kullanıcının durumu `PENDING_BRANCH_REVIEW` olmalı
 3. **Status Güncelleme**: 
-   - Onay: `pending_admin_approval`
+   - Onay: `active` (PDF belgesi zorunlu, kullanıcı direkt aktif olur)
+   - Red: `rejected` (rejectionReason zorunlu)
    - Geri Gönderme: `pending_details`
-4. **Registration Log**: İşlem loglanır (`branch_manager_approval` veya `branch_manager_return` action)
+4. **Registration Log**: İşlem loglanır (`branch_manager_approval`, `branch_manager_rejection` veya `branch_manager_return` action)
 
 ### Response (200 OK)
 
@@ -266,7 +268,7 @@ PATCH /api/users/[id]/status
   "data": {
     "user": {
       "uid": "user-uid-123",
-      "status": "pending_admin_approval",
+      "status": "active",
       "previousStatus": "pending_branch_review"
     }
   }
@@ -275,11 +277,13 @@ PATCH /api/users/[id]/status
 
 ### Sonraki Adım
 
-Onaylanan kullanıcılar admin onayı için beklerler. Geri gönderilen kullanıcılar detaylı bilgilerini düzelterek tekrar başvurabilirler.
+`active` durumuna geçen kullanıcılar sistemi tam olarak kullanabilirler. Geri gönderilen kullanıcılar detaylı bilgilerini düzelterek tekrar başvurabilirler. Reddedilen kullanıcılar yeni bir kayıt yapmalıdır.
 
 ---
 
-## Adım 4: Admin Onayı
+## Admin Yönetimi
+
+Admin, bekleyen üyelikleri görebilir ve gerektiğinde herhangi bir kullanıcının durumunu değiştirebilir (geri gönderme, onaylama, reddetme vb.).
 
 ### Endpoint
 ```
@@ -291,7 +295,7 @@ PATCH /api/users/[id]/status
 
 ### Yetki Kontrolleri
 
-- ✅ Tüm kullanıcıları görebilir ve onaylayabilir
+- ✅ Tüm kullanıcıları görebilir ve durumlarını değiştirebilir
 - ✅ Herhangi bir durumdaki kullanıcıyı işleyebilir
 
 ### Request Body - Onaylama
@@ -348,7 +352,7 @@ veya
     "user": {
       "uid": "user-uid-123",
       "status": "active",
-      "previousStatus": "pending_admin_approval"
+      "previousStatus": "pending_branch_review"
     }
   }
 }
@@ -367,8 +371,7 @@ veya
 | Status | Açıklama | Sonraki Adımlar |
 |--------|----------|-----------------|
 | `pending_details` | Temel kayıt tamamlandı, detaylı bilgiler bekleniyor | Kullanıcı `/register/details` endpoint'ini çağırmalı |
-| `pending_branch_review` | Detaylar tamamlandı, şube müdürü onayı bekleniyor | Şube müdürü onaylamalı veya geri göndermeli |
-| `pending_admin_approval` | Şube müdürü onayladı, admin onayı bekleniyor | Admin onaylamalı, reddetmeli veya geri göndermeli |
+| `pending_branch_review` | Detaylar tamamlandı, şube müdürü onayı bekleniyor | Şube müdürü onaylamalı, reddetmeli veya geri göndermeli |
 | `active` | Kullanıcı aktif, sistemi kullanabilir | - |
 | `rejected` | Başvuru reddedildi | Kullanıcı tekrar başvurabilir (yeni kayıt gerekir) |
 
@@ -381,15 +384,15 @@ pending_details
     ▼
 pending_branch_review
     │
-    ├─> (branch_manager_approval) ──> pending_admin_approval
-    │                                      │
-    │ (branch_manager_return)             ├─> (admin_approval) ──> active
-    │                                      │
-    └─> pending_details                    ├─> (admin_rejection) ──> rejected
-                                           │
-                                           └─> (admin_return) ──> pending_branch_review
-                                                                      │
-                                                                      └─> pending_details
+    ├─> (branch_manager_approval + PDF) ──> active
+    │
+    ├─> (branch_manager_rejection) ──> rejected
+    │
+    └─> (branch_manager_return) ──> pending_details
+
+Admin de herhangi bir kullanıcıyı herhangi bir duruma geçirebilir:
+  active ←→ pending_branch_review ←→ pending_details
+  herhangi bir durum → rejected
 ```
 
 ---
@@ -405,8 +408,8 @@ interface UserRegistrationLog {
   id: string; // Firestore document ID
   userId: string; // İşlem yapılan kullanıcının UID'i
   action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 
-          'admin_approval' | 'admin_rejection' | 'admin_return' | 
-          'branch_manager_return';
+          'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 
+          'admin_return' | 'branch_manager_return';
   performedBy: string; // İşlemi yapan kullanıcının UID'i
   performedByRole: 'admin' | 'branch_manager' | 'user';
   previousStatus?: UserStatus; // Önceki durum
@@ -427,7 +430,8 @@ interface UserRegistrationLog {
 |--------|----------|--------------|
 | `register_basic` | Temel kayıt işlemi | Kullanıcı kendisi |
 | `register_details` | Detaylı bilgilerin eklenmesi | Kullanıcı kendisi |
-| `branch_manager_approval` | Şube müdürü onayı | Branch Manager |
+| `branch_manager_approval` | Şube müdürü onayı (PDF ile aktif) | Branch Manager |
+| `branch_manager_rejection` | Şube müdürü reddi | Branch Manager |
 | `branch_manager_return` | Şube müdürü geri gönderme | Branch Manager |
 | `admin_approval` | Admin onayı | Admin |
 | `admin_rejection` | Admin reddi | Admin |
@@ -511,10 +515,10 @@ const registerDetails = async (idToken: string) => {
 };
 ```
 
-#### 3. Şube Müdürü Onayı
+#### 3. Şube Müdürü Onayı (PDF belgesi ile)
 
 ```typescript
-const approveByBranchManager = async (userId: string, branchManagerToken: string) => {
+const approveByBranchManager = async (userId: string, branchManagerToken: string, documentUrl: string) => {
   const response = await fetch(`http://localhost:3001/api/users/${userId}/status`, {
     method: 'PATCH',
     headers: {
@@ -522,19 +526,21 @@ const approveByBranchManager = async (userId: string, branchManagerToken: string
       'Authorization': `Bearer ${branchManagerToken}`
     },
     body: JSON.stringify({
-      status: 'pending_admin_approval'
+      status: 'active',
+      documentUrl: documentUrl
     })
   });
 
   const data = await response.json();
+  // Kullanıcı artık active durumunda
   return data;
 };
 ```
 
-#### 4. Admin Onayı
+#### 4. Admin Durum Değiştirme (Gerektiğinde)
 
 ```typescript
-const approveByAdmin = async (userId: string, adminToken: string) => {
+const changeStatusByAdmin = async (userId: string, adminToken: string) => {
   const response = await fetch(`http://localhost:3001/api/users/${userId}/status`, {
     method: 'PATCH',
     headers: {
@@ -645,12 +651,14 @@ const approveByAdmin = async (userId: string, adminToken: string) => {
 
 6. **Geri Gönderme**: Hem Branch Manager hem de Admin kullanıcıları geri gönderebilir. Bu durumda kullanıcı önceki adıma döner ve bilgilerini düzeltebilir.
 
-7. **Red İşlemi**: Sadece Admin kullanıcıları reddedebilir. Reddedilen kullanıcılar `rejected` durumunda kalır ve yeni bir kayıt yapmaları gerekir.
+7. **Red İşlemi**: Şube Müdürü ve Admin kullanıcıları reddedebilir. Reddedilen kullanıcılar `rejected` durumunda kalır ve yeni bir kayıt yapmaları gerekir.
 
 8. **Registration Logs**: Tüm işlemler kayıt loglarında tutulur. Loglar, kullanıcının kayıt sürecini tam olarak takip etmek için kullanılabilir.
 
+9. **PDF Belgesi**: Şube müdürü kullanıcıyı onaylarken PDF belgesi yüklemesi zorunludur. Belge yüklenmeden kullanıcı aktif yapılamaz.
+
 ---
 
-**Son Güncelleme:** 2024-12-19  
-**Versiyon:** 1.0.0
+**Son Güncelleme:** 2026-02-08  
+**Versiyon:** 2.0.0 (pending_admin_approval adımı kaldırıldı)
 

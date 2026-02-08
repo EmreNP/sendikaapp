@@ -26,18 +26,11 @@ export function PendingApprovalPage({ onBack }: PendingApprovalPageProps) {
         return {
           icon: <Clock className="w-16 h-16 text-yellow-500" />,
           title: 'Başvurunuz İnceleniyor',
-          subtitle: 'Şube Müdürü Onayı Bekleniyor',
-          message: 'Üyelik başvurunuz şube müdürümüz tarafından incelenmektedir. Bu süreç genellikle 1-3 iş günü içinde tamamlanmaktadır.',
+          subtitle: 'Şube Sorumlusu Onayı Bekleniyor',
+          message: 'Üyelik başvurunuz şube sorumlumuz tarafından incelenmektedir. Bu süreç tamamlandığında hesabınız otomatik olarak aktifleşecektir.',
           color: 'yellow',
         };
-      case 'pending_admin_approval':
-        return {
-          icon: <CheckCircle className="w-16 h-16 text-blue-500" />,
-          title: 'Şube Onayı Alındı',
-          subtitle: 'Yönetici Onayı Bekleniyor',
-          message: 'Başvurunuz şube müdürümüz tarafından onaylandı ve şimdi yönetici onayı beklemektedir. Bu son aşamadır.',
-          color: 'blue',
-        };
+
       default:
         return {
           icon: <Clock className="w-16 h-16 text-gray-500" />,
@@ -87,16 +80,13 @@ export function PendingApprovalPage({ onBack }: PendingApprovalPageProps) {
 
         {/* Status Timeline */}
         <div className="flex justify-center items-center space-x-2 mb-8">
-          <div className={`w-3 h-3 rounded-full ${status === 'pending_branch_review' || status === 'pending_admin_approval' ? 'bg-green-500' : 'bg-gray-300'}`} />
-          <div className={`w-12 h-1 ${status === 'pending_admin_approval' ? 'bg-green-500' : 'bg-gray-300'}`} />
-          <div className={`w-3 h-3 rounded-full ${status === 'pending_admin_approval' ? 'bg-green-500' : status === 'pending_branch_review' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-300'}`} />
-          <div className="w-12 h-1 bg-gray-300" />
-          <div className={`w-3 h-3 rounded-full ${status === 'pending_admin_approval' ? 'bg-blue-500 animate-pulse' : 'bg-gray-300'}`} />
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <div className="w-12 h-1 bg-green-500" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse" />
         </div>
         <div className="flex justify-center text-xs text-gray-500 mb-8">
           <span className="w-16 text-center">Kayıt</span>
           <span className="w-16 text-center">Şube</span>
-          <span className="w-16 text-center">Yönetici</span>
         </div>
 
         {/* Actions */}

@@ -26,7 +26,6 @@ export function getPageByStatus(status: UserStatus | null, isAuthenticated: bool
     case 'pending_details':
       return 'membership';
     case 'pending_branch_review':
-    case 'pending_admin_approval':
       return 'pendingApproval';
     case 'rejected':
       return 'rejected';
@@ -87,7 +86,7 @@ export function canAccessPage(
 
   // Onay bekleniyor sayfası
   if (page === 'pendingApproval') {
-    return status === 'pending_branch_review' || status === 'pending_admin_approval';
+    return status === 'pending_branch_review';
   }
 
   // Reddedildi sayfası

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog } from 'lucide-react';
+import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog, Edit } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import UserCreateModal from '@/components/users/UserCreateModal';
+import UserCompleteDetailsModal from '@/components/users/UserCompleteDetailsModal';
 
 interface User {
   uid: string;
@@ -42,6 +43,8 @@ export default function UsersPage() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedUserIdForDetails, setSelectedUserIdForDetails] = useState<string | null>(null);
+  const [isCompleteDetailsModalOpen, setIsCompleteDetailsModalOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -126,11 +129,9 @@ export default function UsersPage() {
       case 'pending_details':
         return 'Detaylar Bekleniyor';
       case 'pending_branch_review':
-        return 'Şube İncelemesi';
-      case 'pending_admin_approval':
-        return 'Admin Onayı';
+        return 'Şube Onayı Bekleniyor';
       case 'active':
-        return 'Aktif';
+        return 'Kabul Edildi';
       case 'rejected':
         return 'Reddedildi';
       default:
@@ -323,12 +324,14 @@ export default function UsersPage() {
     if (user?.role === 'branch_manager') {
       return 'pending_branch_review';
     } else if (user?.role === 'admin') {
-      return 'pending_admin_approval';
+      // Admin: only show items that require branch manager approval
+      return 'pending_branch_review';
     }
     return null;
   };
   
   const pendingStatus = getPendingStatus();
+  // Count users that are in the resolved pending status (only 'pending_branch_review')
   const pendingUsers = userTypeFilter === 'users' && pendingStatus
     ? filteredUsers.filter((u) => u.status === pendingStatus).length
     : 0;
@@ -623,6 +626,19 @@ export default function UsersPage() {
                                 disabled={processing || userItem.uid === user?.uid}
                               />
                             )}
+                            {/* Detay Ekleme Butonu - pending_details statusu için */}
+                            {userItem.status === 'pending_details' && (
+                              <ActionButton
+                                icon={Edit}
+                                variant="edit"
+                                onClick={() => {
+                                  setSelectedUserIdForDetails(userItem.uid);
+                                  setIsCompleteDetailsModalOpen(true);
+                                }}
+                                title="Detay Ekle"
+                                disabled={processing}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -718,6 +734,20 @@ export default function UsersPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={() => {
           setIsCreateModalOpen(false);
+          fetchUsers();
+        }}
+      />
+
+      <UserCompleteDetailsModal
+        userId={selectedUserIdForDetails}
+        isOpen={isCompleteDetailsModalOpen}
+        onClose={() => {
+          setIsCompleteDetailsModalOpen(false);
+          setSelectedUserIdForDetails(null);
+        }}
+        onSuccess={() => {
+          setIsCompleteDetailsModalOpen(false);
+          setSelectedUserIdForDetails(null);
           fetchUsers();
         }}
       />

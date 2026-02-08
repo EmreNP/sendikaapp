@@ -62,9 +62,6 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         } else if (status === USER_STATUS.PENDING_BRANCH_REVIEW) {
           acc.pending++;
           acc.byStatus.pending_branch_review++;
-        } else if (status === USER_STATUS.PENDING_ADMIN_APPROVAL) {
-          acc.pending++;
-          acc.byStatus.pending_admin_approval++;
         } else if (status === USER_STATUS.ACTIVE) {
           acc.byStatus.active++;
         } else if (status === USER_STATUS.REJECTED) {
@@ -97,7 +94,6 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         byStatus: {
           pending_details: 0,
           pending_branch_review: 0,
-          pending_admin_approval: 0,
           active: 0,
           rejected: 0,
         },

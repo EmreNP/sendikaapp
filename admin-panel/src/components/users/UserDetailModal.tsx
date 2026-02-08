@@ -35,7 +35,7 @@ interface UserDetail {
 interface RegistrationLog {
   id?: string;
   userId: string;
-  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
+  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
   performedBy: string;
   performedByRole: 'admin' | 'branch_manager' | 'user';
   previousStatus?: string;
@@ -271,7 +271,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         return 'bg-green-100 text-green-800';
       case 'pending_details':
       case 'pending_branch_review':
-      case 'pending_admin_approval':
         return 'bg-amber-100 text-amber-800';
       case 'rejected':
         return 'bg-red-100 text-red-800';
@@ -286,8 +285,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         return 'Detaylar Bekleniyor';
       case 'pending_branch_review':
         return 'Şube İncelemesi';
-      case 'pending_admin_approval':
-        return 'Admin Onayı';
       case 'active':
         return 'Aktif';
       case 'rejected':
@@ -342,6 +339,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         return 'Detaylı Kayıt';
       case 'branch_manager_approval':
         return 'Şube Yöneticisi Onayı';
+      case 'branch_manager_rejection':
+        return 'Şube Yöneticisi Reddi';
       case 'admin_approval':
         return 'Admin Onayı';
       case 'admin_rejection':
@@ -364,6 +363,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin_approval':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'admin_rejection':
+      case 'branch_manager_rejection':
         return <XCircle className="w-5 h-5 text-red-600" />;
       case 'admin_return':
       case 'branch_manager_return':
@@ -382,6 +382,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin_approval':
         return 'bg-green-100 text-green-800';
       case 'admin_rejection':
+      case 'branch_manager_rejection':
         return 'bg-red-100 text-red-800';
       case 'admin_return':
       case 'branch_manager_return':
@@ -460,9 +461,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       setUpdatingStatus(true);
       setError(null);
 
-      // Admin'e gönderme durumunda PDF zorunlu
-      if (newStatus === 'pending_admin_approval' && currentUser?.role === 'branch_manager') {
-        console.log('📎 Branch Manager sending to admin approval - checking PDF...');
+      // Onaylama (active) durumunda PDF zorunlu (branch_manager)
+      if (newStatus === 'active' && currentUser?.role === 'branch_manager') {
+        console.log('📎 Branch Manager approving user - checking PDF...');
         if (!pdfFile) {
           console.error('❌ PDF file is required for admin approval but not provided');
           setError('Admin onayına göndermek için PDF belgesi yüklemelisiniz');
@@ -613,9 +614,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     setTargetStatus(newStatus);
     console.log('✅ Target status set to:', newStatus);
     
-    // Admin'e gönderme durumunda PDF yükleme modal'ını göster
-    if (newStatus === 'pending_admin_approval' && currentUser?.role === 'branch_manager') {
-      console.log('📎 Branch Manager sending to admin - showing PDF upload modal');
+    // Onaylama durumunda (active) PDF yükleme modal'ını göster
+    if (newStatus === 'active' && currentUser?.role === 'branch_manager') {
+      console.log('📎 Branch Manager approving user - showing PDF upload modal');
       setShowPdfUploadModal(true);
       return;
     }
@@ -696,7 +697,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
   // Branch Manager için izin verilen status geçişleri
   const canBranchManagerChangeStatus = (currentStatus: string, newStatus: string): boolean => {
     if (currentStatus === 'pending_branch_review') {
-      return newStatus === 'pending_admin_approval' || newStatus === 'pending_details';
+      return newStatus === 'active' || newStatus === 'rejected' || newStatus === 'pending_details';
     }
     return false;
   };
@@ -992,7 +993,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                           {/* Branch Manager Seçenekleri */}
                           {currentUser?.role === 'branch_manager' && user.status === 'pending_branch_review' && (
                             <>
-                              <option value="pending_admin_approval">Admin Onayına Gönder</option>
+                              <option value="active">Onayla (Belge Yükle)</option>
+                              <option value="rejected">Reddet</option>
                               <option value="pending_details">Veri Doldurmaya Geri Gönder</option>
                             </>
                           )}
@@ -1010,9 +1012,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                               )}
                               {user.status !== 'pending_branch_review' && canChangeStatus('pending_branch_review') && (
                                 <option value="pending_branch_review">Şube İncelemesi</option>
-                              )}
-                              {user.status !== 'pending_admin_approval' && canChangeStatus('pending_admin_approval') && (
-                                <option value="pending_admin_approval">Admin Onayı</option>
                               )}
                             </>
                           )}

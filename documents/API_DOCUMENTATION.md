@@ -298,7 +298,7 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
 **Açıklama:** Kullanıcı listesini getirir.
 
 **Query Parameters:**
-- `status`: Kullanıcı durumu filtresi (`pending_details`, `pending_branch_review`, `pending_admin_approval`, `active`, `rejected`)
+- `status`: Kullanıcı durumu filtresi (`pending_details`, `pending_branch_review`, `active`, `rejected`)
 - `role`: Rol filtresi (`admin`, `branch_manager`, `user`)
 - `branchId`: Şube ID filtresi (sadece Admin)
 - `page`: Sayfa numarası (default: 1)
@@ -355,7 +355,7 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
 - `password`: **Opsiyonel.** Eğer boş bırakılırsa varsayılan parola `parola123.` kullanılacaktır. (Verilmişse: en az 8 karakter, en az 1 büyük harf, en az 1 küçük harf, en az 1 rakam)
 - `role`: Opsiyonel, default: `"user"` (Branch Manager sadece `"user"` oluşturabilir)
 - `branchId`: Opsiyonel (Branch Manager için otomatik atanır)
-- `status`: Opsiyonel, default: Admin için `"active"`, Branch Manager için `"pending_admin_approval"`
+- `status`: Opsiyonel, default: Admin için `"active"`, Branch Manager için `"pending_branch_review"`
 
 **Response (201):**
 ```json
@@ -429,13 +429,11 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
 **Status Değerleri:**
 - `pending_details`: Detaylar bekleniyor
 - `pending_branch_review`: Şube onayı bekleniyor
-- `pending_admin_approval`: Admin onayı bekleniyor
 - `active`: Aktif
 - `rejected`: Reddedildi
 
 **Branch Manager Yetkileri:**
-- Sadece `pending_branch_review` durumundaki kullanıcıları `pending_admin_approval` veya `pending_details` yapabilir
-- `active` ve `rejected` yapamaz
+- Sadece `pending_branch_review` durumundaki kullanıcıları `active` (PDF ile), `rejected` veya `pending_details` yapabilir
 
 **Response (200):**
 ```json
@@ -445,7 +443,7 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
   "user": {
     "uid": "user-uid-123",
     "status": "active",
-    "previousStatus": "pending_admin_approval"
+    "previousStatus": "pending_branch_review"
   }
 }
 ```
@@ -587,7 +585,6 @@ veya şube atamasını kaldırmak için:
     "byStatus": {
       "pending_details": 3,
       "pending_branch_review": 4,
-      "pending_admin_approval": 3,
       "active": 80,
       "rejected": 5
     }
@@ -1332,7 +1329,7 @@ veya dış link için:
       "performedBy": "manager-uid-123",
       "performedByRole": "branch_manager",
       "previousStatus": "pending_branch_review",
-      "newStatus": "pending_admin_approval",
+      "newStatus": "active",
       "note": "Başvuru onaylandı",
       "documentUrl": "https://storage.example.com/form.pdf",
       "metadata": null,
@@ -2849,7 +2846,6 @@ const uploadNewsImage = async (file: File, token: string) => {
 ### User Status
 - `pending_details`: Detaylar bekleniyor
 - `pending_branch_review`: Şube onayı bekleniyor
-- `pending_admin_approval`: Admin onayı bekleniyor
 - `active`: Aktif
 - `rejected`: Reddedildi
 

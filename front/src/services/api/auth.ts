@@ -13,7 +13,7 @@ import {
 // Types - Inline definitions
 type Gender = 'male' | 'female';
 type EducationLevel = 'ilkokul' | 'ortaokul' | 'lise' | 'on_lisans' | 'lisans' | 'yuksek_lisans' | 'doktora';
-type UserStatus = 'pending_details' | 'pending_branch_review' | 'pending_admin_approval' | 'active' | 'rejected';
+type UserStatus = 'pending_details' | 'pending_branch_review' | 'active' | 'rejected';
 type UserRole = 'admin' | 'branch_manager' | 'user';
 
 interface User {

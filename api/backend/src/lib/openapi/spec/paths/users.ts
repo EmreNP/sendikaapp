@@ -184,7 +184,7 @@ export const usersPaths = {
               properties: {
                 status: {
                   type: 'string',
-                  enum: ['pending_details', 'pending_branch_review', 'pending_admin_approval', 'active', 'rejected'],
+                  enum: ['pending_details', 'pending_branch_review', 'active', 'rejected'],
                 },
                 rejectionReason: { type: 'string', description: 'Reddetme nedeni (sadece rejected durumunda)' },
               },

@@ -159,7 +159,7 @@ export interface CreateUserData {
 export interface UserRegistrationLog {
   id?: string; // Firestore document ID
   userId: string; // İşlem yapılan kullanıcının UID'i
-  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
+  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
   performedBy: string; // İşlemi yapan kullanıcının UID'i
   performedByRole: 'admin' | 'branch_manager' | 'user';
   previousStatus?: UserStatus; // Önceki durum (status değişikliklerinde)

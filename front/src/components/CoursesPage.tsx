@@ -118,12 +118,9 @@ export function CoursesPage({ onBack, onCourseSelect }: CoursesPageProps) {
       },
       pending_branch_review: {
         title: "Onay Bekleniyor",
-        message: "Üyelik başvurunuz şube müdürü tarafından inceleniyor. Onaylandıktan sonra eğitimlere erişebileceksiniz."
+        message: "Üyelik başvurunuz şube sorumlusu tarafından inceleniyor. Onaylandıktan sonra eğitimlere erişebileceksiniz."
       },
-      pending_admin_approval: {
-        title: "Onay Bekleniyor",
-        message: "Üyelik başvurunuz yönetici onayı bekliyor. Onaylandıktan sonra eğitimlere erişebileceksiniz."
-      },
+
       rejected: {
         title: "Üyelik Başvurunuz Reddedildi",
         message: "Maalesef üyelik başvurunuz onaylanmadı. Detaylı bilgi için lütfen iletişime geçin."

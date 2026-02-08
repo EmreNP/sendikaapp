@@ -208,7 +208,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         firstName,
         lastName,
         role: userRole === USER_ROLE.BRANCH_MANAGER ? USER_ROLE.USER : (role || USER_ROLE.USER),
-        status: status || (userRole === USER_ROLE.ADMIN ? USER_STATUS.ACTIVE : USER_STATUS.PENDING_ADMIN_APPROVAL),
+        status: status || (userRole === USER_ROLE.ADMIN ? USER_STATUS.ACTIVE : USER_STATUS.PENDING_BRANCH_REVIEW),
         isActive: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

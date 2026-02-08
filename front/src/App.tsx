@@ -44,7 +44,7 @@ function AppContent() {
     
     if (isAuthenticated) {
       // Giriş yapmış kullanıcı - durumuna göre yönlendir
-      if (status === 'pending_branch_review' || status === 'pending_admin_approval') {
+      if (status === 'pending_branch_review') {
         setCurrentPage("pendingApproval");
       } else if (status === 'rejected') {
         setCurrentPage("rejected");
@@ -109,7 +109,7 @@ function AppContent() {
     toast.success("Başarıyla giriş yapıldı");
     
     // Kullanıcı durumuna göre yönlendirme
-    if (status === 'pending_branch_review' || status === 'pending_admin_approval') {
+    if (status === 'pending_branch_review') {
       // Onay bekliyor
       setCurrentPage("pendingApproval");
     } else if (status === 'rejected') {

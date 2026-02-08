@@ -68,8 +68,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Zaten aktif veya onay bekliyorsa
       if (userData?.status === USER_STATUS.ACTIVE || 
-          userData?.status === USER_STATUS.PENDING_BRANCH_REVIEW ||
-          userData?.status === USER_STATUS.PENDING_ADMIN_APPROVAL) {
+          userData?.status === USER_STATUS.PENDING_BRANCH_REVIEW) {
       throw new AppValidationError('Kayıt zaten tamamlanmış veya onay bekliyor');
       }
       

@@ -8,7 +8,6 @@ import { authService } from '../services/api';
 export type UserStatus = 
   | 'pending_details' 
   | 'pending_branch_review' 
-  | 'pending_admin_approval' 
   | 'active' 
   | 'rejected';
 
@@ -102,7 +101,7 @@ interface AuthContextType extends AuthState {
   isActive: boolean;
   isPendingDetails: boolean;
   isPendingBranchReview: boolean;
-  isPendingAdminApproval: boolean;
+  isPendingApproval: boolean;
   isRejected: boolean;
   isAdmin: boolean;
   isBranchManager: boolean;
@@ -128,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(initialState);
 
   const updateState = useCallback((updates: Partial<AuthState>) => {
-    setState(prev => ({ ...prev, ...updates }));
+    setState((prev: AuthState) => ({ ...prev, ...updates }));
   }, []);
 
   const fetchUserData = useCallback(async () => {
@@ -156,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [updateState]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         updateState({ firebaseUser, isLoading: true });
         await fetchUserData();
@@ -235,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isActive = state.status === 'active';
   const isPendingDetails = state.status === 'pending_details';
   const isPendingBranchReview = state.status === 'pending_branch_review';
-  const isPendingAdminApproval = state.status === 'pending_admin_approval';
+  const isPendingApproval = isPendingBranchReview;
   const isRejected = state.status === 'rejected';
   const isAdmin = state.role === 'admin';
   const isBranchManager = state.role === 'branch_manager';
@@ -252,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isActive,
     isPendingDetails,
     isPendingBranchReview,
-    isPendingAdminApproval,
+    isPendingApproval,
     isRejected,
     isAdmin,
     isBranchManager,
