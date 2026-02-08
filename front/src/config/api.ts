@@ -13,7 +13,6 @@ export const API_ENDPOINTS = {
     REGISTER_DETAILS: '/api/auth/register/details',
     PASSWORD_CHANGE: '/api/auth/password/change',
     PASSWORD_RESET: '/api/auth/password/reset',
-    VERIFY_EMAIL_SEND: '/api/auth/verify-email/send',
   },
 
   // User Endpoints

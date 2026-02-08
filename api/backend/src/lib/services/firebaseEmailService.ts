@@ -25,17 +25,15 @@ if (!FIREBASE_WEB_API_KEY) {
 }
 
 /**
- * Firebase Auth REST API ile email verification gönderir
- * Firebase'in kendi email servisini kullanır
- * 
+ * Email verification sending is disabled project-wide.
+ * These functions are kept as no-ops for compatibility.
+ *
  * @param email Kullanıcının email adresi
- * @throws Error if email sending fails
  */
 export async function sendEmailVerification(email: string): Promise<void> {
-  throw new Error(
-    'sendEmailVerification(email) is not supported for VERIFY_EMAIL. Use sendEmailVerificationWithIdToken(idToken) or sendEmailVerificationWithEmailPassword(email, password).'
-  );
-}
+  console.log('Email verification disabled: sendEmailVerification called but no action taken.');
+  return;
+} 
 
 async function signInWithPassword(email: string, password: string): Promise<{ idToken: string }> {
   if (!FIREBASE_WEB_API_KEY) {
@@ -70,41 +68,15 @@ async function signInWithPassword(email: string, password: string): Promise<{ id
 }
 
 export async function sendEmailVerificationWithIdToken(idToken: string): Promise<void> {
-  if (!FIREBASE_WEB_API_KEY) {
-    throw new Error('FIREBASE_WEB_API_KEY is not configured. Please add it to your .env file.');
-  }
-
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        requestType: 'VERIFY_EMAIL',
-        idToken,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(`Firebase email verification sending failed: ${error.error?.message || 'Unknown error'}`);
-    }
-
-    console.log('✅ Email verification OOB code sent');
-  } catch (error: unknown) {
-    const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-    console.error('❌ Failed to send email verification:', errorMessage);
-    throw error;
-  }
-}
+  // Email verification via Firebase is disabled in this project.
+  console.log('Email verification disabled: sendEmailVerificationWithIdToken called but no action taken.');
+  return;
+} 
 
 export async function sendEmailVerificationWithEmailPassword(email: string, password: string): Promise<void> {
-  const { idToken } = await signInWithPassword(email, password);
-  await sendEmailVerificationWithIdToken(idToken);
-  console.log(`✅ Email verification sent to ${email}`);
+  // Email verification via Firebase is disabled in this project.
+  console.log(`Email verification disabled: would have sent verification to ${email}, skipping.`);
+  return;
 }
 
 /**

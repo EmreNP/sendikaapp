@@ -151,22 +151,5 @@ export const authPaths = {
       },
     },
   },
-  '/api/auth/verify-email/send': {
-    post: {
-      summary: 'E-posta Doğrulama Linki Gönder',
-      description: 'E-posta doğrulama linki oluşturur',
-      tags: ['Auth'],
-      security: [{ bearerAuth: [] }],
-      responses: {
-        '200': {
-          description: 'Başarılı',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/SuccessResponse' },
-            },
-          },
-        },
-      },
-    },
-  },
+
 }

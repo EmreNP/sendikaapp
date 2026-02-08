@@ -158,15 +158,6 @@ export async function changePassword(oldPassword: string, newPassword: string): 
   }
 }
 
-// Send Email Verification
-export async function sendEmailVerification(): Promise<void> {
-  const response = await api.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL_SEND, {});
-  
-  if (!response.success) {
-    throw new Error('Doğrulama e-postası gönderilemedi');
-  }
-}
-
 export default {
   registerBasic,
   registerDetails,
@@ -175,5 +166,4 @@ export default {
   getCurrentUser,
   updateCurrentUser,
   changePassword,
-  sendEmailVerification,
 };

@@ -7,7 +7,6 @@ import { USER_STATUS } from '@shared/constants/status';
 import type { CreateUserData, User } from '@shared/types/user';
 import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
-import { sendEmailVerificationWithEmailPassword } from '@/lib/services/firebaseEmailService';
 import { 
   successResponse, 
   unauthorizedError,
@@ -181,7 +180,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         email,
         password,
         displayName: `${firstName} ${lastName}`,
-        emailVerified: false, // Tüm kullanıcılar email doğrulamalı (admin oluştursa bile)
+        emailVerified: true,
       });
       
       console.log(`✅ Auth user created: ${userRecord.uid}`);
@@ -190,7 +189,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       const userData: CreateUserData = {
         uid: userRecord.uid,
         email,
-        emailVerified: false, // Tüm kullanıcılar email doğrulamalı
+        emailVerified: true,
         firstName,
         lastName,
         role: userRole === USER_ROLE.BRANCH_MANAGER ? USER_ROLE.USER : (role || USER_ROLE.USER),
@@ -198,7 +197,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         isActive: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
+      }; 
       
       // branchId ekle
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
@@ -216,16 +215,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       console.log(`✅ User document created: ${userRecord.uid}`);
       
-      // 4️⃣ E-POSTA DOĞRULAMA EMAİLİ GÖNDER
-      try {
-        await sendEmailVerificationWithEmailPassword(email, password);
-        console.log(`✅ Email verification sent to ${email}`);
-      } catch (emailError: unknown) {
-        const errorMessage = isErrorWithMessage(emailError) ? emailError.message : 'Bilinmeyen hata';
-        console.error('❌ Email verification error:', errorMessage);
-        // Hata olsa bile devam et (kullanıcı kaydı başarılı)
-        // Email gönderilemese bile kullanıcı sonradan manuel olarak email doğrulayabilir
-      }
+      // Email verification is disabled: no verification email sent.
       
       return successResponse(
         'Kullanıcı başarıyla oluşturuldu',

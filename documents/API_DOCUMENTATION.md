@@ -204,21 +204,9 @@ Hata response'ları:
 
 ---
 
-### 6. Verify Email - Send (E-posta Doğrulama Linki Gönder)
-**Endpoint:** `POST /api/auth/verify-email/send`  
-**Auth:** Gerekli (Bearer token)  
-**Açıklama:** E-posta doğrulama linki oluşturur.
+### 6. Verify Email - Send (E-posta Doğrulama Linki Gönder) — Devre Dışı
+Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /api/auth/verify-email/send` endpoint'i artık kullanılmamaktadır ve her hangi bir doğrulama e-postası gönderilmemektedir.
 
-**Request Body:** Yok
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "E-posta doğrulama linki oluşturuldu",
-  "verificationLink": "https://..." // Sadece development'ta
-}
-```
 
 ---
 

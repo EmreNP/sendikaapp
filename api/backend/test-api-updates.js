@@ -302,17 +302,7 @@ async function runTests() {
   // 5. Auth Endpoint Tests
   log('\n📌 5. Auth Endpoint Tests', 'blue');
 
-  await test('GET /api/auth/verify-email/send - Unauthorized (no body)', async () => {
-    const response = makeRequest('POST', '/api/auth/verify-email/send');
-    const isError = response.success === false;
-    const isRateLimit = response.code === 'RATE_LIMIT_EXCEEDED';
-    return {
-      success: isError,
-      message: isRateLimit 
-        ? 'Rate limit exceeded (rate limiting works!)' 
-        : `Expected error response (got: ${response.code || 'no code'})`,
-    };
-  });
+
 
   // 6. Users Endpoint Tests
   log('\n📌 6. Users Endpoint Tests', 'blue');
