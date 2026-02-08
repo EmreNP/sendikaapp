@@ -6,6 +6,7 @@ import ActionButton from '@/components/common/ActionButton';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import UserCreateModal from '@/components/users/UserCreateModal';
 
 interface User {
   uid: string;
@@ -40,6 +41,7 @@ export default function UsersPage() {
   const [selectedUserRole, setSelectedUserRole] = useState<string>('');
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -361,8 +363,17 @@ export default function UsersPage() {
               </button>
             </nav>
           </div>
-        </div>
-
+            {/* Add Member Button */}
+            <div className="flex justify-end mt-2">
+              {user && user.role !== 'user' && (
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Yeni Üye Ekle
+                </button>
+              )}
+            </div>
         {/* Filters */}
         <div className="flex items-center justify-between gap-4">
           {/* Search Bar */}
@@ -425,6 +436,7 @@ export default function UsersPage() {
               </select>
             )}
           </div>
+        </div>
         </div>
 
         {/* Error Message */}
@@ -701,6 +713,15 @@ export default function UsersPage() {
       </div>
 
       {/* User Detail Modal */}
+      <UserCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          setIsCreateModalOpen(false);
+          fetchUsers();
+        }}
+      />
+
       <UserDetailModal
         userId={selectedUserId}
         isOpen={isModalOpen}
