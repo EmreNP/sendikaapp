@@ -229,7 +229,7 @@ export default function ContactMessagesPage() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-end">
-          {activeTab === 'topics' && user?.role === 'admin' && (
+          {activeTab === 'topics' && (user?.role === 'admin' || user?.role === 'superadmin') && (
             <button
               onClick={handleCreateTopic}
               className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
@@ -256,7 +256,7 @@ export default function ContactMessagesPage() {
                 İletişim Mesajları
               </div>
             </button>
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={() => setActiveTab('topics')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${

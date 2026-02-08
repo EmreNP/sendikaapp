@@ -52,8 +52,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     
     const userRole = currentUserData!.role;
     
-    // Sadece admin ve branch manager bildirim gönderebilir
-    if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) {
+    // Sadece admin, superadmin ve branch manager bildirim gönderebilir
+    if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.SUPERADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError(NOTIFICATION_ERROR_MESSAGE.UNAUTHORIZED_NOTIFICATION);
     }
     

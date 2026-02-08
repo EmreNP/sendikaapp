@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { auth, db } from '@/lib/firebase/admin';
+import { authenticateUser, getCurrentUser } from '@/lib/middleware/auth';
 import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
 import { validateAge } from '@/lib/utils/validation/userValidation';
@@ -27,7 +28,7 @@ interface RegisterBasicRequest {
 
 export const POST = asyncHandler(async (request: NextRequest) => {
   // JSON body parsing with error handling
-  const body = await parseJsonBody<RegisterBasicRequest>(request);
+  const body = await parseJsonBody<RegisterBasicRequest & { branchId?: string }>(request);
     const {
       firstName,
       lastName,
@@ -35,6 +36,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       password,
       birthDate,
       gender,
+      branchId: requestedBranchId,
     } = body;
     
     // 1️⃣ VALIDATION
@@ -59,6 +61,16 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     // Gender sadece male veya female olabilir
     if (gender !== 'male' && gender !== 'female') {
     throw new AppValidationError('Geçersiz cinsiyet değeri. Sadece male veya female olabilir.');
+    }
+
+    // Optional: check if request is authenticated (admin/branch_manager creating user)
+    const authResult = await authenticateUser(request);
+    let creator: any = null;
+    if (authResult.authenticated && authResult.user) {
+      const { error: getErr, user: creatorUser } = await getCurrentUser(authResult.user.uid);
+      if (!getErr && creatorUser) {
+        creator = creatorUser;
+      }
     }
     
     // 2️⃣ FIREBASE AUTH USER OLUŞTUR
@@ -90,8 +102,33 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     
     const birthDateTimestamp = admin.firestore.Timestamp.fromDate(new Date(birthDate));
     
+    // Determine initial status and branch assignment based on creator role
+    let initialStatus = USER_STATUS.PENDING_DETAILS;
+    let branchToAssign: string | undefined = undefined;
+
+    if (creator) {
+      if (creator.role === USER_ROLE.ADMIN || creator.role === USER_ROLE.SUPERADMIN) {
+        initialStatus = USER_STATUS.ACTIVE;
+        // allow admin to assign requestedBranchId if provided
+        if (requestedBranchId) {
+          const branchDoc = await db.collection('branches').doc(requestedBranchId).get();
+          if (!branchDoc.exists) {
+            throw new AppValidationError('Geçersiz şube ID');
+          }
+          branchToAssign = requestedBranchId;
+        }
+      } else if (creator.role === USER_ROLE.BRANCH_MANAGER) {
+        initialStatus = USER_STATUS.PENDING_BRANCH_REVIEW;
+        // force assign branch to creator's branch
+        if (!creator.branchId) {
+          throw new AppValidationError('Branch Manager için şube bilgisi bulunamadı');
+        }
+        branchToAssign = creator.branchId;
+      }
+    }
+
     // Yeni document oluştur
-    await userDocRef.set({
+    const newUserDoc: any = {
       uid: userRecord.uid,
       email,
       firstName,
@@ -99,24 +136,33 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       birthDate: birthDateTimestamp,
       gender,
       role: USER_ROLE.USER,
-      status: USER_STATUS.PENDING_DETAILS,
+      status: initialStatus,
       isActive: true,
       emailVerified: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (branchToAssign) newUserDoc.branchId = branchToAssign;
+
+    await userDocRef.set(newUserDoc);
     console.log(`✅ User document created with basic info`);
     
     // 3.5️⃣ REGISTRATION LOG OLUŞTUR
+    const logMetadata: any = {
+      email,
+    };
+    if (branchToAssign) {
+      logMetadata.branchId = branchToAssign;
+    }
+
     await createRegistrationLog({
       userId: userRecord.uid,
       action: 'register_basic',
-      performedBy: userRecord.uid, // Kullanıcı kendisi kayıt oluyor
-      performedByRole: USER_ROLE.USER,
-      newStatus: USER_STATUS.PENDING_DETAILS,
-      metadata: {
-        email: email, // Email metadata'da tutuluyor
-      },
+      performedBy: creator ? creator.uid : userRecord.uid,
+      performedByRole: creator ? creator.role : USER_ROLE.USER,
+      newStatus: initialStatus,
+      metadata: logMetadata,
     });
     
     // Email verification is disabled: no verification email sent.

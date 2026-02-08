@@ -45,8 +45,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppValidationError('Maksimum 100 kullanıcı için toplu işlem yapılabilir');
       }
 
-      // Delete sadece admin yapabilir
-      if (action === 'delete' && userRole !== USER_ROLE.ADMIN) {
+      // Delete sadece admin veya superadmin yapabilir
+      if (action === 'delete' && userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Toplu silme işlemi için admin yetkisi gerekli');
       }
 

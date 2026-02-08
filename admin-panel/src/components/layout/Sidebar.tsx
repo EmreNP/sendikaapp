@@ -9,7 +9,7 @@ interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   path: string;
-  roles: ('admin' | 'branch_manager')[];
+  roles: ('admin' | 'branch_manager' | 'superadmin')[];
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -81,14 +81,14 @@ export default function Sidebar() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Kullanıcının rolüne göre menü öğelerini filtrele
+  // Kullanıcının rolüne göre menü öğelerini filtrele (superadmin tüm öğeleri görür)
   const filteredItems = sidebarItems.filter((item) =>
-    item.roles.includes(user?.role as 'admin' | 'branch_manager')
+    user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
   );
 
   // Okunmamış mesaj sayısını al
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'branch_manager')) {
+    if (user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'branch_manager')) {
       const fetchUnreadCount = async () => {
         try {
           const data = await contactService.getContactMessages({
@@ -127,7 +127,7 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 truncate">SendikaApp</h2>
               <p className="text-xs text-gray-500 truncate">
-                {user?.role === 'admin' ? 'Admin Paneli' : 'Şube Paneli'}
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin Paneli' : 'Şube Paneli'}
               </p>
             </div>
           )}
@@ -186,7 +186,7 @@ export default function Sidebar() {
                 {user?.firstName} {user?.lastName}
               </div>
               <div className="text-xs text-gray-500 truncate">
-                {user?.role === 'admin' ? 'Admin' : 'Şube Yöneticisi'}
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin' : 'İlçe Temsilcisi'}
               </div>
             </div>
           )}

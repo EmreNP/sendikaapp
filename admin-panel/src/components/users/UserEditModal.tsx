@@ -1,34 +1,54 @@
 import { useEffect, useState } from 'react';
-import { X, CheckCircle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 
 interface Props {
+  userId: string | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
+interface UserData {
+  uid: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  birthDate?: string;
+  gender?: 'male' | 'female' | '';
+  tcKimlikNo?: string;
+  fatherName?: string;
+  motherName?: string;
+  birthPlace?: string;
+  education?: string;
+  kurumSicil?: string;
+  kadroUnvani?: string;
+  kadroUnvanKodu?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  branchId?: string;
+  role?: string;
+}
+
+export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
   const { user: currentUser } = useAuth();
-  const [step, setStep] = useState<'basic' | 'success' | 'details'>('basic');
   const [loading, setLoading] = useState(false);
+  const [fetchingUser, setFetchingUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
-  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
-  const [customToken, setCustomToken] = useState<string | null>(null);
+  const [isMissingDoc, setIsMissingDoc] = useState(false);
 
-  // Form fields - Basic
+  // Form fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | ''>('');
-
-  // Detailed fields
   const [branchId, setBranchId] = useState<string>('');
-  const [phone, setPhone] = useState('');
   const [tcKimlikNo, setTcKimlikNo] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [motherName, setMotherName] = useState('');
@@ -40,150 +60,182 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
+  const [note, setNote] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      setStep('basic');
-      setCreatedUserId(null);
-      setCustomToken(null);
-      // Reset fields
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setPassword('');
-      setBirthDate('');
-      setGender('');
-      setBranchId(currentUser?.branchId || '');
-      setPhone('');
-      setTcKimlikNo('');
-      setFatherName('');
-      setMotherName('');
-      setBirthPlace('');
-      setEducation('');
-      setKurumSicil('');
-      setKadroUnvani('');
-      setKadroUnvanKodu('');
-      setAddress('');
-      setCity('');
-      setDistrict('');
-
+    if (isOpen && userId) {
+      fetchUserData();
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
         fetchBranches();
       }
+    } else {
+      resetForm();
     }
-  }, [isOpen]);
+  }, [isOpen, userId]);
+
+  const fetchUserData = async () => {
+    if (!userId) return;
+
+    try {
+      setFetchingUser(true);
+      setError(null);
+      setIsMissingDoc(false);
+      
+      const data = await apiRequest<{ user: UserData }>(`/api/users/${userId}`);
+      const user = data.user;
+
+      setFirstName(user.firstName || '');
+      setLastName(user.lastName || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+      setBirthDate(user.birthDate || '');
+      setGender(user.gender || '');
+      setBranchId(user.branchId || '');
+      setTcKimlikNo(user.tcKimlikNo || '');
+      setFatherName(user.fatherName || '');
+      setMotherName(user.motherName || '');
+      setBirthPlace(user.birthPlace || '');
+      setEducation(user.education || '');
+      setKurumSicil(user.kurumSicil || '');
+      setKadroUnvani(user.kadroUnvani || '');
+      setKadroUnvanKodu(user.kadroUnvanKodu || '');
+      setAddress(user.address || '');
+      setCity(user.city || '');
+      setDistrict(user.district || '');
+    } catch (err: any) {
+      // Eğer kullanıcı bulunamadı hatası alırsak, eksik kayıt moduna geç
+      if (err.response?.status === 404 || err.message?.toLowerCase().includes('bulunamadı') || err.code === 'NOT_FOUND') {
+        console.warn('User doc invalid/missing. Switching to Registration Completion mode.');
+        setIsMissingDoc(true);
+        // Şube yöneticisi ise şubesini otomatik ata
+        if (currentUser?.branchId) {
+           setBranchId(currentUser.branchId);
+        }
+      } else {
+        console.error('Error fetching user:', err);
+        setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
+      }
+    } finally {
+      setFetchingUser(false);
+    }
+  };
 
   const fetchBranches = async () => {
     try {
-      const data = await apiRequest<{ branches: Array<{ id: string; name: string }>}>("/api/branches");
+      const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>("/api/branches");
       setBranches(data.branches || []);
     } catch (err: any) {
       console.error('Error fetching branches:', err);
     }
   };
 
-  const handleBasicSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetForm = () => {
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPhone('');
+    setBirthDate('');
+    setGender('');
+    setBranchId('');
+    setTcKimlikNo('');
+    setFatherName('');
+    setMotherName('');
+    setBirthPlace('');
+    setEducation('');
+    setKurumSicil('');
+    setKadroUnvani('');
+    setKadroUnvanKodu('');
+    setAddress('');
+    setCity('');
+    setDistrict('');
+    setNote('');
     setError(null);
-
-    if (!firstName || !lastName || !email || !birthDate || !gender) {
-      setError('Ad, soyad, e-posta, doğum tarihi ve cinsiyet zorunludur');
-      return;
-    }
-
-    // Default password if empty
-    const finalPassword = password || 'parola123.';
-
-    const body = {
-      firstName,
-      lastName,
-      email,
-      password: finalPassword,
-      birthDate,
-      gender,
-    };
-
-    try {
-      setLoading(true);
-      const response = await apiRequest<{
-        uid: string;
-        email: string;
-        customToken?: string;
-        nextStep: string;
-      }>('/api/auth/register/basic', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-
-      // Basic registration successful
-      setCreatedUserId(response.uid);
-      setCustomToken(response.customToken || null);
-      setStep('success');
-    } catch (err: any) {
-      console.error('Error creating user (basic):', err);
-      setError(err.message || 'Kullanıcı oluşturulurken hata oluştu');
-    } finally {
-      setLoading(false);
-    }
+    setIsMissingDoc(false);
   };
 
-  const handleDetailsSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId) return;
+
     setError(null);
 
-    // Tüm zorunlu alanları kontrol et
-    if (!branchId || !tcKimlikNo || !phone || !fatherName || !motherName || 
-        !birthPlace || !education || !kurumSicil || !kadroUnvani || 
-        !kadroUnvanKodu || !address || !city || !district) {
-      setError('Tüm alanlar zorunludur');
+    // Temel alanlar her zaman zorunlu
+    if (!firstName || !lastName || !email) {
+      setError('Ad, soyad ve e-posta zorunludur');
       return;
     }
 
-    if (!createdUserId) {
-      setError('Kullanıcı bilgisi bulunamadı');
+    // Tüm detay alanları zorunlu (not hariç)
+    if (!tcKimlikNo || !phone || !branchId || !birthDate || !gender || 
+        !fatherName || !motherName || !birthPlace || !education || 
+        !kurumSicil || !kadroUnvani || !kadroUnvanKodu || 
+        !address || !city || !district) {
+      
+      setError('Tüm alanlar zorunludur (Not alanı hariç)');
       return;
     }
 
     const body: any = {
-      userId: createdUserId,
-      branchId,
-      tcKimlikNo,
-      fatherName,
-      motherName,
-      birthPlace,
-      education,
-      kurumSicil,
-      kadroUnvani,
-      kadroUnvanKodu,
-      phone,
-      address,
-      city,
-      district,
+      firstName,
+      lastName,
+      email,
     };
+
+    // Optional fields logic (normal update için)
+    // Eksik kayıt modunda hepsi body'e eklenmeli
+    const fields = [
+       { key: 'phone', val: phone },
+       { key: 'birthDate', val: birthDate },
+       { key: 'gender', val: gender },
+       { key: 'branchId', val: branchId },
+       { key: 'tcKimlikNo', val: tcKimlikNo },
+       { key: 'fatherName', val: fatherName },
+       { key: 'motherName', val: motherName },
+       { key: 'birthPlace', val: birthPlace },
+       { key: 'education', val: education },
+       { key: 'kurumSicil', val: kurumSicil },
+       { key: 'kadroUnvani', val: kadroUnvani },
+       { key: 'kadroUnvanKodu', val: kadroUnvanKodu },
+       { key: 'address', val: address },
+       { key: 'city', val: city },
+       { key: 'district', val: district },
+       { key: 'note', val: note }
+    ];
+
+    fields.forEach(f => {
+        if (f.val) body[f.key] = f.val;
+    });
 
     try {
       setLoading(true);
       
-      // Use register/details endpoint for admin-created users
-      await apiRequest('/api/auth/register/details', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
+      if (isMissingDoc) {
+        // Register Details Endpoint Kullan
+        body.userId = userId;
+        // Tüm alanların gittiğinden emin ol (yukarıdaki if(val) kontrolü validation geçtiyse sorun olmaz ama 
+        // registerDetail endpoint hepsini bekler, boş string ise hata verebilir veya kabul edebilir.
+        // Validation dolu olmasını zorunlu kıldı (isMissingDoc bloğunda).
+        
+        await apiRequest('/api/auth/register/details', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      } else {
+        // Normal Update
+        await apiRequest(`/api/users/${userId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      }
 
-      // Success - close and refresh
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user details:', err);
-      setError(err.message || 'Detaylar kaydedilirken hata oluştu');
+      console.error('Error updating user:', err);
+      setError(err.message || 'Kullanıcı güncellenirken hata oluştu');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSkipDetails = () => {
-    // Close modal and refresh list
-    onSuccess();
   };
 
   if (!isOpen) return null;
@@ -193,12 +245,10 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-slate-700 sticky top-0 z-10">
             <h2 className="text-sm font-medium text-white">
-              {step === 'basic' && 'Yeni Üye Oluştur - Temel Bilgiler'}
-              {step === 'success' && 'Kayıt Başarılı'}
-              {step === 'details' && 'Detaylı Bilgileri Doldur'}
+                {isMissingDoc ? 'Kullanıcı Kaydını Tamamla (Eksik Kayıt)' : 'Kullanıcı Bilgilerini Düzenle'}
             </h2>
             <button onClick={onClose} className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors">
               <X className="w-4 h-4" />
@@ -212,10 +262,15 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
               </div>
             )}
 
-            {/* Step 1: Basic Registration Form */}
-            {step === 'basic' && (
-              <form onSubmit={handleBasicSubmit} className="space-y-4">
+            {fetchingUser ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="ml-3 text-gray-600">Kullanıcı bilgileri yükleniyor...</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* Temel Bilgiler */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Ad <span className="text-red-500">*</span>
@@ -250,24 +305,20 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       required
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Parola <span className="text-gray-500 text-xs">(opsiyonel)</span>
+                        Telefon <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      placeholder="Boş bırakılırsa: parola123."
+                      required
                     />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Parola boş bırakılırsa varsayılan parola "parola123." kullanılacaktır
-                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Doğum Tarihi <span className="text-red-500">*</span>
+                        Doğum Tarihi <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
@@ -279,7 +330,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Cinsiyet <span className="text-red-500">*</span>
+                        Cinsiyet <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={gender}
@@ -292,70 +343,13 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       <option value="female">Kadın</option>
                     </select>
                   </div>
-                </div>
 
-                {/* Footer */}
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    İptal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {loading ? 'Oluşturuluyor...' : 'Devam Et'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Step 2: Success Message */}
-            {step === 'success' && (
-              <div className="space-y-6">
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                    <CheckCircle className="w-10 h-10 text-green-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    İlk Kayıt Başarı ile Oluşturuldu!
-                  </h3>
-                  <p className="text-gray-600 text-center max-w-md">
-                    Temel bilgiler kaydedildi. Şimdi detaylı bilgileri doldurabilir veya daha sonra tamamlayabilirsiniz.
-                  </p>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-center gap-3 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={handleSkipDetails}
-                    className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    Kapat
-                  </button>
-                  <button
-                    onClick={() => setStep('details')}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Detaylı Bilgileri Doldur
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Details Form */}
-            {step === 'details' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Şube <span className="text-red-500">*</span>
-                    </label>
-                    {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') ? (
+                  {/* Şube - Sadece admin ve superadmin için */}
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Şube <span className="text-red-500">*</span>
+                      </label>
                       <select
                         value={branchId}
                         onChange={(e) => setBranchId(e.target.value)}
@@ -369,15 +363,13 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                           </option>
                         ))}
                       </select>
-                    ) : (
-                      <div className="px-3 py-2 bg-gray-100 rounded-lg">
-                        {branches.find(b => b.id === currentUser?.branchId)?.name || currentUser?.branchId || '-'}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Detaylı Bilgiler */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      TC Kimlik No <span className="text-red-500">*</span>
+                        TC Kimlik No <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={tcKimlikNo}
@@ -389,18 +381,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Baba Adı <span className="text-red-500">*</span>
+                        Baba Adı <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={fatherName}
@@ -411,7 +392,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Anne Adı <span className="text-red-500">*</span>
+                        Anne Adı <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={motherName}
@@ -422,7 +403,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Doğum Yeri <span className="text-red-500">*</span>
+                        Doğum Yeri <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={birthPlace}
@@ -433,7 +414,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Eğitim Seviyesi <span className="text-red-500">*</span>
+                        Eğitim Seviyesi <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={education}
@@ -453,7 +434,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kurum Sicil <span className="text-red-500">*</span>
+                        Kurum Sicil <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={kurumSicil}
@@ -464,7 +445,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kadro Ünvanı <span className="text-red-500">*</span>
+                        Kadro Ünvanı <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={kadroUnvani}
@@ -475,7 +456,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kadro Ünvan Kodu <span className="text-red-500">*</span>
+                        Kadro Ünvan Kodu <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={kadroUnvanKodu}
@@ -486,7 +467,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Şehir <span className="text-red-500">*</span>
+                        Şehir <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={city}
@@ -497,7 +478,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      İlçe <span className="text-red-500">*</span>
+                        İlçe <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={district}
@@ -508,14 +489,24 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Adres <span className="text-red-500">*</span>
+                        Adres <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      rows={3}
+                      rows={2}
                       required
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label>
+                    <textarea
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      rows={2}
+                      placeholder="Güncelleme ile ilgili not ekleyin..."
                     />
                   </div>
                 </div>
@@ -524,20 +515,20 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
                   <button
                     type="button"
-                    onClick={handleSkipDetails}
+                    onClick={onClose}
                     className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
-                    Kapat
+                    İptal
                   </button>
                   <button
-                    onClick={handleDetailsSubmit}
+                    type="submit"
                     disabled={loading}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {loading ? 'Kaydediliyor...' : 'Kaydet'}
+                    {loading ? 'Güncelleniyor...' : (isMissingDoc ? 'Kaydı Tamamla' : 'Güncelle')}
                   </button>
                 </div>
-              </div>
+              </form>
             )}
           </div>
         </div>

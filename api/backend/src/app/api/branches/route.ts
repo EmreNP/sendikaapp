@@ -190,8 +190,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         );
       }
       
-      // Admin: Tüm şubeleri görebilir (aktif + pasif)
-      if (userData.role === USER_ROLE.ADMIN) {
+      // Admin/Superadmin: Tüm şubeleri görebilir (aktif + pasif)
+      if (userData.role === USER_ROLE.ADMIN || userData.role === USER_ROLE.SUPERADMIN) {
         const snapshot = await db.collection('branches').get();
         
         // Tüm branch ID'lerini topla
@@ -283,7 +283,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN) {
+      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

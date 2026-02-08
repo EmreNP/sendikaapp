@@ -34,7 +34,7 @@ export default function NotificationHistoryPage() {
   }, [page, filterType, filterBranchId, searchTerm]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchBranches();
     }
   }, [user]);

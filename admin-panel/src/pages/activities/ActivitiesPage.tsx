@@ -426,7 +426,7 @@ export default function ActivitiesPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-2">
-                                {user?.role === 'admin' && (
+                                {(user?.role === 'admin' || user?.role === 'superadmin') && (
                                   <>
                                     <ActionButton
                                       icon={Edit}

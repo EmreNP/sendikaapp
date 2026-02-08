@@ -47,9 +47,9 @@ export default function SendNotificationSimpleModal({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
 
-  // Admin için branch listesini yükle
+  // Admin/superadmin için branch listesini yükle
   useEffect(() => {
-    if (isOpen && user?.role === 'admin') {
+    if (isOpen && (user?.role === 'admin' || user?.role === 'superadmin')) {
       fetchBranches();
     }
   }, [isOpen, user]);
@@ -59,7 +59,7 @@ export default function SendNotificationSimpleModal({
     if (isOpen) {
       setTitle(initialTitle);
       setBody(initialBody);
-      setTargetAudience(user?.role === 'admin' ? 'all' : 'branch');
+      setTargetAudience(user?.role === 'admin' || user?.role === 'superadmin' ? 'all' : 'branch');
       setBranchId(user?.role === 'branch_manager' ? user.branchId : undefined);
       setError(null);
       setSuccess(false);
@@ -117,8 +117,8 @@ export default function SendNotificationSimpleModal({
       }
     }
 
-    // Admin için branch seçimi kontrolü
-    if (user?.role === 'admin' && targetAudience === 'branch' && !branchId) {
+    // Admin/superadmin için branch seçimi kontrolü
+    if ((user?.role === 'admin' || user?.role === 'superadmin') && targetAudience === 'branch' && !branchId) {
       setError('Şube seçimi zorunludur');
       return;
     }
@@ -165,7 +165,7 @@ export default function SendNotificationSimpleModal({
   if (!isOpen) return null;
 
   const isBranchManager = user?.role === 'branch_manager';
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

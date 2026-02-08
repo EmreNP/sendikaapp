@@ -159,9 +159,20 @@ export interface CreateUserData {
 export interface UserRegistrationLog {
   id?: string; // Firestore document ID
   userId: string; // İşlem yapılan kullanıcının UID'i
-  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
+  action: 
+    | 'register_basic' 
+    | 'register_details' 
+    | 'branch_manager_approval' 
+    | 'branch_manager_rejection' 
+    | 'admin_approval' 
+    | 'admin_rejection' 
+    | 'admin_return' 
+    | 'branch_manager_return'
+    | 'user_update'          // Kullanıcı bilgileri güncellemesi
+    | 'role_update'          // Rol değişikliği
+    | 'status_update';       // Durum değişikliği
   performedBy: string; // İşlemi yapan kullanıcının UID'i
-  performedByRole: 'admin' | 'branch_manager' | 'user';
+  performedByRole: 'superadmin' | 'admin' | 'branch_manager' | 'user';
   previousStatus?: UserStatus; // Önceki durum (status değişikliklerinde)
   newStatus?: UserStatus; // Yeni durum (status değişikliklerinde)
   note?: string; // Opsiyonel not
@@ -169,6 +180,9 @@ export interface UserRegistrationLog {
   metadata?: {
     branchId?: string; // Register details'te seçilen şube
     email?: string; // Register basic'te email
+    updatedFields?: string[]; // Güncellenen alanlar (user_update için)
+    previousRole?: string; // Önceki rol (role_update için)
+    newRole?: string; // Yeni rol (role_update için)
   };
   timestamp: Timestamp;
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog, Edit } from 'lucide-react';
+import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog, RefreshCw, Edit } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
+import UserStatusModal from '@/components/users/UserStatusModal';
+import UserEditModal from '@/components/users/UserEditModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import UserCreateModal from '@/components/users/UserCreateModal';
-import UserCompleteDetailsModal from '@/components/users/UserCompleteDetailsModal';
 
 interface User {
   uid: string;
@@ -41,10 +42,13 @@ export default function UsersPage() {
   const [selectedUserIdForRole, setSelectedUserIdForRole] = useState<string | null>(null);
   const [selectedUserRole, setSelectedUserRole] = useState<string>('');
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [selectedUserIdForStatus, setSelectedUserIdForStatus] = useState<string | null>(null);
+  const [selectedUserStatus, setSelectedUserStatus] = useState<string>('');
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedUserIdForEdit, setSelectedUserIdForEdit] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedUserIdForDetails, setSelectedUserIdForDetails] = useState<string | null>(null);
-  const [isCompleteDetailsModalOpen, setIsCompleteDetailsModalOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -62,7 +66,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchBranches();
     } else if (user?.role === 'branch_manager' && user?.branchId) {
       // Branch manager için otomatik olarak kendi şubesini filtrele
@@ -118,7 +122,13 @@ export default function UsersPage() {
     // Kullanıcı tipi filtresi: users veya managers
     const matchesUserType = userTypeFilter === 'users' 
       ? u.role === 'user'
-      : (u.role === 'admin' || u.role === 'branch_manager');
+      : (u.role === 'superadmin' || u.role === 'admin' || u.role === 'branch_manager');
+    
+    // Branch manager sadece kendi şubesindeki kullanıcıları/yöneticileri görebilir
+    if (user?.role === 'branch_manager') {
+      const isSameBranch = u.branchId === user.branchId;
+      return matchesSearch && isSameBranch && matchesUserType;
+    }
     
     return matchesSearch && matchesBranch && matchesUserType;
   });
@@ -323,8 +333,8 @@ export default function UsersPage() {
   const getPendingStatus = () => {
     if (user?.role === 'branch_manager') {
       return 'pending_branch_review';
-    } else if (user?.role === 'admin') {
-      // Admin: only show items that require branch manager approval
+    } else if (user?.role === 'admin' || user?.role === 'superadmin') {
+      // Admin/superadmin: only show items that require branch manager approval
       return 'pending_branch_review';
     }
     return null;
@@ -354,16 +364,19 @@ export default function UsersPage() {
               >
                 Kullanıcılar
               </button>
-              <button
-                onClick={() => setUserTypeFilter('managers')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  userTypeFilter === 'managers'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Yöneticiler
-              </button>
+              {/* Yöneticiler sekmesi sadece admin ve superadmin için */}
+              {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <button
+                  onClick={() => setUserTypeFilter('managers')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    userTypeFilter === 'managers'
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Yöneticiler
+                </button>
+              )}
             </nav>
           </div>
             {/* Add Member Button */}
@@ -423,8 +436,8 @@ export default function UsersPage() {
               </div>
             )}
 
-            {/* Branch Filter - Only for admin */}
-            {user?.role === 'admin' && (
+            {/* Branch Filter - Only for admin/superadmin */}
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
@@ -490,14 +503,16 @@ export default function UsersPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Telefon
                       </th>
+                      {userTypeFilter === 'users' && (
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Durum
+                        </th>
+                      )}
                       {userTypeFilter === 'managers' && (
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Rol
                         </th>
                       )}
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Durum
-                      </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         İşlemler
                       </th>
@@ -556,10 +571,19 @@ export default function UsersPage() {
                         >
                           <div className="text-sm text-gray-600">{userItem.phone || '-'}</div>
                         </td>
+                        {userTypeFilter === 'users' && (
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700">
+                              {getStatusLabel(userItem.status)}
+                            </span>
+                          </td>
+                        )}
                         {userTypeFilter === 'managers' && (
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="text-xs text-gray-700">
-                              {userItem.role === 'admin'
+                              {userItem.role === 'superadmin'
+                                ? 'Superadmin'
+                                : userItem.role === 'admin'
                                 ? 'Admin'
                                 : userItem.role === 'branch_manager' && userItem.branchId
                                 ? `(${branches.find(b => b.id === userItem.branchId)?.name || ''})`
@@ -567,11 +591,6 @@ export default function UsersPage() {
                             </span>
                           </td>
                         )}
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700">
-                            {getStatusLabel(userItem.status)}
-                          </span>
-                        </td>
                         <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             {userItem.isActive ? (
@@ -613,7 +632,7 @@ export default function UsersPage() {
                                 disabled={processing}
                               />
                             )}
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || user?.role === 'superadmin') && (
                               <ActionButton
                                 icon={UserCog}
                                 variant="role"
@@ -622,20 +641,55 @@ export default function UsersPage() {
                                   setSelectedUserRole(userItem.role);
                                   setIsRoleModalOpen(true);
                                 }}
-                                title={userItem.uid === user?.uid ? 'Kendi rolünüzü değiştiremezsiniz' : 'Rol Değiştir'}
-                                disabled={processing || userItem.uid === user?.uid}
+                                title={
+                                  userItem.uid === user?.uid 
+                                    ? 'Kendi rolünüzü değiştiremezsiniz' 
+                                    : user?.role === 'admin' && (userItem.role === 'admin' || userItem.role === 'superadmin')
+                                    ? 'Admin, diğer admin veya superadmin rollerini değiştiremez'
+                                    : 'Rol Değiştir'
+                                }
+                                disabled={
+                                  processing || 
+                                  userItem.uid === user?.uid || 
+                                  (user?.role === 'admin' && (userItem.role === 'admin' || userItem.role === 'superadmin'))
+                                }
                               />
                             )}
-                            {/* Detay Ekleme Butonu - pending_details statusu için */}
-                            {userItem.status === 'pending_details' && (
+                            {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager') && (
                               <ActionButton
                                 icon={Edit}
                                 variant="edit"
                                 onClick={() => {
-                                  setSelectedUserIdForDetails(userItem.uid);
-                                  setIsCompleteDetailsModalOpen(true);
+                                  setSelectedUserIdForEdit(userItem.uid);
+                                  setIsEditModalOpen(true);
                                 }}
-                                title="Detay Ekle"
+                                title={
+                                  user?.role === userItem.role
+                                    ? 'Aynı yetkiye sahip kullanıcıları düzenleyemezsiniz'
+                                    : user?.role === 'admin' && (userItem.role === 'admin' || userItem.role === 'superadmin')
+                                    ? 'Admin, diğer admin veya superadmin kullanıcılarını düzenleyemez'
+                                    : user?.role === 'branch_manager' && userItem.role !== 'user'
+                                    ? 'Şube yöneticileri sadece kullanıcıları düzenleyebilir'
+                                    : 'Kullanıcıyı Düzenle'
+                                }
+                                disabled={
+                                  processing || 
+                                  user?.role === userItem.role ||
+                                  (user?.role === 'admin' && (userItem.role === 'admin' || userItem.role === 'superadmin')) ||
+                                  (user?.role === 'branch_manager' && userItem.role !== 'user')
+                                }
+                              />
+                            )}
+                            {userTypeFilter === 'users' && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager') && (
+                              <ActionButton
+                                icon={RefreshCw}
+                                variant="status"
+                                onClick={() => {
+                                  setSelectedUserIdForStatus(userItem.uid);
+                                  setSelectedUserStatus(userItem.status);
+                                  setIsStatusModalOpen(true);
+                                }}
+                                title="Durum Değiştir"
                                 disabled={processing}
                               />
                             )}
@@ -662,7 +716,7 @@ export default function UsersPage() {
             <span className="text-sm text-gray-600 mr-2">
               {selectedUserIds.size} seçili
             </span>
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={() => {
                   setConfirmDialog({
@@ -738,16 +792,16 @@ export default function UsersPage() {
         }}
       />
 
-      <UserCompleteDetailsModal
-        userId={selectedUserIdForDetails}
-        isOpen={isCompleteDetailsModalOpen}
+      <UserEditModal
+        userId={selectedUserIdForEdit}
+        isOpen={isEditModalOpen}
         onClose={() => {
-          setIsCompleteDetailsModalOpen(false);
-          setSelectedUserIdForDetails(null);
+          setIsEditModalOpen(false);
+          setSelectedUserIdForEdit(null);
         }}
         onSuccess={() => {
-          setIsCompleteDetailsModalOpen(false);
-          setSelectedUserIdForDetails(null);
+          setIsEditModalOpen(false);
+          setSelectedUserIdForEdit(null);
           fetchUsers();
         }}
       />
@@ -783,6 +837,32 @@ export default function UsersPage() {
               const { apiRequest } = await import('@/utils/api');
               const data = await apiRequest<{ user: { uid: string; role: string; branchId?: string } }>(`/api/users/${selectedUserIdForRole}`);
               setUsers(prev => prev.map(u => u.uid === selectedUserIdForRole ? { ...u, role: data.user.role, branchId: data.user.branchId } : u));
+            } catch (error) {
+              console.error('Error fetching updated user:', error);
+              // Hata durumunda tam listeyi çek
+              fetchUsers();
+            }
+          }
+        }}
+      />
+
+      {/* User Status Modal */}
+      <UserStatusModal
+        userId={selectedUserIdForStatus}
+        currentStatus={selectedUserStatus}
+        isOpen={isStatusModalOpen}
+        onClose={() => {
+          setIsStatusModalOpen(false);
+          setSelectedUserIdForStatus(null);
+          setSelectedUserStatus('');
+        }}
+        onSuccess={async () => {
+          // Durum değişikliği sonrası sadece o kullanıcıyı güncelle
+          if (selectedUserIdForStatus) {
+            try {
+              const { apiRequest } = await import('@/utils/api');
+              const data = await apiRequest<{ user: { uid: string; status: string } }>(`/api/users/${selectedUserIdForStatus}`);
+              setUsers(prev => prev.map(u => u.uid === selectedUserIdForStatus ? { ...u, status: data.user.status } : u));
             } catch (error) {
               console.error('Error fetching updated user:', error);
               // Hata durumunda tam listeyi çek

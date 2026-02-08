@@ -116,6 +116,11 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
 
       const data = await apiRequest<{ user: UserDetail }>(`/api/users/${userId}`);
       setUser(data.user);
+
+      // Eğer branch bilgisi local branches listesinde yoksa, tekil olarak getir ve ekle
+      if (data.user?.branchId) {
+        await fetchBranchById(data.user.branchId);
+      }
     } catch (err: any) {
       console.error('❌ Error fetching user details:', err);
       setError(err.message || 'Kullanıcı bilgileri yüklenirken bir hata oluştu');
@@ -130,6 +135,21 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       setBranches(data.branches || []);
     } catch (err: any) {
       console.error('❌ Error fetching branches:', err);
+    }
+  };
+
+  const fetchBranchById = async (branchId?: string) => {
+    if (!branchId) return;
+    // Eğer zaten varsa tekrar getirme
+    if (branches.find(b => b.id === branchId)) return;
+
+    try {
+      const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchId}`);
+      if (data.branch) {
+        setBranches(prev => [...prev, data.branch]);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching branch by id:', err);
     }
   };
 
@@ -299,7 +319,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin':
         return 'Admin';
       case 'branch_manager':
-        return 'Şube Yöneticisi';
+        return 'İlçe Temsilcisi';
       case 'user':
         return 'Kullanıcı';
       default:
@@ -338,9 +358,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'register_details':
         return 'Detaylı Kayıt';
       case 'branch_manager_approval':
-        return 'Şube Yöneticisi Onayı';
+        return 'İlçe Temsilcisi Onayı';
       case 'branch_manager_rejection':
-        return 'Şube Yöneticisi Reddi';
+        return 'İlçe Temsilcisi Reddi';
       case 'admin_approval':
         return 'Admin Onayı';
       case 'admin_rejection':
@@ -348,7 +368,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin_return':
         return 'Admin Geri Gönderimi';
       case 'branch_manager_return':
-        return 'Şube Yöneticisi Geri Gönderimi';
+        return 'İlçe Temsilcisi Geri Gönderimi';
       default:
         return action;
     }
@@ -822,8 +842,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                       <UserIcon className="w-5 h-5 text-slate-700" />
                       Kişisel Bilgiler
                     </h3>
-                    {/* PDF Belgesi Link (Admin için) */}
-                    {currentUser?.role === 'admin' && user.documentUrl && (
+                    {/* PDF Belgesi Link (Admin / Superadmin için) */}
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && user.documentUrl && (
                       <a
                         href={user.documentUrl}
                         target="_blank"
@@ -949,7 +969,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                 )}
 
                 {/* Sil Butonu - İçerik Alanının En Altı */}
-                {currentUser?.role === 'admin' && user && user.uid !== currentUser.uid && (
+                {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || 
+                  (currentUser?.role === 'branch_manager' && user?.role === 'user' && user?.branchId === currentUser?.branchId)) && 
+                  user && user.uid !== currentUser.uid && (
                   <div className="flex justify-end">
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
@@ -969,7 +991,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
               /* Logs Tab */
               <>
                 {/* Status Yönetimi - Kompakt Tasarım */}
-                {user && (currentUser?.role === 'admin' || currentUser?.role === 'branch_manager') && (
+                {user && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'branch_manager') && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -998,8 +1020,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                               <option value="pending_details">Veri Doldurmaya Geri Gönder</option>
                             </>
                           )}
-                          {/* Admin Seçenekleri */}
-                          {currentUser?.role === 'admin' && (
+                          {/* Admin / Superadmin Seçenekleri */}
+                          {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
                             <>
                               {user.status !== 'active' && canChangeStatus('active') && (
                                 <option value="active">Onayla (Aktif)</option>

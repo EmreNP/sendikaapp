@@ -51,13 +51,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // Query oluştur
       let query: Query = db.collection('users');
       
-      // Branch Manager sadece kendi şubesindeki kullanıcıları görebilir
+      // Branch Manager sadece kendi şubesindeki 'user' rolündeki kullanıcıları görebilir
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
-        query = query.where('branchId', '==', currentUserData!.branchId);
+        query = query.where('branchId', '==', currentUserData!.branchId).where('role', '==', USER_ROLE.USER);
       }
       
-      // Admin için filtreleme
-      if (userRole === USER_ROLE.ADMIN) {
+      // Admin ve Superadmin için filtreleme
+      if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
         if (branchId) {
           query = query.where('branchId', '==', branchId);
         }
@@ -182,8 +182,19 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         }
       }
       
-      // Admin için rol kontrolü
+      // Admin rol kısıtlamaları - sadece superadmin, admin rolü oluşturabilir
       if (userRole === USER_ROLE.ADMIN) {
+        if (role === USER_ROLE.ADMIN || role === USER_ROLE.SUPERADMIN) {
+        throw new AppAuthorizationError('Admin rolü sadece superadmin tarafından atanabilir');
+        }
+        // Branch manager oluşturuluyorsa branchId zorunlu
+        if (role === USER_ROLE.BRANCH_MANAGER && !branchId) {
+        throw new AppValidationError('Branch manager için branchId zorunludur');
+        }
+      }
+      
+      // Superadmin için rol kontrolü
+      if (userRole === USER_ROLE.SUPERADMIN) {
         // Branch manager oluşturuluyorsa branchId zorunlu
         if (role === USER_ROLE.BRANCH_MANAGER && !branchId) {
         throw new AppValidationError('Branch manager için branchId zorunludur');
@@ -208,7 +219,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         firstName,
         lastName,
         role: userRole === USER_ROLE.BRANCH_MANAGER ? USER_ROLE.USER : (role || USER_ROLE.USER),
-        status: status || (userRole === USER_ROLE.ADMIN ? USER_STATUS.ACTIVE : USER_STATUS.PENDING_BRANCH_REVIEW),
+        status: status || ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) ? USER_STATUS.ACTIVE : USER_STATUS.PENDING_BRANCH_REVIEW),
         isActive: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

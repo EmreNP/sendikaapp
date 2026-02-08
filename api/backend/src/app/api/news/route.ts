@@ -40,15 +40,15 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // USER/BRANCH_MANAGER için sadece yayınlanan haberler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         query = query.where('isPublished', '==', true);
-      } else if (userRole === USER_ROLE.ADMIN) {
-        // Admin için isPublished filtresi kullanılabilir
+      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
+        // Admin/Superadmin için isPublished filtresi kullanılabilir
         if (isPublishedParam !== null) {
           query = query.where('isPublished', '==', isPublishedParam === 'true');
         }
       }
       
-      // Featured filtresi (admin için)
-      if (userRole === USER_ROLE.ADMIN && isFeaturedParam !== null) {
+      // Featured filtresi (admin/superadmin için)
+      if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && isFeaturedParam !== null) {
         query = query.where('isFeatured', '==', isFeaturedParam === 'true');
       }
       
@@ -100,7 +100,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

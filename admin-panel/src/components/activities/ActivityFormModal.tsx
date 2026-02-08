@@ -107,7 +107,7 @@ export default function ActivityFormModal({
     }
 
     if (!activity) {
-      if (currentUserRole === 'admin' && !formData.branchId) {
+      if ((currentUserRole === 'admin' || currentUserRole === 'superadmin') && !formData.branchId) {
         newErrors.branchId = 'Şube seçimi zorunludur';
       }
       if (currentUserRole === 'branch_manager' && !formData.branchId) {

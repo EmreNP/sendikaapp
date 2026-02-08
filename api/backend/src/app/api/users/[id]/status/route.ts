@@ -202,75 +202,28 @@ export const PATCH = asyncHandler(async (
       // Log oluştur - Admin için (TÜM status değişiklikleri loglanmalı)
       // ÖNEMLİ: Admin'in yaptığı TÜM status değişiklikleri loglanmalı
       // Branch Manager log'ları yukarıda oluşturuldu, şimdi Admin log'larını oluştur
-      if (userRole === USER_ROLE.ADMIN) {
-        console.log(`✅ Admin role confirmed, creating log for status change: ${currentStatus} → ${newStatus}`);
+      if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
+        console.log(`✅ Admin/Superadmin role confirmed, creating log for status change: ${currentStatus} → ${newStatus}`);
         
-        // Admin'in yaptığı TÜM status değişikliklerini logla
-        let action: 'admin_approval' | 'admin_rejection' | 'admin_return' = 'admin_return';
-        
-        if (newStatus === USER_STATUS.ACTIVE) {
-          action = 'admin_approval';
-        } else if (newStatus === USER_STATUS.REJECTED) {
-          action = 'admin_rejection';
-        } else {
-          // Diğer tüm durumlar için admin_return (pending_details, pending_branch_review)
-          action = 'admin_return';
-        }
-        
-        // Log verilerini hazırla (undefined field'ları kaldırmak için önce objeyi oluştur, sonra temizle)
-        const logDataRaw: any = {
-          userId: targetUserId,
-          action: action,
-          performedBy: user.uid,
-          performedByRole: 'admin',
-          previousStatus: currentStatus,
-          newStatus: newStatus,
-        };
-        
-        // Opsiyonel field'ları sadece varsa ekle (undefined olmamalı)
-        const noteValue = note || (newStatus === USER_STATUS.REJECTED ? rejectionReason : undefined);
-        if (noteValue) {
-          logDataRaw.note = noteValue;
-        }
-        
-        if (documentUrl) {
-          logDataRaw.documentUrl = documentUrl;
-        }
-        
-        const logData: Omit<UserRegistrationLog, 'id' | 'timestamp'> = logDataRaw;
-        
-        console.log(`📝 Creating ${action} log for admin status change:`, JSON.stringify(logData, null, 2));
-        console.log(`📝 Log data structure:`, {
-          userId: logData.userId,
-          action: logData.action,
-          performedBy: logData.performedBy,
-          performedByRole: logData.performedByRole,
-          previousStatus: logData.previousStatus,
-          newStatus: logData.newStatus,
-          note: logData.note || 'none',
-          documentUrl: logData.documentUrl || 'none',
-        });
-        
+        // Durum güncellemesini logla
         try {
-          console.log(`🔄 Calling createRegistrationLog...`);
-          await createRegistrationLog(logData);
-          console.log(`✅ Admin ${action} log created successfully for user ${targetUserId}`);
+          await createRegistrationLog({
+            userId: targetUserId,
+            action: 'status_update',
+            performedBy: user.uid,
+            performedByRole: userRole as any,
+            previousStatus: currentStatus,
+            newStatus: newStatus,
+            note: note || (newStatus === USER_STATUS.REJECTED ? rejectionReason : undefined),
+            documentUrl: documentUrl || undefined,
+          });
           logCreated = true;
-        } catch (logErr: unknown) {
-          const logErrorMessage = isErrorWithMessage(logErr) ? logErr.message : 'Bilinmeyen hata';
-          logError = logErrorMessage;
-          console.error(`❌ CRITICAL: Failed to create admin log: ${logErrorMessage}`);
-          console.error(`❌ Log error details:`, logErr);
-          if (logErr instanceof Error) {
-            console.error(`❌ Error stack:`, logErr.stack);
-            console.error(`❌ Error name:`, logErr.name);
-          }
-          // Log hatası ana işlemi durdurmamalı ama mutlaka loglanmalı
-          // Burada throw yapmıyoruz çünkü status update başarılı olmuş olabilir
-          // Ancak bu hatayı mutlaka log'layalım ki sorun tespit edilebilsin
+        } catch (err: unknown) {
+          logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
+          console.error('❌ CRITICAL: Failed to create status_update log:', logError);
         }
       } else {
-        console.log(`ℹ️ Not admin role (${userRole}), admin log creation skipped`);
+        console.log(`ℹ️ Not admin/superadmin role (${userRole}), status_update log creation skipped`);
       }
       
       console.log(`✅ User ${targetUserId} status updated: ${currentStatus} → ${newStatus}`);

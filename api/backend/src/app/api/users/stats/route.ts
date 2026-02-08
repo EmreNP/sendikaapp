@@ -73,6 +73,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         const role = user.role;
         if (role === USER_ROLE.ADMIN) {
           acc.byRole.admin++;
+        } else if (role === 'superadmin') {
+          acc.byRole.superadmin = (acc.byRole.superadmin || 0) + 1;
         } else if (role === USER_ROLE.BRANCH_MANAGER) {
           acc.byRole.branch_manager++;
         } else if (role === USER_ROLE.USER) {

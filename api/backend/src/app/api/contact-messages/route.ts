@@ -31,8 +31,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
     let query: admin.firestore.Query = db.collection('contact_messages');
 
-    if (userRole === USER_ROLE.ADMIN) {
-      // Admin: Tüm mesajları görür
+    if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
+      // Admin/Superadmin: Tüm mesajları görür
       if (topicId) {
         query = query.where('topicId', '==', topicId);
       }

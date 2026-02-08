@@ -44,7 +44,7 @@ export const GET = asyncHandler(async (
       // USER/BRANCH_MANAGER için sadece aktif dersler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         query = query.where('isActive', '==', true);
-      } else if (userRole === USER_ROLE.ADMIN) {
+      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
         if (isActiveParam !== null) {
           query = query.where('isActive', '==', isActiveParam === 'true');
         }
@@ -79,7 +79,7 @@ export const POST = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

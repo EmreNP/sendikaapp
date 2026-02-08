@@ -30,8 +30,8 @@ export default function AdminDashboard() {
         branches: 0, // Şube sayısını ayrı fetch edebiliriz
       });
 
-      // Şube istatistikleri (sadece admin için)
-      if (user?.role === 'admin') {
+      // Şube istatistikleri (sadece admin/superadmin için)
+      if (user?.role === 'admin' || user?.role === 'superadmin') {
         const branchesData = await apiRequest<{ branches: Array<{ isActive: boolean }> }>('/api/branches');
         
         setStats(prev => ({
@@ -51,7 +51,7 @@ export default function AdminDashboard() {
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Hoş Geldiniz, {user?.firstName}!</h2>
           <p className="text-gray-600 mt-2">
-            {user?.role === 'admin'
+            {user?.role === 'admin' || user?.role === 'superadmin'
               ? 'Admin paneline başarıyla giriş yaptınız.'
               : 'Şube yönetici paneline başarıyla giriş yaptınız.'}
           </p>
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="text-3xl font-bold text-gray-900 mb-1">{stats.total.toLocaleString('tr-TR')}</div>
                 <div className="text-sm text-gray-600">
-                  {user?.role === 'admin' ? 'Toplam Kullanıcı' : 'Şube Üyeleri'}
+                  {user?.role === 'admin' || user?.role === 'superadmin' ? 'Toplam Kullanıcı' : 'Şube Üyeleri'}
                 </div>
               </div>
               <div className="w-14 h-14 bg-slate-700 rounded-xl flex items-center justify-center">
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>

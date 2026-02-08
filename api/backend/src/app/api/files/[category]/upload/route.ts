@@ -17,60 +17,64 @@ const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos',
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
+function isAdminOrSuperadmin(role: string): boolean {
+  return role === USER_ROLE.ADMIN || role === USER_ROLE.SUPERADMIN;
+}
+
 function getCategoryPermissions(category: string, userRole: string): {
   canUpload: boolean;
   error?: string;
 } {
   switch (category) {
     case 'news':
-      // News: Sadece admin
+      // News: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'announcements':
-      // Announcements: Sadece admin
+      // Announcements: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'user-documents':
-      // User documents: Admin ve branch_manager
+      // User documents: Admin, Superadmin ve branch_manager
       return {
-        canUpload: userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER,
-        error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
       };
     
     case 'videos':
-      // Videos: Sadece admin
+      // Videos: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'video-thumbnails':
-      // Video thumbnails: Sadece admin
+      // Video thumbnails: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'lesson-documents':
-      // Lesson documents: Sadece admin
+      // Lesson documents: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'activity-images':
-      // Activity images: Admin ve branch_manager
+      // Activity images: Admin, Superadmin ve branch_manager
       return {
-        canUpload: userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER,
-        error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
       };

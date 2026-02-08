@@ -41,10 +41,12 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       setPdfFile(null);
       setPdfUrl(null);
       fetchUserData();
-      if (currentUser?.role === 'admin') {
+      if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
         fetchBranches();
       } else if (currentUser?.branchId) {
         setBranchId(currentUser.branchId);
+        // Branch manager için branch ismini getir
+        fetchBranchById(currentUser.branchId);
       }
     }
   }, [isOpen, userId]);
@@ -58,6 +60,21 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
     }
   };
 
+  const fetchBranchById = async (branchId?: string) => {
+    if (!branchId) return;
+    // Eğer zaten varsa tekrar getirme
+    if (branches.find(b => b.id === branchId)) return;
+
+    try {
+      const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchId}`);
+      if (data.branch) {
+        setBranches(prev => [...prev, data.branch]);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching branch by id:', err);
+    }
+  };
+
   const fetchUserData = async () => {
     if (!userId) return;
 
@@ -67,7 +84,12 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       setUserData(data.user);
       
       // Mevcut verileri doldur
-      setBranchId(data.user.branchId || currentUser?.branchId || '');
+      const resolvedBranchId = data.user.branchId || currentUser?.branchId || '';
+      setBranchId(resolvedBranchId);
+      // Eğer branch bilgimiz yoksa tekil olarak getir
+      if (resolvedBranchId) {
+        fetchBranchById(resolvedBranchId);
+      }
       setPhone(data.user.phone || '');
       setTcKimlikNo(data.user.tcKimlikNo || '');
       setFatherName(data.user.fatherName || '');
@@ -240,7 +262,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Şube <span className="text-red-500">*</span>
                   </label>
-                  {currentUser?.role === 'admin' ? (
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') ? (
                     <select
                       value={branchId}
                       onChange={(e) => setBranchId(e.target.value)}

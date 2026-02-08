@@ -33,8 +33,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     let query: FirebaseFirestore.Query = db.collection('activities');
 
     // Filter based on user role
-    if (currentUserData.role === USER_ROLE.ADMIN) {
-      // Admin can see all activities
+    if (currentUserData.role === USER_ROLE.ADMIN || currentUserData.role === USER_ROLE.SUPERADMIN) {
+      // Admin/Superadmin can see all activities
       query = query.orderBy('createdAt', 'desc');
     } else if (currentUserData.role === USER_ROLE.BRANCH_MANAGER) {
       // Branch managers can see activities from their branch only
@@ -75,7 +75,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     }
 
     // Check permissions
-    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
+    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError('Bu işlem için yeterli yetkiniz yok');
     }
 

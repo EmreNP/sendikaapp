@@ -22,8 +22,8 @@ export default function LoginPage() {
       const { user } = await authService.signIn(email, password);
       setUser(user);
       
-      // Role'e göre yönlendir
-      if (user.role === 'admin') {
+      // Role'e göre yönlendir (superadmin de admin dashboard'a yönlendirilir)
+      if (user.role === 'admin' || user.role === 'superadmin') {
         navigate('/admin/dashboard');
       } else if (user.role === 'branch_manager') {
         navigate('/branch/dashboard');
@@ -47,7 +47,7 @@ export default function LoginPage() {
             SendikaApp Yönetim Paneli
           </h1>
           <p className="text-gray-600">
-            Admin ve Şube Yöneticisi Girişi
+            Admin ve İlçe Temsilcisi Girişi
           </p>
         </div>
 
