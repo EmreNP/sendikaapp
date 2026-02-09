@@ -680,7 +680,7 @@ export default function UsersPage() {
                                 }
                               />
                             )}
-                            {userTypeFilter === 'users' && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager') && (
+                            {userTypeFilter === 'users' && ((user?.role === 'admin' || user?.role === 'superadmin') || (user?.role === 'branch_manager' && userItem.status !== 'active')) && (
                               <ActionButton
                                 icon={RefreshCw}
                                 variant="status"

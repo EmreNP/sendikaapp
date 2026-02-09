@@ -15,6 +15,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [branchName, setBranchName] = useState<string>('');
   const [userData, setUserData] = useState<any>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -69,11 +70,26 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchId}`);
       if (data.branch) {
         setBranches(prev => [...prev, data.branch]);
+        if (data.branch.name) setBranchName(data.branch.name);
       }
     } catch (err: any) {
       console.error('❌ Error fetching branch by id:', err);
     }
   };
+
+  useEffect(() => {
+    if (branchId) {
+      const found = branches.find(b => b.id === branchId);
+      if (found) {
+        setBranchName(found.name);
+      } else {
+        // try to fetch single branch if not present locally
+        fetchBranchById(branchId);
+      }
+    } else {
+      setBranchName('');
+    }
+  }, [branchId, branches]);
 
   const fetchUserData = async () => {
     if (!userId) return;
@@ -279,7 +295,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
                     </select>
                   ) : (
                     <div className="px-3 py-2 bg-gray-100 rounded-lg">
-                      {branches.find(b => b.id === branchId)?.name || branchId || '-'}
+                      {branchName || (branches.find(b => b.id === branchId)?.name) || '-'}
                     </div>
                   )}
                 </div>

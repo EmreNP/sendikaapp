@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, Upload, File, Clock, History, Trash2 } from 'lucide-react';
+import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, Upload, File, Clock, History, Trash2, Edit, FileText, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
+import { uploadUserRegistrationForm } from '@/utils/fileUpload';
+import UserStatusModal from './UserStatusModal';
 
 interface UserDetail {
   uid: string;
@@ -12,6 +14,7 @@ interface UserDetail {
   role: string;
   status: string;
   branchId?: string;
+  documentUrl?: string;
   isActive: boolean;
   emailVerified?: boolean;
   birthDate?: any;
@@ -27,24 +30,27 @@ interface UserDetail {
   address?: string;
   city?: string;
   district?: string;
+  isMemberOfOtherUnion?: boolean;
   createdAt?: any;
   updatedAt?: any;
-  documentUrl?: string; // PDF belgesi URL'i
 }
 
 interface RegistrationLog {
   id?: string;
   userId: string;
-  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
+  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'branch_manager_rejection' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return' | 'user_update' | 'status_update' | 'role_update';
   performedBy: string;
   performedByRole: 'admin' | 'branch_manager' | 'user';
   previousStatus?: string;
   newStatus?: string;
   note?: string;
   documentUrl?: string;
+  previousDocumentUrl?: string;
   metadata?: {
     branchId?: string;
     email?: string;
+    updatedFields?: string[];
+    fieldChanges?: Record<string, { oldValue: any; newValue: any }>;
   };
   timestamp: any;
 }
@@ -62,18 +68,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [showPdfUploadModal, setShowPdfUploadModal] = useState(false);
-  const [showStatusChangeModal, setShowStatusChangeModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [note, setNote] = useState('');
-  const [targetStatus, setTargetStatus] = useState<string | null>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [uploadingPdf, setUploadingPdf] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'logs'>(initialTab);
   const [logs, setLogs] = useState<RegistrationLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -84,16 +81,13 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     if (isOpen && userId) {
       fetchUserDetails();
       fetchBranches();
-      fetchLogs(); // Always fetch logs when modal opens
+      if (initialTab === 'logs') {
+        fetchLogs();
+      }
     } else {
       setUser(null);
       setError(null);
-      setPdfFile(null);
-      setPdfUrl(null);
-      setShowPdfUploadModal(false);
-      setShowStatusChangeModal(false);
-      setRejectionReason('');
-      setNote('');
+      setShowStatusModal(false);
       setLogs([]);
       setBranches([]);
       setUserNames({});
@@ -157,25 +151,15 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     const uniqueUserIds = [...new Set(userIds)];
     const names: Record<string, { firstName: string; lastName: string }> = {};
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7bfa6cc7-a793-4b51-ac28-4dd595ebead2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UserDetailModal.tsx:138',message:'fetchUserNames called',data:{uniqueUserIds,count:uniqueUserIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     await Promise.all(
       uniqueUserIds.map(async (uid) => {
         try {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/7bfa6cc7-a793-4b51-ac28-4dd595ebead2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UserDetailModal.tsx:145',message:'fetching user name',data:{uid},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           const userData = await apiRequest<{ user: UserDetail }>(`/api/users/${uid}`);
           if (userData.user) {
             names[uid] = {
               firstName: userData.user.firstName,
               lastName: userData.user.lastName,
             };
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/7bfa6cc7-a793-4b51-ac28-4dd595ebead2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UserDetailModal.tsx:151',message:'user name fetched successfully',data:{uid,firstName:userData.user.firstName,lastName:userData.user.lastName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
           }
         } catch (err: any) {
           // 403 hatası (yetkisiz erişim) sessizce ignore edilir
@@ -185,9 +169,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
             // Sadece 403 dışındaki hataları logla
             console.error(`❌ Error fetching user ${uid}:`, err);
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/7bfa6cc7-a793-4b51-ac28-4dd595ebead2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UserDetailModal.tsx:163',message:'error fetching user name',data:{uid,errorMessage:err?.message,errorCode:err?.code,statusCode:err?.response?.status,isUnauthorized,willIgnore:isUnauthorized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
         }
       })
     );
@@ -201,36 +182,17 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     try {
       setLoadingLogs(true);
       setError(null);
-      console.log('📡 Fetching logs for user:', userId);
       const data = await apiRequest<{ logs: RegistrationLog[] }>(`/api/users/${userId}/logs`);
-      console.log('✅ Logs received:', data);
-      console.log('📊 Logs count:', data?.logs?.length || 0);
-      
-      // Log'ları detaylı logla
-      if (data?.logs && data.logs.length > 0) {
-        console.log('📋 Log details:');
-        data.logs.forEach((log, index) => {
-          console.log(`  ${index + 1}. Action: ${log.action}, Role: ${log.performedByRole}, Status: ${log.previousStatus} → ${log.newStatus}`);
-        });
-      } else {
-        console.log('⚠️ No logs found for this user');
-      }
       
       setLogs(data.logs || []);
       
       // Log'lardaki performedBy UID'lerini topla ve kullanıcı isimlerini çek
       const userIds = data.logs?.map(log => log.performedBy).filter(Boolean) || [];
       if (userIds.length > 0) {
-        console.log('👤 Fetching user names for:', userIds);
         await fetchUserNames(userIds);
       }
     } catch (err: any) {
-      console.error('❌ Error fetching logs:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        details: err.details,
-      });
+      console.error('Error fetching logs:', err);
       setError(err.message || 'Loglar yüklenirken bir hata oluştu');
       setLogs([]);
     } finally {
@@ -369,9 +331,108 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         return 'Admin Geri Gönderimi';
       case 'branch_manager_return':
         return 'İlçe Temsilcisi Geri Gönderimi';
+      case 'user_update':
+        return 'Kullanıcı Güncelleme';
+      case 'status_update':
+        return 'Durum Güncelleme';
+      case 'role_update':
+        return 'Rol Güncelleme';
       default:
         return action;
     }
+  };
+
+  const getFieldLabel = (field: string): string => {
+    const labels: Record<string, string> = {
+      firstName: 'Ad',
+      lastName: 'Soyad',
+      email: 'E-posta',
+      phone: 'Telefon',
+      birthDate: 'Doğum Tarihi',
+      gender: 'Cinsiyet',
+      tcKimlikNo: 'TC Kimlik No',
+      fatherName: 'Baba Adı',
+      motherName: 'Anne Adı',
+      birthPlace: 'Doğum Yeri',
+      education: 'Eğitim Seviyesi',
+      kurumSicil: 'Kurum Sicil',
+      kadroUnvani: 'Kadro Unvanı',
+      kadroUnvanKodu: 'Kadro Unvan Kodu',
+      district: 'İlçe',
+      address: 'Adres',
+      city: 'Şehir',
+      branchId: 'Şube',
+      role: 'Rol',
+      status: 'Durum',
+      documentUrl: 'Kayıt Formu PDF',
+      isMemberOfOtherUnion: 'Başka Sendika Üyeliği',
+    };
+    return labels[field] || field;
+  };
+
+  const formatFieldValue = (field: string, value: any): string => {
+    if (value === null || value === undefined) return '-';
+    if (value === '') return '(Boş)';
+    
+    // Boolean değerler
+    if (typeof value === 'boolean') {
+      return value ? 'Evet' : 'Hayır';
+    }
+    
+    // Tarih alanları
+    if (field === 'birthDate') {
+      try {
+        if (typeof value === 'string') {
+          const date = new Date(value);
+          return date.toLocaleDateString('tr-TR');
+        }
+        if (value.toDate) {
+          return value.toDate().toLocaleDateString('tr-TR');
+        }
+      } catch (e) {
+        return String(value);
+      }
+    }
+    
+    // Enum değerler
+    if (field === 'gender') {
+      return value === 'male' ? 'Erkek' : value === 'female' ? 'Kadın' : value;
+    }
+    
+    if (field === 'education') {
+      const eduLabels: Record<string, string> = {
+        'ilköğretim': 'İlköğretim',
+        'lise': 'Lise',
+        'yüksekokul': 'Yüksekokul/Üniversite',
+      };
+      return eduLabels[value] || value;
+    }
+    
+    if (field === 'status') {
+      return getStatusLabel(value);
+    }
+    
+    if (field === 'role') {
+      const roleLabels: Record<string, string> = {
+        'user': 'Kullanıcı',
+        'branch_manager': 'İlçe Temsilcisi',
+        'admin': 'Admin',
+        'superadmin': 'Süper Admin',
+      };
+      return roleLabels[value] || value;
+    }
+    
+    // Şube ID'si - isim olarak göster
+    if (field === 'branchId') {
+      return getBranchName(value);
+    }
+    
+    // URL alanları
+    if (field === 'documentUrl') {
+      return 'PDF Belgesi';
+    }
+    
+    return String(value);
   };
 
   const getActionIcon = (action: string) => {
@@ -388,6 +449,12 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin_return':
       case 'branch_manager_return':
         return <ArrowLeft className="w-5 h-5 text-orange-600" />;
+      case 'user_update':
+        return <Edit className="w-5 h-5 text-blue-600" />;
+      case 'status_update':
+        return <ArrowRight className="w-5 h-5 text-purple-600" />;
+      case 'role_update':
+        return <UserIcon className="w-5 h-5 text-indigo-600" />;
       default:
         return <Clock className="w-5 h-5" />;
     }
@@ -407,317 +474,45 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       case 'admin_return':
       case 'branch_manager_return':
         return 'bg-amber-100 text-amber-800';
+      case 'user_update':
+        return 'bg-blue-100 text-blue-800';
+      case 'status_update':
+        return 'bg-purple-100 text-purple-800';
+      case 'role_update':
+        return 'bg-indigo-100 text-indigo-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // PDF yükleme fonksiyonu - Backend API kullanarak
-  const uploadPdfToStorage = async (file: File, userId: string): Promise<string> => {
-    try {
-      setUploadingPdf(true);
-      
-      // FormData oluştur
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', userId);
-      
-      // Backend API'ye yükle
-      const { api } = await import('@/config/api');
-      const { authService } = await import('@/services/auth/authService');
-      
-      const token = await authService.getIdToken();
-      const url = api.url('/api/files/user-documents/upload');
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          // Content-Type header'ını eklemeyin, FormData otomatik ekler
-        },
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'PDF yüklenirken bir hata oluştu');
-      }
-      
-      const documentUrl = data.data?.documentUrl || data.data?.fileUrl || data.data?.imageUrl;
-      
-      if (!documentUrl) {
-        throw new Error('Yükleme başarılı ancak URL alınamadı');
-      }
-      
-      setPdfUrl(documentUrl);
-      return documentUrl;
-    } catch (err: any) {
-      console.error('❌ Error uploading PDF:', err);
-      throw new Error('PDF yüklenirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
-    } finally {
-      setUploadingPdf(false);
-    }
-  };
-
   // Status değiştirme fonksiyonu
-  const handleStatusChange = async (newStatus: string, reason?: string) => {
-    console.log('🔄 handleStatusChange called:', {
-      userId,
-      currentUserRole: currentUser?.role,
-      currentStatus: user?.status,
-      newStatus,
-      reason: reason ? 'provided' : 'not provided',
-      note: note ? 'provided' : 'not provided',
-    });
-
-    if (!user || !userId) {
-      console.warn('⚠️ handleStatusChange: Missing user or userId', { user: !!user, userId: !!userId });
-      return;
-    }
-
-    try {
-      console.log('✅ Starting status update process...');
-      setUpdatingStatus(true);
-      setError(null);
-
-      // Onaylama (active) durumunda PDF zorunlu (branch_manager)
-      if (newStatus === 'active' && currentUser?.role === 'branch_manager') {
-        console.log('📎 Branch Manager approving user - checking PDF...');
-        if (!pdfFile) {
-          console.error('❌ PDF file is required for admin approval but not provided');
-          setError('Admin onayına göndermek için PDF belgesi yüklemelisiniz');
-          setUpdatingStatus(false);
-          return;
-        }
-
-        // PDF'i yükle
-        console.log('📤 Uploading PDF file...', { fileName: pdfFile.name, size: pdfFile.size });
-        let pdfUrlToSend = pdfUrl;
-        if (!pdfUrlToSend && pdfFile) {
-          pdfUrlToSend = await uploadPdfToStorage(pdfFile, userId);
-          console.log('✅ PDF uploaded successfully:', pdfUrlToSend);
-        } else {
-          console.log('✅ PDF URL already available:', pdfUrlToSend);
-        }
-
-        const body: any = { 
-          status: newStatus,
-          documentUrl: pdfUrlToSend,
-          note: note.trim() || undefined, // Opsiyonel not
-        };
-        
-        console.log('📤 Sending PATCH request (Branch Manager):', {
-          url: `/api/users/${userId}/status`,
-          body: {
-            ...body,
-            documentUrl: body.documentUrl ? 'present' : 'missing',
-          },
-        });
-        
-        const response = await apiRequest(`/api/users/${userId}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        });
-        
-        console.log('✅ Status update response (Branch Manager):', response);
-        
-        // Log bilgisini kontrol et
-        if (response && (response as any).logInfo) {
-          const logInfo = (response as any).logInfo;
-          console.log('📋 Log creation info (Branch Manager):', {
-            created: logInfo.created,
-            error: logInfo.error,
-            role: logInfo.role,
-          });
-          
-          if (!logInfo.created && logInfo.error) {
-            console.error('❌ Log creation failed:', logInfo.error);
-          } else if (logInfo.created) {
-            console.log('✅ Log created successfully');
-          }
-        }
-      } else {
-        // Diğer durumlar için normal işlem
-        const body: any = { 
-          status: newStatus,
-          note: note.trim() || undefined, // Opsiyonel not
-        };
-        if (reason) {
-          body.rejectionReason = reason;
-          console.log('📝 Rejection reason included in body');
-        }
-
-        console.log('📤 Sending PATCH request:', {
-          url: `/api/users/${userId}/status`,
-          currentUserRole: currentUser?.role,
-          body: {
-            status: body.status,
-            note: body.note ? 'provided' : 'not provided',
-            rejectionReason: body.rejectionReason ? 'provided' : 'not provided',
-          },
-        });
-
-        const response = await apiRequest(`/api/users/${userId}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        });
-        
-        console.log('✅ Status update response:', response);
-        
-        // Log bilgisini kontrol et (response direkt data döndürür)
-        if (response && (response as any).logInfo) {
-          const logInfo = (response as any).logInfo;
-          console.log('📋 Log creation info:', {
-            created: logInfo.created,
-            error: logInfo.error,
-            role: logInfo.role,
-          });
-          
-          if (!logInfo.created && logInfo.error) {
-            console.error('❌ Log creation failed:', logInfo.error);
-          } else if (logInfo.created) {
-            console.log('✅ Log created successfully');
-          } else {
-            console.warn('⚠️ Log was not created (no error, but not created)');
-          }
-        } else {
-          console.warn('⚠️ No log info in response');
-        }
-      }
-
-      // Kullanıcı bilgilerini yenile
-      console.log('🔄 Refreshing user details...');
-      await fetchUserDetails();
-      console.log('✅ User details refreshed');
-      
-      // Log'ları yenile (her zaman, çünkü artık details tab'ında da görünüyor)
-      console.log('📋 Refreshing logs...');
-      await fetchLogs();
-      console.log('✅ Logs refreshed');
-      
-      // Modal'ları kapat ve state'i temizle
-      console.log('🧹 Cleaning up modals and state...');
-      setShowRejectionModal(false);
-      setShowStatusChangeModal(false);
-      setShowPdfUploadModal(false);
-      setRejectionReason('');
-      setNote('');
-      setTargetStatus(null);
-      setPdfFile(null);
-      setPdfUrl(null);
-      console.log('✅ Status change completed successfully');
-    } catch (err: any) {
-      console.error('❌ Error updating status:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        response: err.response,
-        stack: err.stack,
-      });
-      setError(err.message || 'Durum güncellenirken bir hata oluştu');
-    } finally {
-      setUpdatingStatus(false);
-      console.log('🏁 Status update process finished (finally block)');
-    }
+  const handleStatusSuccess = async () => {
+    // Kullanıcı bilgilerini ve logları yenile
+    await fetchUserDetails();
+    await fetchLogs();
   };
 
   // Status değiştirme butonuna tıklandığında
-  const onStatusButtonClick = (newStatus: string) => {
-    console.log('🔘 Status button clicked:', {
-      newStatus,
-      currentStatus: user?.status,
-      currentUserRole: currentUser?.role,
-      userId,
-    });
-    
-    setTargetStatus(newStatus);
-    console.log('✅ Target status set to:', newStatus);
-    
-    // Onaylama durumunda (active) PDF yükleme modal'ını göster
-    if (newStatus === 'active' && currentUser?.role === 'branch_manager') {
-      console.log('📎 Branch Manager approving user - showing PDF upload modal');
-      setShowPdfUploadModal(true);
-      return;
-    }
-
-    if (newStatus === 'rejected') {
-      // Rejection için modal göster
-      console.log('❌ Rejection status selected - showing rejection modal');
-      setShowRejectionModal(true);
-    } else {
-      // Diğer durumlar için status change modal göster
-      console.log('📝 Other status selected - showing status change modal');
-      setShowStatusChangeModal(true);
-    }
-  };
-
-  // PDF yükleme modal'ında onay butonuna basıldığında
-  const onPdfUploadConfirm = async () => {
-    console.log('✅ PDF upload confirm clicked:', {
-      targetStatus,
-      hasPdfFile: !!pdfFile,
-      pdfFileName: pdfFile?.name,
-      pdfFileSize: pdfFile?.size,
-      note: note ? 'provided' : 'not provided',
-    });
-
-    if (!pdfFile) {
-      console.error('❌ PDF file is required but not selected');
-      setError('Lütfen PDF belgesi seçin');
-      return;
-    }
-
-    if (targetStatus) {
-      console.log('🚀 Calling handleStatusChange from PDF upload confirm');
-      await handleStatusChange(targetStatus);
-    } else {
-      console.warn('⚠️ Target status is not set, cannot proceed');
-    }
-  };
-
-  // Status change modal'ında onay butonuna basıldığında
-  const onStatusChangeConfirm = () => {
-    console.log('✅ Status change confirm clicked:', {
-      targetStatus,
-      note: note ? 'provided' : 'not provided',
-      noteLength: note?.length || 0,
-    });
-
-    if (targetStatus) {
-      console.log('🚀 Calling handleStatusChange from status change confirm');
-      handleStatusChange(targetStatus);
-    } else {
-      console.warn('⚠️ Target status is not set, cannot proceed');
-    }
-  };
-
-  // Rejection confirm
-  const onRejectionConfirm = () => {
-    console.log('✅ Rejection confirm clicked:', {
-      targetStatus,
-      hasRejectionReason: !!rejectionReason,
-      rejectionReasonLength: rejectionReason?.length || 0,
-      rejectionReasonTrimmed: rejectionReason?.trim() || '',
-    });
-
-    if (targetStatus && rejectionReason.trim()) {
-      console.log('🚀 Calling handleStatusChange from rejection confirm');
-      handleStatusChange(targetStatus, rejectionReason.trim());
-    } else {
-      if (!targetStatus) {
-        console.warn('⚠️ Target status is not set');
-      }
-      if (!rejectionReason.trim()) {
-        console.warn('⚠️ Rejection reason is empty or whitespace only');
-      }
-    }
+  const onStatusButtonClick = () => {
+    setShowStatusModal(true);
   };
 
   // Branch Manager için izin verilen status geçişleri
   const canBranchManagerChangeStatus = (currentStatus: string, newStatus: string): boolean => {
+    // Branch manager aktif kullanıcıların durumunu değiştiremez
+    if (currentStatus === 'active') {
+      return false;
+    }
+    
+    // Aktif olmayan tüm durumlarda değişiklik yapabilir
     if (currentStatus === 'pending_branch_review') {
       return newStatus === 'active' || newStatus === 'rejected' || newStatus === 'pending_details';
+    }
+    if (currentStatus === 'pending_details') {
+      return newStatus === 'pending_branch_review' || newStatus === 'active' || newStatus === 'rejected';
+    }
+    if (currentStatus === 'rejected') {
+      return newStatus === 'pending_details' || newStatus === 'pending_branch_review' || newStatus === 'active';
     }
     return false;
   };
@@ -726,8 +521,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
   const canChangeStatus = (newStatus: string): boolean => {
     if (!user || !currentUser) return false;
     
-    if (currentUser.role === 'admin') {
-      return true; // Admin her şeyi yapabilir
+    if (currentUser.role === 'superadmin' || currentUser.role === 'admin') {
+      return true; // Superadmin ve Admin her şeyi yapabilir
     }
     
     if (currentUser.role === 'branch_manager') {
@@ -991,7 +786,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
               /* Logs Tab */
               <>
                 {/* Status Yönetimi - Kompakt Tasarım */}
-                {user && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'branch_manager') && (
+                {user && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || 
+                  (currentUser?.role === 'branch_manager' && (user.status === 'pending_branch_review' || user.status === 'pending_details'))) && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1000,46 +796,15 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                           {getStatusLabel(user.status)}
                         </span>
                         <span className="text-xs text-gray-400">→</span>
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              onStatusButtonClick(e.target.value);
-                              e.target.value = '';
-                            }
-                          }}
-                          disabled={updatingStatus || uploadingPdf}
-                          className="text-xs border border-gray-300 rounded-md px-2.5 py-1 bg-white focus:ring-2 focus:ring-slate-500 focus:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          defaultValue=""
+                        <button
+                          onClick={onStatusButtonClick}
+                          className="text-xs border border-gray-300 rounded-md px-2.5 py-1 bg-white hover:bg-gray-50 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors"
                         >
-                          <option value="">Durum Değiştir...</option>
-                          {/* Branch Manager Seçenekleri */}
-                          {currentUser?.role === 'branch_manager' && user.status === 'pending_branch_review' && (
-                            <>
-                              <option value="active">Onayla (Belge Yükle)</option>
-                              <option value="rejected">Reddet</option>
-                              <option value="pending_details">Veri Doldurmaya Geri Gönder</option>
-                            </>
-                          )}
-                          {/* Admin / Superadmin Seçenekleri */}
-                          {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
-                            <>
-                              {user.status !== 'active' && canChangeStatus('active') && (
-                                <option value="active">Onayla (Aktif)</option>
-                              )}
-                              {user.status !== 'rejected' && canChangeStatus('rejected') && (
-                                <option value="rejected">Reddet</option>
-                              )}
-                              {user.status !== 'pending_details' && canChangeStatus('pending_details') && (
-                                <option value="pending_details">Detaylar Bekleniyor</option>
-                              )}
-                              {user.status !== 'pending_branch_review' && canChangeStatus('pending_branch_review') && (
-                                <option value="pending_branch_review">Şube İncelemesi</option>
-                              )}
-                            </>
-                          )}
-                        </select>
+                          Durum Değiştir...
+                        </button>
                       </div>
-                      {updatingStatus && (
+                      <div className="h-4" />
+                      {false && (
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-slate-600"></div>
                           <span>Güncelleniyor...</span>
@@ -1104,6 +869,25 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                               {getPerformerLabel(log)}
                             </div>
                             
+                            {/* Field Changes - user_update için */}
+                            {log.action === 'user_update' && log.metadata?.fieldChanges && Object.keys(log.metadata.fieldChanges).length > 0 && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
+                                <div className="text-xs font-medium text-blue-800 mb-1.5">Güncellenen Alanlar:</div>
+                                <div className="space-y-1">
+                                  {Object.entries(log.metadata.fieldChanges).map(([field, changes]) => (
+                                    <div key={field} className="text-xs text-gray-700">
+                                      <span className="font-medium text-gray-900">{getFieldLabel(field)}:</span>
+                                      <div className="ml-2 mt-0.5 flex items-center gap-1.5">
+                                        <span className="text-red-600 line-through">{formatFieldValue(field, changes.oldValue)}</span>
+                                        <ArrowRight className="w-3 h-3 text-gray-400" />
+                                        <span className="text-green-600 font-medium">{formatFieldValue(field, changes.newValue)}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
                             {/* Note - Sadece varsa göster, kompakt */}
                             {log.note && (
                               <div className="mt-1.5 text-xs text-gray-600 italic">
@@ -1111,17 +895,32 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                               </div>
                             )}
                             
-                            {/* PDF Link - Kompakt */}
-                            {log.documentUrl && (
-                              <a
-                                href={log.documentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-1.5 inline-flex items-center gap-1 text-xs text-slate-700 hover:text-slate-800"
-                              >
-                                <File className="w-3 h-3" />
-                                <span>PDF Görüntüle</span>
-                              </a>
+                            {/* PDF Links - Kompakt */}
+                            {(log.documentUrl || log.previousDocumentUrl) && (
+                              <div className="mt-2 space-y-1">
+                                {log.previousDocumentUrl && (
+                                  <a
+                                    href={log.previousDocumentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                                  >
+                                    <File className="w-3 h-3" />
+                                    <span>Eski PDF</span>
+                                  </a>
+                                )}
+                                {log.documentUrl && (
+                                  <a
+                                    href={log.documentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-slate-700 hover:text-slate-800 ml-3"
+                                  >
+                                    <File className="w-3 h-3" />
+                                    <span>{log.previousDocumentUrl ? 'Yeni PDF' : 'PDF Görüntüle'}</span>
+                                  </a>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1172,190 +971,14 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
             </div>
           )}
 
-          {/* Rejection Reason Modal */}
-          {showRejectionModal && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Reddetme Nedeni</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Kullanıcıyı reddetmek için bir neden belirtmeniz gerekmektedir.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reddetme Nedeni <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Reddetme nedenini yazın..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowRejectionModal(false);
-                      setRejectionReason('');
-                      setNote('');
-                      setTargetStatus(null);
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    İptal
-                  </button>
-                  <button
-                    onClick={onRejectionConfirm}
-                    disabled={!rejectionReason.trim() || updatingStatus}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Reddet
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PDF Upload Modal */}
-          {showPdfUploadModal && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <File className="w-5 h-5 text-slate-700" />
-                  PDF Belgesi Yükle <span className="text-red-500">*</span>
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Admin onayına göndermek için PDF belgesi yüklemek zorunludur.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Belge Seç (PDF) <span className="text-red-500">* Zorunlu</span>
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <Upload className="w-4 h-4" />
-                        <span>{uploadingPdf ? 'Yükleniyor...' : 'Dosya Seç'}</span>
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          className="hidden"
-                          disabled={uploadingPdf}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && file.type === 'application/pdf') {
-                              setPdfFile(file);
-                              setPdfUrl(null);
-                              setError(null);
-                            } else {
-                              setError('Lütfen geçerli bir PDF dosyası seçin');
-                              setPdfFile(null);
-                            }
-                          }}
-                        />
-                      </label>
-                      {pdfFile && (
-                        <span className="text-sm text-gray-600 flex items-center gap-2">
-                          <File className="w-4 h-4" />
-                          {pdfFile.name}
-                        </span>
-                      )}
-                    </div>
-                    {!pdfFile && (
-                      <p className="text-xs text-red-500 mt-2">
-                        Lütfen PDF belgesi seçin
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Note input ekle */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Not (Opsiyonel)
-                    </label>
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="İşlem hakkında not ekleyin..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowPdfUploadModal(false);
-                      setPdfFile(null);
-                      setPdfUrl(null);
-                      setTargetStatus(null);
-                      setNote('');
-                      setError(null);
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    İptal
-                  </button>
-                  <button
-                    onClick={onPdfUploadConfirm}
-                    disabled={!pdfFile || updatingStatus || uploadingPdf}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {uploadingPdf ? 'Yükleniyor...' : 'Yükle ve Gönder'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Status Change Modal */}
-          {showStatusChangeModal && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Durum Değiştir</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Durumu <strong>{targetStatus && getStatusLabel(targetStatus)}</strong> olarak değiştirmek üzeresiniz.
-                </p>
-                
-                {/* Note input ekle */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Not (Opsiyonel)
-                  </label>
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="İşlem hakkında not ekleyin..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowStatusChangeModal(false);
-                      setTargetStatus(null);
-                      setNote('');
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    İptal
-                  </button>
-                  <button
-                    onClick={onStatusChangeConfirm}
-                    disabled={updatingStatus}
-                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Onayla
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Status Modal */}
+          <UserStatusModal
+            userId={userId}
+            currentStatus={user?.status || ''}
+            isOpen={showStatusModal}
+            onClose={() => setShowStatusModal(false)}
+            onSuccess={handleStatusSuccess}
+          />
         </div>
       </div>
     </div>

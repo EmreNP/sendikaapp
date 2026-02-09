@@ -16,6 +16,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [branchName, setBranchName] = useState<string>('');
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
 
   // Form fields - Basic
@@ -67,6 +68,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
 
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
         fetchBranches();
+      } else if (currentUser?.branchId) {
+        // Branch manager: fetch only their branch name for display
+        fetchBranchById(currentUser.branchId);
       }
     }
   }, [isOpen]);
@@ -77,6 +81,26 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       setBranches(data.branches || []);
     } catch (err: any) {
       console.error('Error fetching branches:', err);
+    }
+  };
+
+  const fetchBranchById = async (id?: string) => {
+    if (!id) return;
+    // If we already have it, set name and return
+    const existing = branches.find(b => b.id === id);
+    if (existing) {
+      setBranchName(existing.name);
+      return;
+    }
+
+    try {
+      const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${id}`);
+      if (data?.branch) {
+        setBranchName(data.branch.name || '');
+        setBranches(prev => [...prev, data.branch]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching single branch:', err);
     }
   };
 
@@ -410,7 +434,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       </select>
                     ) : (
                       <div className="px-3 py-2 bg-gray-100 rounded-lg">
-                        {branches.find(b => b.id === currentUser?.branchId)?.name || currentUser?.branchId || '-'}
+                        {branchName || branches.find(b => b.id === currentUser?.branchId)?.name || currentUser?.branchId || '-'}
                       </div>
                     )}
                   </div>
