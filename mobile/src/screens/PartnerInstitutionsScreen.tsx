@@ -1,0 +1,391 @@
+// Partner Institutions Screen - Front/React Birebir Çevirisi
+// front/src/components/PartnerInstitutionsPage.tsx'den birebir
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { partners, getCategories, Partner } from '../data/partners';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+type PartnerInstitutionsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PartnerInstitutions'>;
+
+interface PartnerInstitutionsScreenProps {
+  navigation: PartnerInstitutionsScreenNavigationProp;
+}
+
+export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps> = ({ navigation }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Tümü');
+
+  const categories = useMemo(() => getCategories(), []);
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter((partner) => {
+      const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'Tümü' || partner.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory]);
+
+  const handlePartnerSelect = (partner: Partner) => {
+    navigation.navigate('PartnerDetail' as any, { partner });
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header - Front: bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 */}
+        <LinearGradient
+          colors={['#1e3a8a', '#1e40af', '#312e81']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.header}
+        >
+          {/* Decorative elements */}
+          <View style={styles.headerDecor1} />
+          <View style={styles.headerDecor2} />
+
+          {/* Back Button + Title */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Feather name="arrow-left" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Anlaşmalı Kurumlar</Text>
+          </View>
+
+          {/* Search Bar - Front birebir */}
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={20} color="#bfdbfe" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Kurum ara..."
+              placeholderTextColor="#bfdbfe"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+          </View>
+        </LinearGradient>
+
+        {/* Main Content - offset from header */}
+        <View style={styles.mainContent}>
+          {/* Categories - Front: flex gap-2 overflow-x-auto */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContent}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.categoryButtonSelected,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    selectedCategory === category && styles.categoryTextSelected,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Partners Grid - Front: grid grid-cols-1 sm:grid-cols-2 gap-4 */}
+          <View style={styles.partnersGrid}>
+            {filteredPartners.map((partner) => (
+              <TouchableOpacity
+                key={partner.id}
+                style={styles.partnerCard}
+                onPress={() => handlePartnerSelect(partner)}
+                activeOpacity={0.95}
+              >
+                {/* Image Container */}
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: partner.logoUrl }}
+                    style={styles.partnerImage}
+                    resizeMode="cover"
+                  />
+                  {/* Discount Badge */}
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>{partner.discountRate}</Text>
+                  </View>
+                </View>
+
+                {/* Content */}
+                <View style={styles.cardContent}>
+                  {/* Category Badge */}
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{partner.category}</Text>
+                  </View>
+
+                  {/* Name */}
+                  <Text style={styles.partnerName}>{partner.name}</Text>
+
+                  {/* Description */}
+                  <Text style={styles.partnerDescription} numberOfLines={2}>
+                    {partner.shortDescription}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Empty State */}
+            {filteredPartners.length === 0 && (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Feather name="briefcase" size={32} color="#94a3b8" />
+                </View>
+                <Text style={styles.emptyText}>
+                  Arama kriterlerine uygun kurum bulunamadı.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc', // Front: bg-slate-50
+  },
+  // Header - Front birebir
+  header: {
+    paddingTop: 48,
+    paddingBottom: 96, // Extra space for overlap
+    paddingHorizontal: 24,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerDecor1: {
+    position: 'absolute',
+    top: -32,
+    right: -32,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  headerDecor2: {
+    position: 'absolute',
+    bottom: -24,
+    left: -24,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(96,165,250,0.1)',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  // Search - Front birebir
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#ffffff',
+  },
+  // Main Content - overlapping header
+  mainContent: {
+    marginTop: -64,
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+  // Categories - Front birebir
+  categoriesScroll: {
+    marginBottom: 16,
+  },
+  categoriesContent: {
+    gap: 8,
+  },
+  categoryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  categoryButtonSelected: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+    borderColor: 'rgba(30,58,138,0.1)',
+    transform: [{ scale: 1.05 }],
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  categoryTextSelected: {
+    color: '#1e3a8a',
+    fontWeight: '600',
+  },
+  // Partners Grid
+  partnersGrid: {
+    gap: 16,
+  },
+  partnerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    marginBottom: 16,
+  },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f1f5f9',
+    margin: 8,
+    marginBottom: 0,
+    position: 'relative',
+  },
+  partnerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  discountText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1d4ed8',
+  },
+  cardContent: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  categoryBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  partnerName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  partnerDescription: {
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 20,
+  },
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+});

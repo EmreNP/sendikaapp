@@ -3,9 +3,9 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, FONT_SIZE } from '../constants/theme';
 import type { RootStackParamList, MainTabParamList } from '../types';
 
 // Import Screens
@@ -25,14 +25,23 @@ import {
   MembershipScreen,
   PendingApprovalScreen,
   RejectedScreen,
+  ProfileScreen,
+  MuktesepScreen,
+  DistrictRepresentativeScreen,
+  PartnerInstitutionsScreen,
+  PartnerDetailScreen,
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// Tab Bar Icon Component
-const TabIcon = ({ icon, focused }: { icon: string; focused: boolean }) => (
-  <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>{icon}</Text>
+// Tab Bar Icon Component - Feather icons (Frontend BottomNavigation.tsx ile birebir)
+const TabIcon = ({ name, focused }: { name: keyof typeof Feather.glyphMap; focused: boolean }) => (
+  <Feather 
+    name={name} 
+    size={24} 
+    color={focused ? '#2563eb' : '#64748b'} 
+  />
 );
 
 // Main Tab Navigator
@@ -42,8 +51,8 @@ const MainTabs = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: '#2563eb', // blue-600 (frontend ile aynı)
+        tabBarInactiveTintColor: '#64748b', // gray-500
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
@@ -52,7 +61,7 @@ const MainTabs = () => {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Ana Sayfa',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -60,7 +69,7 @@ const MainTabs = () => {
         component={CoursesScreen}
         options={{
           tabBarLabel: 'Eğitimler',
-          tabBarIcon: ({ focused }) => <TabIcon icon="📚" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="book-open" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -68,7 +77,7 @@ const MainTabs = () => {
         component={BranchesScreen}
         options={{
           tabBarLabel: 'Şubeler',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏢" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="map-pin" focused={focused} />,
         }}
       />
     </Tab.Navigator>
@@ -78,7 +87,7 @@ const MainTabs = () => {
 // Loading Screen
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={COLORS.primary} />
+    <ActivityIndicator size="large" color="#4338ca" />
   </View>
 );
 
@@ -100,7 +109,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
-        ) : status === 'pending_approval' ? (
+        ) : (status === 'pending_details' || status === 'pending_branch_review' || status === 'pending_admin_approval') ? (
           // Pending Approval
           <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
         ) : status === 'rejected' ? (
@@ -117,6 +126,11 @@ export const AppNavigator = () => {
             <Stack.Screen name="AllAnnouncements" component={AllAnnouncementsScreen} />
             <Stack.Screen name="Contact" component={ContactScreen} />
             <Stack.Screen name="Membership" component={MembershipScreen} />
+            <Stack.Screen name="Muktesep" component={MuktesepScreen} />
+            <Stack.Screen name="DistrictRepresentative" component={DistrictRepresentativeScreen} />
+            <Stack.Screen name="PartnerInstitutions" component={PartnerInstitutionsScreen} />
+            <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
           </>
         )}
       </Stack.Navigator>
@@ -129,25 +143,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   tabBar: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(255,255,255,0.9)', // bg-white/90
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    height: 60,
+    borderTopColor: 'rgba(229,231,235,0.6)', // gray-200/60
+    height: 64, // h-16
     paddingBottom: 8,
     paddingTop: 8,
+    shadowColor: '#1e40af', // blue-900/10
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   tabLabel: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 12,
     fontWeight: '500',
-  },
-  tabIcon: {
-    fontSize: 24,
-    opacity: 0.6,
-  },
-  tabIconFocused: {
-    opacity: 1,
+    marginTop: 4,
   },
 });

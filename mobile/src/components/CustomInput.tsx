@@ -18,6 +18,7 @@ interface CustomInputProps extends TextInputProps {
   icon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   containerStyle?: ViewStyle;
+  hint?: string; // Yardımcı açıklama metni
 }
 
 export const CustomInput: React.FC<CustomInputProps> = ({
@@ -28,6 +29,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   rightIcon,
   containerStyle,
   secureTextEntry,
+  hint,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -46,13 +48,13 @@ export const CustomInput: React.FC<CustomInputProps> = ({
       <View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
-          error && styles.inputContainerError,
+          isFocused ? styles.inputContainerFocused : null,
+          error ? styles.inputContainerError : null,
         ]}
       >
         {icon && <View style={styles.iconLeft}>{icon}</View>}
         <TextInput
-          style={[styles.input, icon && styles.inputWithIcon]}
+          style={[styles.input, icon ? styles.inputWithIcon : null]}
           placeholderTextColor={COLORS.textLight}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -69,6 +71,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
         )}
         {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
       </View>
+      {hint && <Text style={styles.hint}>{hint}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
@@ -120,6 +123,12 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     fontSize: 20,
+  },
+  hint: {
+    fontSize: FONT_SIZE.xs,
+    color: '#64748b',
+    marginTop: SPACING.xs,
+    fontStyle: 'italic',
   },
   error: {
     fontSize: FONT_SIZE.xs,

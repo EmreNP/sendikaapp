@@ -11,8 +11,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
+import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, News } from '../types';
 
@@ -68,17 +69,32 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.featuredImage} />
           ) : (
-            <View style={[styles.featuredImage, styles.placeholderImage]}>
-              <Text style={styles.placeholderEmoji}>📰</Text>
-            </View>
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              style={[styles.featuredImage, styles.placeholderImage]}
+            >
+              <Feather name="file-text" size={48} color="rgba(255,255,255,0.6)" />
+            </LinearGradient>
           )}
-          <View style={styles.featuredOverlay}>
-            <View style={styles.featuredBadge}>
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.featuredOverlay}
+          >
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.featuredBadge}
+            >
+              <Feather name="star" size={10} color="#ffffff" />
               <Text style={styles.featuredBadgeText}>ÖNE ÇIKAN</Text>
-            </View>
+            </LinearGradient>
             <Text style={styles.featuredTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.featuredDate}>{formatDate(item.createdAt)}</Text>
-          </View>
+            <View style={styles.featuredMeta}>
+              <Feather name="calendar" size={12} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.featuredDate}>{formatDate(item.createdAt || '')}</Text>
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
       );
     }
@@ -92,16 +108,25 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={styles.newsImage} />
         ) : (
-          <View style={[styles.newsImage, styles.smallPlaceholder]}>
-            <Text style={styles.smallPlaceholderEmoji}>📰</Text>
-          </View>
+          <LinearGradient
+            colors={['#4338ca', '#312e81']}
+            style={[styles.newsImage, styles.smallPlaceholder]}
+          >
+            <Feather name="file-text" size={24} color="rgba(255,255,255,0.6)" />
+          </LinearGradient>
         )}
         <View style={styles.newsContent}>
           <Text style={styles.newsTitle} numberOfLines={2}>{item.title}</Text>
           {item.summary && (
             <Text style={styles.newsSummary} numberOfLines={2}>{item.summary}</Text>
           )}
-          <Text style={styles.newsDate}>{formatDate(item.createdAt)}</Text>
+          <View style={styles.newsDateRow}>
+            <Feather name="clock" size={12} color="#94a3b8" />
+            <Text style={styles.newsDate}>{formatDate(item.createdAt || '')}</Text>
+          </View>
+        </View>
+        <View style={styles.newsArrow}>
+          <Feather name="chevron-right" size={20} color="#94a3b8" />
         </View>
       </TouchableOpacity>
     );
@@ -110,18 +135,23 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
+        <LinearGradient
+          colors={['#0f172a', '#312e81', '#4338ca']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Feather name="arrow-left" size={24} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Haberler</Text>
           <View style={{ width: 40 }} />
-        </View>
+        </LinearGradient>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
@@ -129,16 +159,21 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#0f172a', '#312e81', '#4338ca']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Feather name="arrow-left" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Haberler</Text>
         <View style={{ width: 40 }} />
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={news}
@@ -147,11 +182,13 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📰</Text>
+            <View style={styles.emptyIconContainer}>
+              <Feather name="file-text" size={48} color="#4338ca" />
+            </View>
             <Text style={styles.emptyTitle}>Henüz Haber Yok</Text>
             <Text style={styles.emptyText}>
               Yeni haberler eklendiğinde burada görünecektir.
@@ -166,31 +203,27 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
-  header: {
+  headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: COLORS.text,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 20,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#ffffff',
   },
   loadingContainer: {
     flex: 1,
@@ -198,13 +231,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: SPACING.lg,
+    padding: 16,
   },
   featuredCard: {
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: SPACING.lg,
-    ...SHADOW.md,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   featuredImage: {
     width: '100%',
@@ -212,105 +249,124 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   placeholderImage: {
-    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  placeholderEmoji: {
-    fontSize: 64,
   },
   featuredOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: SPACING.lg,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 20,
+    paddingTop: 60,
   },
   featuredBadge: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignSelf: 'flex-start',
-    marginBottom: SPACING.sm,
+    marginBottom: 10,
+    gap: 4,
   },
   featuredBadgeText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 10,
     fontWeight: 'bold',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
   featuredTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.textWhite,
-    marginBottom: SPACING.xs,
+    color: '#ffffff',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  featuredMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   featuredDate: {
-    fontSize: FONT_SIZE.xs,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
   },
   newsCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
-    ...SHADOW.sm,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   newsImage: {
-    width: 120,
+    width: 110,
     height: 100,
     resizeMode: 'cover',
   },
   smallPlaceholder: {
-    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  smallPlaceholderEmoji: {
-    fontSize: 32,
-  },
   newsContent: {
     flex: 1,
-    padding: SPACING.sm,
+    padding: 12,
     justifyContent: 'space-between',
   },
   newsTitle: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#0f172a',
     marginBottom: 4,
+    lineHeight: 20,
   },
   newsSummary: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748b',
     lineHeight: 18,
     marginBottom: 4,
   },
+  newsDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   newsDate: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textLight,
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  newsArrow: {
+    justifyContent: 'center',
+    paddingRight: 12,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: 60,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
   },
 });

@@ -1,4 +1,4 @@
-// Branches Screen - Branch List
+// Branches Screen - Branch List - Redesigned to match front web design
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import { Feather } from '@expo/vector-icons';
+import ApiService from '../services/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -73,34 +74,47 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
     <TouchableOpacity
       style={styles.branchCard}
       onPress={() => navigation.navigate('BranchDetail', { branchId: item.id })}
-      activeOpacity={0.7}
+      activeOpacity={0.9}
     >
       <View style={styles.branchHeader}>
-        <View style={styles.branchIcon}>
-          <Text style={styles.branchEmoji}>🏢</Text>
-        </View>
+        <LinearGradient
+          colors={['#2563eb', '#1d4ed8']}
+          style={styles.branchIcon}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Feather name="home" size={24} color="#ffffff" />
+        </LinearGradient>
         <View style={styles.branchInfo}>
-          <Text style={styles.branchName}>{item.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.branchName}>{item.name}</Text>
+            {(item as any).isMainBranch && (
+              <View style={styles.mainBadge}>
+                <Feather name="star" size={10} color="#ffffff" style={{ marginRight: 3 }} />
+                <Text style={styles.mainBadgeText}>Merkez</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.locationRow}>
-            <Text style={styles.locationIcon}>📍</Text>
+            <Feather name="map-pin" size={14} color="#64748b" />
             <Text style={styles.locationText}>
-              {item.city || 'Konum belirtilmemiş'}
+              {item.district || item.city || 'Konum belirtilmemiş'}
             </Text>
           </View>
         </View>
-        <Text style={styles.arrowIcon}>→</Text>
+        <Feather name="navigation" size={18} color="#94a3b8" />
       </View>
       
       <View style={styles.branchDetails}>
         {item.phone && (
           <View style={styles.detailItem}>
-            <Text style={styles.detailIcon}>📞</Text>
+            <Feather name="phone" size={14} color="#64748b" />
             <Text style={styles.detailText}>{item.phone}</Text>
           </View>
         )}
         {item.email && (
           <View style={styles.detailItem}>
-            <Text style={styles.detailIcon}>✉️</Text>
+            <Feather name="mail" size={14} color="#64748b" />
             <Text style={styles.detailText} numberOfLines={1}>{item.email}</Text>
           </View>
         )}
@@ -108,6 +122,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
 
       {item.memberCount !== undefined && (
         <View style={styles.memberBadge}>
+          <Feather name="users" size={12} color="#059669" style={{ marginRight: 4 }} />
           <Text style={styles.memberBadgeText}>
             {item.memberCount} Üye
           </Text>
@@ -119,11 +134,17 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Şubeler</Text>
-        </View>
+        <LinearGradient
+          colors={['#2563eb', '#1d4ed8']}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Text style={styles.headerTitle}>Şubelerimiz</Text>
+        </LinearGradient>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Şubeler yükleniyor...</Text>
         </View>
       </SafeAreaView>
     );
@@ -131,29 +152,33 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Şubeler</Text>
-        <Text style={styles.headerSubtitle}>{branches.length} şube mevcut</Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={['#2563eb', '#1d4ed8']}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={styles.headerTitle}>Şubelerimiz</Text>
+        <Text style={styles.headerSubtitle}>{branches.length} şube ve temsilcilik</Text>
+        
+        {/* Search Bar */}
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Feather name="search" size={16} color="#94a3b8" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Şube veya şehir ara..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholder="Şube veya ilçe ara..."
+            placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearIcon}>✕</Text>
+              <Feather name="x" size={18} color="#64748b" />
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={filteredBranches}
@@ -162,17 +187,19 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🏢</Text>
+            <View style={styles.emptyIconContainer}>
+              <Feather name="map-pin" size={48} color="#cbd5e1" />
+            </View>
             <Text style={styles.emptyTitle}>
               {searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
             </Text>
             <Text style={styles.emptyText}>
               {searchQuery
-                ? 'Farklı bir arama terimi deneyin.'
+                ? 'Aradığınız kriterlere uygun şube bulunamadı.'
                 : 'Şubeler eklendiğinde burada görünecektir.'}
             </Text>
           </View>
@@ -185,65 +212,67 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+  headerGradient: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+    color: 'rgba(219, 234, 254, 1)',
+    marginTop: 4,
+    marginBottom: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchContainer: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
     height: 44,
-    ...SHADOW.sm,
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: SPACING.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.text,
-  },
-  clearIcon: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    padding: SPACING.xs,
+    fontSize: 15,
+    color: '#0f172a',
   },
   listContent: {
-    padding: SPACING.lg,
+    padding: 16,
   },
   branchCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    ...SHADOW.sm,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   branchHeader: {
     flexDirection: 'row',
@@ -253,92 +282,100 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: COLORS.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
-  },
-  branchEmoji: {
-    fontSize: 24,
+    marginRight: 12,
   },
   branchInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
   branchName: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  mainBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  mainBadgeText: {
+    fontSize: 11,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 2,
+    color: '#ffffff',
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  locationIcon: {
-    fontSize: 12,
-    marginRight: 4,
+    gap: 4,
   },
   locationText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-  },
-  arrowIcon: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
+    marginLeft: 4,
   },
   branchDetails: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: '#f1f5f9',
+    gap: 6,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailIcon: {
-    fontSize: 14,
-    marginRight: SPACING.sm,
   },
   detailText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 13,
+    color: '#64748b',
     flex: 1,
+    marginLeft: 8,
   },
   memberBadge: {
     position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-    backgroundColor: COLORS.success + '20',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(236, 253, 245, 1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
   memberBadgeText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.success,
+    fontSize: 12,
+    color: '#059669',
     fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: 60,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  emptyIconContainer: {
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });

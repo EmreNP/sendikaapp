@@ -11,8 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
+import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, Branch } from '../types';
@@ -72,7 +73,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
@@ -82,13 +83,23 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>❌</Text>
+          <View style={styles.errorIconContainer}>
+            <Feather name="alert-circle" size={48} color="#ef4444" />
+          </View>
           <Text style={styles.errorText}>Şube bulunamadı</Text>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.backButtonError}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>Geri Dön</Text>
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.backButtonGradient}
+            >
+              <Feather name="arrow-left" size={18} color="#ffffff" />
+              <Text style={styles.backButtonTextError}>Geri Dön</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -98,16 +109,21 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#0f172a', '#312e81', '#4338ca']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
         <TouchableOpacity
-          style={styles.backIconButton}
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backIconText}>←</Text>
+          <Feather name="arrow-left" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Şube Detayı</Text>
         <View style={{ width: 40 }} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -115,13 +131,16 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
       >
         {/* Branch Card */}
         <View style={styles.branchCard}>
-          <View style={styles.branchIcon}>
-            <Text style={styles.branchEmoji}>🏢</Text>
-          </View>
+          <LinearGradient
+            colors={['#4338ca', '#1e40af']}
+            style={styles.branchIcon}
+          >
+            <Feather name="briefcase" size={32} color="#ffffff" />
+          </LinearGradient>
           <Text style={styles.branchName}>{branch.name}</Text>
           {branch.city && (
             <View style={styles.locationBadge}>
-              <Text style={styles.locationIcon}>📍</Text>
+              <Feather name="map-pin" size={14} color="#4338ca" />
               <Text style={styles.locationText}>{branch.city}</Text>
             </View>
           )}
@@ -135,7 +154,12 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
               onPress={handleCall}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionIcon}>📞</Text>
+              <LinearGradient
+                colors={['#22c55e', '#16a34a']}
+                style={styles.actionIconContainer}
+              >
+                <Feather name="phone" size={20} color="#ffffff" />
+              </LinearGradient>
               <Text style={styles.actionText}>Ara</Text>
             </TouchableOpacity>
           )}
@@ -145,7 +169,12 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
               onPress={handleEmail}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionIcon}>✉️</Text>
+              <LinearGradient
+                colors={['#4338ca', '#1e40af']}
+                style={styles.actionIconContainer}
+              >
+                <Feather name="mail" size={20} color="#ffffff" />
+              </LinearGradient>
               <Text style={styles.actionText}>E-posta</Text>
             </TouchableOpacity>
           )}
@@ -155,7 +184,12 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
               onPress={handleMap}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionIcon}>🗺️</Text>
+              <LinearGradient
+                colors={['#f59e0b', '#d97706']}
+                style={styles.actionIconContainer}
+              >
+                <Feather name="map" size={20} color="#ffffff" />
+              </LinearGradient>
               <Text style={styles.actionText}>Harita</Text>
             </TouchableOpacity>
           )}
@@ -168,7 +202,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
           {branch.phone && (
             <View style={styles.infoItem}>
               <View style={styles.infoIcon}>
-                <Text style={styles.infoEmoji}>📞</Text>
+                <Feather name="phone" size={18} color="#4338ca" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Telefon</Text>
@@ -180,7 +214,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
           {branch.email && (
             <View style={styles.infoItem}>
               <View style={styles.infoIcon}>
-                <Text style={styles.infoEmoji}>✉️</Text>
+                <Feather name="mail" size={18} color="#4338ca" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>E-posta</Text>
@@ -192,7 +226,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
           {branch.address && (
             <View style={styles.infoItem}>
               <View style={styles.infoIcon}>
-                <Text style={styles.infoEmoji}>📍</Text>
+                <Feather name="map-pin" size={18} color="#4338ca" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Adres</Text>
@@ -207,19 +241,15 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>İstatistikler</Text>
             <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
+              <LinearGradient
+                colors={['rgba(67, 56, 202, 0.1)', 'rgba(30, 64, 175, 0.1)']}
+                style={styles.statItem}
+              >
+                <Feather name="users" size={24} color="#4338ca" />
                 <Text style={styles.statValue}>{branch.memberCount}</Text>
                 <Text style={styles.statLabel}>Toplam Üye</Text>
-              </View>
+              </LinearGradient>
             </View>
-          </View>
-        )}
-
-        {/* Description */}
-        {branch.description && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Hakkında</Text>
-            <Text style={styles.description}>{branch.description}</Text>
           </View>
         )}
       </ScrollView>
@@ -230,7 +260,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -241,163 +271,177 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: 32,
   },
-  errorEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  errorIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   errorText: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.text,
-    marginBottom: SPACING.lg,
+    fontSize: 18,
+    color: '#0f172a',
+    marginBottom: 24,
   },
-  backButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+  backButtonError: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  backButtonText: {
-    fontSize: FONT_SIZE.md,
+  backButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  backButtonTextError: {
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
-  header: {
+  headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  backIconButton: {
+  backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backIconText: {
-    fontSize: 24,
-    color: COLORS.text,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 20,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#ffffff',
   },
   scrollContent: {
-    padding: SPACING.lg,
+    padding: 16,
   },
   branchCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xl,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    marginBottom: SPACING.lg,
-    ...SHADOW.md,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   branchIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary + '20',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  branchEmoji: {
-    fontSize: 36,
+    marginBottom: 16,
   },
   branchName: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#0f172a',
     textAlign: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   locationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  locationIcon: {
-    fontSize: 14,
-    marginRight: 4,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
   },
   locationText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#4338ca',
+    fontWeight: '500',
   },
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: 16,
+    gap: 12,
   },
   actionButton: {
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    marginHorizontal: SPACING.xs,
-    minWidth: 80,
-    ...SHADOW.sm,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 16,
+    minWidth: 90,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   actionText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
+    fontSize: 12,
+    color: '#0f172a',
     fontWeight: '500',
   },
   section: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    ...SHADOW.sm,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
+    color: '#0f172a',
+    marginBottom: 16,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: SPACING.md,
+    marginBottom: 14,
   },
   infoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
-  },
-  infoEmoji: {
-    fontSize: 18,
+    marginRight: 12,
   },
   infoContent: {
     flex: 1,
   },
   infoLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748b',
     marginBottom: 2,
   },
   infoValue: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -405,21 +449,24 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    borderRadius: 16,
   },
   statValue: {
-    fontSize: FONT_SIZE.xxl,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#4338ca',
+    marginTop: 8,
   },
   statLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     marginTop: 4,
   },
   description: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     lineHeight: 22,
   },
 });

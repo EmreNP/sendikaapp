@@ -1,4 +1,4 @@
-// Courses Screen - Training List
+// Courses Screen - Training List - Redesigned to match front web design
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,10 +10,11 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import ApiService from '../services/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,6 +28,15 @@ type CoursesScreenNavigationProp = CompositeNavigationProp<
 type CoursesScreenProps = {
   navigation: CoursesScreenNavigationProp;
 };
+
+// Color palette for training cards
+const colorPalette = [
+  { colors: ['#2563eb', '#1d4ed8'], light: '#eff6ff' },
+  { colors: ['#059669', '#047857'], light: '#ecfdf5' },
+  { colors: ['#d97706', '#b45309'], light: '#fffbeb' },
+  { colors: ['#7c3aed', '#6d28d9'], light: '#f5f3ff' },
+  { colors: ['#e11d48', '#be123c'], light: '#fff1f2' },
+];
 
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const { canAccessTrainings, isPendingDetails } = useAuth();
@@ -68,7 +78,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         </View>
         <View style={styles.lockedContainer}>
           <View style={styles.lockedIcon}>
-            <Text style={styles.lockedEmoji}>🔒</Text>
+            <Feather name="lock" size={48} color="#4338ca" />
           </View>
           <Text style={styles.lockedTitle}>Eğitimlere Erişim Kısıtlı</Text>
           <Text style={styles.lockedText}>
@@ -80,8 +90,17 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.membershipButton}
               onPress={() => navigation.navigate('Membership' as any)}
+              activeOpacity={0.9}
             >
-              <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
+              <LinearGradient
+                colors={['#4338ca', '#1e40af']}
+                style={styles.membershipButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Feather name="user-plus" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -96,50 +115,59 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
           <Text style={styles.headerTitle}>Eğitimler</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
   }
 
-  const renderTrainingItem = ({ item }: { item: Training }) => (
-    <TouchableOpacity
-      style={styles.trainingCard}
-      onPress={() => navigation.navigate('CourseDetail', { courseId: item.id })}
-      activeOpacity={0.7}
-    >
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
-      ) : (
-        <View style={[styles.trainingImage, styles.placeholderImage]}>
-          <Text style={styles.placeholderEmoji}>📚</Text>
-        </View>
-      )}
-      <View style={styles.trainingContent}>
-        <View style={styles.trainingBadge}>
-          <Text style={styles.trainingBadgeText}>
-            {item.lessonsCount || 0} Ders
+  const renderTrainingItem = ({ item, index }: { item: Training; index: number }) => {
+    const palette = colorPalette[index % colorPalette.length];
+    
+    return (
+      <TouchableOpacity
+        style={styles.trainingCard}
+        onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id })}
+        activeOpacity={0.9}
+      >
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
+        ) : (
+          <LinearGradient
+            colors={palette.colors as [string, string]}
+            style={[styles.trainingImage, styles.placeholderImage]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Feather name="book-open" size={48} color="rgba(255,255,255,0.9)" />
+          </LinearGradient>
+        )}
+        <View style={styles.trainingContent}>
+          <View style={[styles.trainingBadge, { backgroundColor: palette.light }]}>
+            <Text style={[styles.trainingBadgeText, { color: palette.colors[0] }]}>
+              {item.lessonsCount || 0} Ders
+            </Text>
+          </View>
+          <Text style={styles.trainingTitle} numberOfLines={2}>
+            {item.title}
           </Text>
-        </View>
-        <Text style={styles.trainingTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.trainingDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.trainingMeta}>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaIcon}>⏱️</Text>
-            <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaIcon}>👥</Text>
-            <Text style={styles.metaText}>{item.enrolledCount || 0} Katılımcı</Text>
+          <Text style={styles.trainingDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.trainingMeta}>
+            <View style={styles.metaItem}>
+              <Feather name="clock" size={14} color="#64748b" />
+              <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Feather name="users" size={14} color="#64748b" />
+              <Text style={styles.metaText}>{(item as any).enrolledCount || 0} Katılımcı</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -155,11 +183,13 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📚</Text>
+            <View style={styles.emptyIconContainer}>
+              <Feather name="book-open" size={48} color="#4338ca" />
+            </View>
             <Text style={styles.emptyTitle}>Henüz Eğitim Yok</Text>
             <Text style={styles.emptyText}>
               Yeni eğitimler eklendiğinde burada görünecektir.
@@ -174,23 +204,24 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#0f172a',
   },
   headerSubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -198,137 +229,140 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: SPACING.lg,
+    padding: 16,
   },
   trainingCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
-    ...SHADOW.md,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   trainingImage: {
     width: '100%',
-    height: 160,
+    height: 180,
     resizeMode: 'cover',
   },
   placeholderImage: {
-    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderEmoji: {
-    fontSize: 48,
-  },
   trainingContent: {
-    padding: SPACING.md,
+    padding: 16,
   },
   trainingBadge: {
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     alignSelf: 'flex-start',
-    marginBottom: SPACING.sm,
+    marginBottom: 10,
   },
   trainingBadgeText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.primary,
+    fontSize: 12,
     fontWeight: '600',
   },
   trainingTitle: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
+    color: '#0f172a',
+    marginBottom: 6,
   },
   trainingDescription: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     lineHeight: 20,
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   trainingMeta: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 12,
+    marginTop: 4,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SPACING.lg,
-  },
-  metaIcon: {
-    fontSize: 14,
-    marginRight: 4,
+    marginRight: 20,
   },
   metaText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748b',
+    marginLeft: 6,
   },
   lockedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: 32,
   },
   lockedIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.warning + '20',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  lockedEmoji: {
-    fontSize: 36,
+    marginBottom: 24,
   },
   lockedTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 12,
   },
   lockedText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   membershipButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  membershipButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
   membershipButtonText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: 60,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
   },
 });

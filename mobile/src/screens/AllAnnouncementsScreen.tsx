@@ -1,4 +1,4 @@
-// All Announcements Screen
+// All Announcements Screen - Redesigned to match front web design
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,9 +9,10 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import { Feather } from '@expo/vector-icons';
+import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Announcement } from '../types';
 
@@ -57,14 +58,14 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     });
   };
 
-  const getPriorityColor = (priority?: string) => {
+  const getPriorityColor = (priority?: string): [string, string] => {
     switch (priority) {
       case 'high':
-        return COLORS.error;
+        return ['#ef4444', '#dc2626'];
       case 'medium':
-        return COLORS.warning;
+        return ['#f59e0b', '#d97706'];
       default:
-        return COLORS.primary;
+        return ['#2563eb', '#1d4ed8'];
     }
   };
 
@@ -79,36 +80,60 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     }
   };
 
+  const getPriorityIcon = (priority?: string): 'alert-triangle' | 'alert-circle' | 'bell' => {
+    switch (priority) {
+      case 'high':
+        return 'alert-triangle';
+      case 'medium':
+        return 'alert-circle';
+      default:
+        return 'bell';
+    }
+  };
+
   const toggleAnnouncement = (id: string) => {
     setSelectedAnnouncement(selectedAnnouncement === id ? null : id);
   };
 
   const renderAnnouncementItem = ({ item }: { item: Announcement }) => {
     const isExpanded = selectedAnnouncement === item.id;
-    const priorityColor = getPriorityColor(item.priority);
+    const priorityColors = getPriorityColor(item.priority);
 
     return (
       <TouchableOpacity
         style={[styles.announcementCard, isExpanded && styles.announcementCardExpanded]}
         onPress={() => toggleAnnouncement(item.id)}
-        activeOpacity={0.7}
+        activeOpacity={0.9}
       >
         <View style={styles.cardHeader}>
-          <View style={[styles.priorityIndicator, { backgroundColor: priorityColor }]} />
+          <LinearGradient
+            colors={priorityColors}
+            style={styles.priorityIndicator}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
           <View style={styles.cardContent}>
             <View style={styles.cardTitleRow}>
               <Text style={styles.cardTitle} numberOfLines={isExpanded ? undefined : 2}>
                 {item.title}
               </Text>
-              <Text style={styles.expandIcon}>{isExpanded ? '▲' : '▼'}</Text>
+              <Feather 
+                name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                size={18} 
+                color="#94a3b8" 
+              />
             </View>
             <View style={styles.cardMeta}>
-              <View style={[styles.priorityBadge, { backgroundColor: priorityColor + '20' }]}>
-                <Text style={[styles.priorityText, { color: priorityColor }]}>
+              <View style={[styles.priorityBadge, { backgroundColor: priorityColors[0] + '15' }]}>
+                <Feather name={getPriorityIcon(item.priority)} size={12} color={priorityColors[0]} style={{ marginRight: 4 }} />
+                <Text style={[styles.priorityText, { color: priorityColors[0] }]}>
                   {getPriorityLabel(item.priority)}
                 </Text>
               </View>
-              <Text style={styles.cardDate}>{formatDate(item.createdAt)}</Text>
+              <View style={styles.dateContainer}>
+                <Feather name="calendar" size={12} color="#64748b" style={{ marginRight: 4 }} />
+                <Text style={styles.cardDate}>{formatDate(item.createdAt || '')}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -125,18 +150,24 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
+        <LinearGradient
+          colors={['#4f46e5', '#4338ca']}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Feather name="arrow-left" size={24} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Duyurular</Text>
           <View style={{ width: 40 }} />
-        </View>
+        </LinearGradient>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
@@ -144,16 +175,22 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#4f46e5', '#4338ca']}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Feather name="arrow-left" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Duyurular</Text>
         <View style={{ width: 40 }} />
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={announcements}
@@ -162,7 +199,7 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
         ListHeaderComponent={
           announcements.length > 0 ? (
@@ -173,7 +210,9 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📢</Text>
+            <View style={styles.emptyIconContainer}>
+              <Feather name="bell" size={48} color="#4338ca" />
+            </View>
             <Text style={styles.emptyTitle}>Henüz Duyuru Yok</Text>
             <Text style={styles.emptyText}>
               Yeni duyurular eklendiğinde burada görünecektir.
@@ -188,31 +227,27 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
-  header: {
+  headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: COLORS.text,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 20,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#ffffff',
   },
   loadingContainer: {
     flex: 1,
@@ -220,34 +255,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: SPACING.lg,
+    padding: 16,
   },
   listHeader: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 12,
   },
   announcementCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginBottom: 12,
     overflow: 'hidden',
-    ...SHADOW.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   announcementCardExpanded: {
-    ...SHADOW.md,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   cardHeader: {
     flexDirection: 'row',
   },
   priorityIndicator: {
     width: 4,
-    borderTopLeftRadius: BORDER_RADIUS.lg,
-    borderBottomLeftRadius: BORDER_RADIUS.lg,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   cardContent: {
     flex: 1,
-    padding: SPACING.md,
+    padding: 16,
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -256,64 +298,73 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    fontSize: FONT_SIZE.md,
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.text,
-    marginRight: SPACING.sm,
-  },
-  expandIcon: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#0f172a',
+    marginRight: 12,
+    lineHeight: 22,
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.sm,
+    marginTop: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   priorityBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    marginRight: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   priorityText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 12,
     fontWeight: '600',
   },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   cardDate: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748b',
   },
   expandedContent: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    padding: SPACING.md,
-    backgroundColor: COLORS.background,
+    borderTopColor: '#f1f5f9',
+    padding: 16,
+    backgroundColor: '#fafafa',
   },
   contentText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
+    fontSize: 14,
+    color: '#374151',
     lineHeight: 22,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: 60,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
   },
 });

@@ -124,6 +124,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Main: undefined;
+  MainTabs: undefined;
   Membership: undefined;
   PendingApproval: undefined;
   Rejected: undefined;
@@ -131,6 +132,12 @@ export type RootStackParamList = {
   BranchDetail: { branchId: string };
   NewsDetail: { newsId: string };
   AllAnnouncements: undefined;
+  AllNews: undefined;
+  Contact: undefined;
+  Muktesep: undefined;
+  DistrictRepresentative: undefined;
+  PartnerInstitutions: undefined;
+  PartnerDetail: { partner: import('../data/partners').Partner };
 };
 
 export type MainTabParamList = {

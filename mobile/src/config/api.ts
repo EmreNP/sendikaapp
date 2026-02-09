@@ -5,7 +5,7 @@ const envApiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL;
 
-export const API_BASE_URL = (envApiBaseUrl || 'http://192.168.1.210:3001').replace(/\/$/, '');
+export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app/api').replace(/\/$/, '');
 
 export const API_ENDPOINTS = {
   // Auth
