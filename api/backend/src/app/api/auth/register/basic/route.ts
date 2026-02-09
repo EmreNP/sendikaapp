@@ -142,7 +142,9 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           branchToAssign = requestedBranchId;
         }
       } else if (creator.role === USER_ROLE.BRANCH_MANAGER) {
-        initialStatus = USER_STATUS.PENDING_BRANCH_REVIEW;
+        // If branch manager creates a user, assign them to the branch and mark as
+        // pending details (detaylar bekleniyor) rather than requiring branch approval.
+        initialStatus = USER_STATUS.PENDING_DETAILS;
         // force assign branch to creator's branch
         if (!creator.branchId) {
           throw new AppValidationError('Branch Manager için şube bilgisi bulunamadı');

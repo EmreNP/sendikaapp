@@ -254,7 +254,9 @@ export const PATCH = asyncHandler(async (
         'address',
         'city',
         'district',
-        'branchId'
+        'branchId',
+        'documentUrl',
+        'isMemberOfOtherUnion',
       ];
       
       const updateData: any = {
@@ -262,23 +264,52 @@ export const PATCH = asyncHandler(async (
       };
       
       const updatedFields: string[] = [];
+      const fieldChanges: Record<string, { oldValue: any; newValue: any }> = {};
       
       // Sadece izin verilen alanları ekle
       for (const field of allowedFields) {
         if (body[field] !== undefined) {
+          const oldValue = targetUserData?.[field];
+          
           // birthDate özel işlem gerektirir
           if (field === 'birthDate' && body[field]) {
-            updateData[field] = admin.firestore.Timestamp.fromDate(new Date(body[field]));
+            const newDate = admin.firestore.Timestamp.fromDate(new Date(body[field]));
+            updateData[field] = newDate;
+            
+            // Sadece değişmişse fieldChanges'e ekle - Tarihleri normalize et (YYYY-MM-DD)
+            const normalizeDate = (date: any) => {
+              if (!date) return null;
+              const d = date.toDate ? date.toDate() : new Date(date);
+              return d.toISOString().split('T')[0]; // Sadece tarih kısmı: YYYY-MM-DD
+            };
+            
+            const oldDateNormalized = normalizeDate(oldValue);
+            const newDateNormalized = normalizeDate(body[field]);
+            
+            if (oldDateNormalized !== newDateNormalized) {
+              fieldChanges[field] = { 
+                oldValue: oldValue ? (oldValue.toDate ? oldValue.toDate().toISOString() : oldValue) : null, 
+                newValue: body[field] 
+              };
+              updatedFields.push(field);
+            }
           } else {
             updateData[field] = body[field];
+            
+            // Sadece değişmişse fieldChanges'e ekle
+            if (oldValue !== body[field]) {
+              fieldChanges[field] = { oldValue, newValue: body[field] };
+              updatedFields.push(field);
+            }
           }
-          updatedFields.push(field);
         }
       }
       
-      // En az bir alan güncellenmeli
-      if (updatedFields.length === 0) {
-      throw new AppValidationError('Güncellenecek en az bir alan belirtilmelidir');
+      // En az bir alan güncellenmeli (updatedAt haricinde)
+      // updateData'da updatedAt dışında bir şey varsa güncellemeye izin ver
+      const hasRealUpdates = Object.keys(updateData).length > 1 || updatedFields.length > 0;
+      if (!hasRealUpdates) {
+        throw new AppValidationError('Güncellenecek en az bir alan belirtilmelidir');
       }
       
       // Firestore'da güncelle
@@ -287,21 +318,37 @@ export const PATCH = asyncHandler(async (
       console.log(`✅ User ${targetUserId} updated by ${user.uid}. Updated fields: ${updatedFields.join(', ')}`);
       
       // Log oluştur
-      const logData: any = {
-        userId: targetUserId,
-        action: 'user_update',
-        performedBy: user.uid,
-        performedByRole: userRole as any,
-        metadata: {
-          updatedFields,
-        },
-      };
+      let logCreated = false;
+      try {
+        const logData: any = {
+          userId: targetUserId,
+          action: 'user_update',
+          performedBy: user.uid,
+          performedByRole: userRole as any,
+          metadata: {
+            updatedFields,
+            fieldChanges,
+          },
+        };
 
-      if (body.note) {
-        logData.note = body.note;
+        if (body.note) {
+          logData.note = body.note;
+        }
+        
+        // documentUrl - Hem değişiklik hem de mevcut durumu logla
+        if (body.documentUrl) {
+          logData.documentUrl = body.documentUrl;
+          // Eğer değişmişse previousDocumentUrl da ekle
+          if (fieldChanges.documentUrl) {
+            logData.previousDocumentUrl = fieldChanges.documentUrl.oldValue;
+          }
+        }
+
+        await createRegistrationLog(logData);
+        logCreated = true;
+      } catch (logErr: any) {
+        console.error('Failed to create user_update log:', logErr?.message || logErr);
       }
-
-      await createRegistrationLog(logData);
       
       return successResponse(
         'Kullanıcı bilgileri başarıyla güncellendi',

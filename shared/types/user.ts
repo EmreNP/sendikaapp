@@ -38,6 +38,7 @@ export interface User {
   email: string;
   emailVerified?: boolean; // Email doğrulandı mı?
   isActive: boolean; // Kullanıcı aktif mi? (delete durumunda false olur)
+  documentUrl?: string; // Kullanıcı kayıt formu PDF URL'i
   
   // Timestamps
   createdAt: Timestamp | Date;
@@ -174,11 +175,13 @@ export interface UserRegistrationLog {
   previousStatus?: UserStatus; // Önceki durum (status değişikliklerinde)
   newStatus?: UserStatus; // Yeni durum (status değişikliklerinde)
   note?: string; // Opsiyonel not
-  documentUrl?: string; // PDF belgesi URL'i (branch manager approval için - ESKİ BELGELERİ TUTMAK İÇİN)
+  documentUrl?: string; // Yeni PDF belgesi URL'i
+  previousDocumentUrl?: string; // Önceki PDF belgesi URL'i (güncelleme için)
   metadata?: {
     branchId?: string; // Register details'te seçilen şube
     email?: string; // Register basic'te email
     updatedFields?: string[]; // Güncellenen alanlar (user_update için)
+    fieldChanges?: Record<string, { oldValue: any; newValue: any }>; // Alan değişiklikleri detayı
     previousRole?: string; // Önceki rol (role_update için)
     newRole?: string; // Yeni rol (role_update için)
   };
