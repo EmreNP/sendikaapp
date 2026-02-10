@@ -73,7 +73,7 @@ export default function ActivitiesPage() {
   useEffect(() => {
     const loadBranchesIfNeeded = async () => {
       try {
-        if (user?.role !== 'admin') return;
+        if (user?.role !== 'admin' && user?.role !== 'superadmin') return;
         const { apiRequest } = await import('@/utils/api');
         const data = await apiRequest<{ branches: BranchOption[] }>('/api/branches');
         setBranches(data.branches || []);
@@ -471,7 +471,7 @@ export default function ActivitiesPage() {
             activity={selectedActivity}
             categories={categories}
             branches={branches}
-            currentUserRole={(user?.role as 'admin' | 'branch_manager') || 'branch_manager'}
+            currentUserRole={(user?.role as 'admin' | 'branch_manager' | 'superadmin') || 'branch_manager' }
             currentUserBranchId={user?.branchId}
             onSubmit={handleActivityFormSubmit}
             onCancel={() => {

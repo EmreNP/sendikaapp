@@ -20,7 +20,6 @@ export interface CreateAnnouncementRequest {
   content?: string;
   externalUrl?: string;
   imageUrl?: string;
-  branchId?: string | null;
   isPublished?: boolean;
   isFeatured?: boolean;
 }

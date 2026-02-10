@@ -7,9 +7,8 @@ export interface UpdateProfileRequest {
   birthDate?: string; // ISO date string
   gender?: 'male' | 'female';
   phone?: string;
-  address?: string;
-  city?: string;
-  district?: string;
+  // address removed from profile updates
+  district?: string; // used as Görev İlçesi
   tcKimlikNo?: string;
   fatherName?: string;
   motherName?: string;
