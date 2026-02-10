@@ -5,6 +5,14 @@ import 'react-quill/dist/quill.snow.css';
 import { announcementService } from '@/services/api/announcementService';
 import type { Announcement, CreateAnnouncementRequest, UpdateAnnouncementRequest } from '@/types/announcement';
 import ImageCropModal from '../news/ImageCropModal';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/utils/api';
+
+interface Branch {
+  id: string;
+  name: string;
+  isActive?: boolean;
+}
 
 interface AnnouncementFormModalProps {
   announcement: Announcement | null;
@@ -14,11 +22,13 @@ interface AnnouncementFormModalProps {
 }
 
 export default function AnnouncementFormModal({ announcement, isOpen, onClose, onSuccess }: AnnouncementFormModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     externalUrl: '',
     imageUrl: '',
+    branchId: '',
     isPublished: false,
     isFeatured: false,
   });
@@ -31,6 +41,8 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [croppedImageBlob, setCroppedImageBlob] = useState<Blob | null>(null);
   const [croppedImagePreview, setCroppedImagePreview] = useState<string>('');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
 
   const isEditMode = !!announcement;
 
@@ -43,6 +55,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
           content: announcement.content || '',
           externalUrl: announcement.externalUrl || '',
           imageUrl: announcement.imageUrl || '',
+          branchId: announcement.branchId || '',
           isPublished: announcement.isPublished || false,
           isFeatured: announcement.isFeatured || false,
         });
@@ -53,6 +66,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
           content: '',
           externalUrl: '',
           imageUrl: '',
+          branchId: user?.role === 'branch_manager' ? (user.branchId || '') : '',
           isPublished: true, // Varsayılan olarak işaretli
           isFeatured: false,
         });
@@ -64,7 +78,26 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       setCroppedImagePreview('');
       setIsCropModalOpen(false);
     }
-  }, [isOpen, announcement]);
+  }, [isOpen, announcement, user]);
+
+  // Admin/superadmin için branch listesini yükle
+  useEffect(() => {
+    if (isOpen && (user?.role === 'admin' || user?.role === 'superadmin')) {
+      fetchBranches();
+    }
+  }, [isOpen, user]);
+
+  const fetchBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      setBranches(data.branches || []);
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
 
   // Görsel seçildiğinde crop modal'ı aç
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,11 +192,14 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
         imageUrl = uploadResult.imageUrl;
       }
 
+      const resolvedBranchId = user?.role === 'branch_manager' ? (user.branchId || undefined) : (formData.branchId || undefined);
+
       const body: CreateAnnouncementRequest | UpdateAnnouncementRequest = {
         title: formData.title.trim(),
         content: formData.content || undefined,
         externalUrl: formData.externalUrl.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
+        ...(resolvedBranchId ? { branchId: resolvedBranchId } : {}),
         isPublished: formData.isPublished,
         isFeatured: formData.isFeatured,
       };
@@ -190,6 +226,9 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
   };
 
   if (!isOpen) return null;
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isBranchManager = user?.role === 'branch_manager';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -239,6 +278,37 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                   maxLength={200}
                 />
               </div>
+
+              {/* Şube Seçimi (sadece oluşturma) */}
+              {!isEditMode && (isAdmin || isBranchManager) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Şube
+                  </label>
+                  {isBranchManager ? (
+                    <input
+                      type="text"
+                      value={user?.branchId || ''}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  ) : (
+                    <select
+                      value={formData.branchId}
+                      onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                      disabled={loadingBranches}
+                    >
+                      <option value="">Tüm Şubeler</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
 
               {/* İçerik */}
               <div>

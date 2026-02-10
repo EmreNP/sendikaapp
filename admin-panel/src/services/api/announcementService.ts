@@ -12,6 +12,7 @@ export const announcementService = {
     isPublished?: boolean;
     isFeatured?: boolean;
     search?: string;
+    branchId?: string;
   }): Promise<AnnouncementListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -19,6 +20,7 @@ export const announcementService = {
     if (params?.isPublished !== undefined) queryParams.append('isPublished', params.isPublished.toString());
     if (params?.isFeatured !== undefined) queryParams.append('isFeatured', params.isFeatured.toString());
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.branchId) queryParams.append('branchId', params.branchId);
 
     const queryString = queryParams.toString();
     const endpoint = `/api/announcements${queryString ? `?${queryString}` : ''}`;

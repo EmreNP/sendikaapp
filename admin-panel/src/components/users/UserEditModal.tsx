@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Upload, FileText, Download, ExternalLink } from 'lucide-react';
+import { X, Upload, FileText, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
@@ -45,6 +45,12 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [branchName, setBranchName] = useState<string>('');
   const [isMissingDoc, setIsMissingDoc] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    // If we are in missing-doc mode, open details by default so admin can complete fields
+    setShowDetails(!!isMissingDoc);
+  }, [isMissingDoc]);
 
   // Form fields
   const [firstName, setFirstName] = useState('');
@@ -203,14 +209,15 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       return;
     }
 
-    // Tüm detay alanları zorunlu (not hariç)
-    if (!tcKimlikNo || !phone || !branchId || !birthDate || !gender || 
-        !fatherName || !motherName || !birthPlace || !education || 
-        !kurumSicil || !kadroUnvani || !kadroUnvanKodu || 
-        !district || isMemberOfOtherUnion === '') {
-      
-      setError('Tüm alanlar zorunludur (Not alanı hariç)');
-      return;
+    // Detay alanları yalnızca açıksa veya eksik kayıt modunda zorunlu
+    if (showDetails || isMissingDoc) {
+      if (!tcKimlikNo || !phone || !branchId || !birthDate || !gender || 
+          !fatherName || !motherName || !birthPlace || !education || 
+          !kurumSicil || !kadroUnvani || !kadroUnvanKodu || 
+          !district || isMemberOfOtherUnion === '') {
+        setError('Detay alanları zorunludur (Not alanı hariç)');
+        return;
+      }
     }
 
     const body: any = {
@@ -306,7 +313,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-slate-700 sticky top-0 z-10">
             <h2 className="text-sm font-medium text-white">
                 {isMissingDoc ? 'Kullanıcı Kaydını Tamamla (Eksik Kayıt)' : 'Kullanıcı Bilgilerini Düzenle'}
@@ -329,8 +336,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                 <p className="ml-3 text-gray-600">Kullanıcı bilgileri yükleniyor...</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   {/* Temel Bilgiler */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -437,18 +444,21 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                     </div>
                   )}
 
-                  {/* Detaylı Bilgiler */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        TC Kimlik No <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={tcKimlikNo}
-                      onChange={(e) => setTcKimlikNo(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      maxLength={11}
-                      required
-                    />
+
+
+                  {showDetails && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            TC Kimlik No <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          value={tcKimlikNo}
+                          onChange={(e) => setTcKimlikNo(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                          maxLength={11}
+                          required
+                        />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -560,125 +570,125 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                     </select>
                   </div>
                   
-                  {/* PDF Document Section */}
+                  {/* PDF actions (Yükle / Görüntüle / Oluştur) */}
+                  </>)}
+
+                  {/* Detayları Göster/Gizle Toggle (PDF öncesi) */}
+                  <div className="col-span-2 flex items-center justify-end gap-3">
+                    {isMissingDoc && <span className="text-sm text-amber-600">Eksik kayıt modu açık</span>}
+                    <button 
+                      type="button" 
+                      onClick={() => setShowDetails(!showDetails)} 
+                      className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      {showDetails ? <><ChevronUp className="w-4 h-4" /> <span>Detayları Gizle</span></> : <><ChevronDown className="w-4 h-4" /> <span>Detayları Göster</span></>}
+                    </button>
+                  </div>
+
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Kayıt Formu PDF (Opsiyonel)
-                    </label>
-                    
-                    {/* Current Document */}
+                    <div className="p-4 border-[0.5px] border-black/60 rounded-md bg-transparent">
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Kayıt Formu PDF</label>
+                      <p className="text-xs text-gray-700 mb-3">Kullanıcının kayıt formu PDF'sini buradan yükleyebilir veya template indirebilirsiniz. Maksimum 10MB, yalnızca PDF.</p>
+
+                    {/* Mevcut PDF Durumu */}
                     {documentUrl && !pdfFile && (
-                      <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm text-blue-900 flex-1">
-                          Mevcut Döküman Yüklü
-                        </span>
-                        <a
-                          href={documentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      <div className="flex items-center gap-3 p-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-blue-900">Mevcut PDF Dökümanı</p>
+                          <p className="text-xs text-blue-700 truncate">Yüklü döküman mevcut</p>
+                        </div>
+                        <a 
+                          href={documentUrl} 
+                          download 
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex-shrink-0"
                         >
-                          <ExternalLink className="w-4 h-4" />
-                          <span className="text-xs">Görüntüle</span>
+                          <Download className="w-4 h-4" />
+                          İndir
                         </a>
                       </div>
                     )}
-                    
-                    {/* Generate PDF Template Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const userBranch = branches.find(b => b.id === branchId);
-                        generateUserRegistrationPDF({
-                          firstName,
-                          lastName,
-                          email,
-                          phone,
-                          birthDate,
-                          gender,
-                          tcKimlikNo,
-                          fatherName,
-                          motherName,
-                          birthPlace,
-                          education,
-                          kurumSicil,
-                          kadroUnvani,
-                          kadroUnvanKodu,
-                          district,
-                          branchId,
-                          isMemberOfOtherUnion: typeof isMemberOfOtherUnion === 'boolean' ? isMemberOfOtherUnion : undefined,
-                        }, userBranch);
-                      }}
-                      className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      Kullanıcı Bilgileriyle PDF Oluştur ve İndir
-                    </button>
-                    
-                    {/* Upload New Document */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <label className="flex-1 cursor-pointer">
-                          <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.type !== 'application/pdf') {
-                                  setError('Sadece PDF dosyası yüklenebilir');
-                                  return;
-                                }
-                                if (file.size > 10 * 1024 * 1024) {
-                                  setError('Dosya boyutu 10MB\'dan küçük olmalıdır');
-                                  return;
-                                }
-                                setPdfFile(file);
-                                setError(null);
+
+                    {/* Eylemler: Yükle ve Template İndir */}
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.type !== 'application/pdf') {
+                                setError('Sadece PDF dosyası yüklenebilir');
+                                return;
                               }
-                            }}
-                            className="hidden"
-                            id="pdf-upload-edit"
-                          />
-                          <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
-                            <Upload className="w-5 h-5 text-gray-400" />
-                            <span className="text-sm text-gray-600">
-                              {pdfFile ? 'Dosya değiştir' : documentUrl ? 'Yeni döküman yükle' : 'PDF dosyası seç'}
-                            </span>
-                          </div>
-                        </label>
+                              if (file.size > 10 * 1024 * 1024) {
+                                setError('Dosya boyutu 10MB\'dan küçük olmalıdır');
+                                return;
+                              }
+                              setPdfFile(file);
+                              setError(null);
+                            }
+                          }}
+                          className="hidden"
+                          id="pdf-upload-edit"
+                        />
+                        <div className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                          <Upload className="w-4 h-4" />
+                          <span>{pdfFile ? 'Dosyayı Değiştir' : (documentUrl ? 'Yeni PDF Yükle' : 'PDF Yükle')}</span>
+                        </div>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const userBranch = branches.find(b => b.id === branchId);
+                          generateUserRegistrationPDF({
+                            firstName,
+                            lastName,
+                            email,
+                            phone,
+                            birthDate,
+                            gender,
+                            tcKimlikNo,
+                            fatherName,
+                            motherName,
+                            birthPlace,
+                            education,
+                            kurumSicil,
+                            kadroUnvani,
+                            kadroUnvanKodu,
+                            district,
+                            branchId,
+                            isMemberOfOtherUnion: typeof isMemberOfOtherUnion === 'boolean' ? isMemberOfOtherUnion : undefined,
+                          }, userBranch);
+                        }}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Template İndir</span>
+                      </button>
+                    </div>
+
+                    {pdfFile && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                        <FileText className="w-4 h-4 text-gray-600" />
+                        <span className="truncate max-w-sm">{pdfFile.name}</span>
+                        <button type="button" onClick={() => setPdfFile(null)} className="text-sm text-gray-500 hover:text-gray-700 ml-2">Sil</button>
                       </div>
-                      
-                      {pdfFile && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                          <FileText className="w-4 h-4 text-green-600" />
-                          <span className="text-sm text-green-900 flex-1 truncate">
-                            {pdfFile.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setPdfFile(null)}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                      
-                      {uploadProgress > 0 && uploadProgress < 100 && (
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                      )}
+                    )}
+
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <div className="w-full bg-gray-200 rounded-full h-1 mt-2 overflow-hidden">
+                        <div className="bg-blue-600 h-1 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    )}
+
                     </div>
                   </div>
-                  
+
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label> 
                     <textarea
                       value={note}
                       onChange={(e) => setNote(e.target.value)}

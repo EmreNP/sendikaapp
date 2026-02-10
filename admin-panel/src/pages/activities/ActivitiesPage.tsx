@@ -92,6 +92,13 @@ export default function ActivitiesPage() {
     }
   }, [activeTab, user?.role]);
 
+  // If a non-admin somehow has `categories` active (e.g., bookmarked URL), force back to activities
+  useEffect(() => {
+    if (activeTab === 'categories' && !(user?.role === 'admin' || user?.role === 'superadmin')) {
+      setActiveTab('activities');
+    }
+  }, [activeTab, user?.role]);
+
   // Filter activities
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -243,16 +250,18 @@ export default function ActivitiesPage() {
               >
                 Aktiviteler
               </button>
-              <button
-                onClick={() => setActiveTab('categories')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'categories'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Kategoriler
-              </button>
+              {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <button
+                  onClick={() => setActiveTab('categories')}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'categories'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Kategoriler
+                </button>
+              )}
             </nav>
 
             {activeTab === 'activities' && (
@@ -266,7 +275,7 @@ export default function ActivitiesPage() {
               </button>
             )}
 
-            {activeTab === 'categories' && (
+            {activeTab === 'categories' && (user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={handleCreateCategory}
                 disabled={processing}

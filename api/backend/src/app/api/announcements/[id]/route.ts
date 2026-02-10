@@ -45,6 +45,16 @@ export const GET = asyncHandler(async (
         throw new AppNotFoundError('Duyuru');
         }
       }
+
+      // Branch manager sadece kendi şubesinin duyurusunu görebilir
+      if (userRole === USER_ROLE.BRANCH_MANAGER) {
+        if (!currentUserData?.branchId) {
+          throw new AppAuthorizationError('Şube bilgisi bulunamadı');
+        }
+        if (announcementData?.branchId !== currentUserData.branchId) {
+          throw new AppNotFoundError('Duyuru');
+        }
+      }
       
       const announcement: Announcement = {
         id: announcementDoc.id,

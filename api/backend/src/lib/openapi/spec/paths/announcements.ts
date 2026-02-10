@@ -11,6 +11,7 @@ export const announcementsPaths = {
         { name: 'isPublished', in: 'query', schema: { type: 'boolean' }, description: 'Yayın durumu filtresi' },
         { name: 'isFeatured', in: 'query', schema: { type: 'boolean' }, description: 'Öne çıkan duyuru filtresi' },
         { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Başlık arama metni' },
+        { name: 'branchId', in: 'query', schema: { type: 'string' }, description: 'Şube ID filtresi (sadece Admin/Superadmin)' },
       ],
       responses: {
         '200': {
@@ -25,7 +26,7 @@ export const announcementsPaths = {
     },
     post: {
       summary: 'Duyuru Oluştur',
-      description: 'Yeni duyuru oluşturur (Admin)',
+      description: 'Yeni duyuru oluşturur (Admin/Superadmin/Branch Manager)',
       tags: ['Announcements'],
       security: [{ bearerAuth: [] }],
       requestBody: {
@@ -40,6 +41,7 @@ export const announcementsPaths = {
                 content: { type: 'string', description: 'HTML içerik (externalUrl yoksa zorunlu)' },
                 externalUrl: { type: 'string', format: 'uri', description: 'Dış link URL\'i (content yoksa zorunlu)' },
                 imageUrl: { type: 'string', format: 'uri' },
+                branchId: { type: 'string', nullable: true, description: 'Şube ID (opsiyonel)' },
                 isPublished: { type: 'boolean', default: false },
                 isFeatured: { type: 'boolean', default: false },
               },

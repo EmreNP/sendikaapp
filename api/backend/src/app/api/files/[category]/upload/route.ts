@@ -34,10 +34,12 @@ function getCategoryPermissions(category: string, userRole: string): {
       };
     
     case 'announcements':
-      // Announcements: Admin veya Superadmin
+      // Announcements: Admin, Superadmin veya branch_manager
       return {
-        canUpload: isAdminOrSuperadmin(userRole),
-        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER)
+          ? 'Bu işlem için admin veya branch manager yetkisi gerekli'
+          : undefined,
       };
     
     case 'user-documents':

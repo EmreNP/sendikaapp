@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Newspaper, Megaphone, Search, Bell, User, X, Eye, EyeOff } from 'lucide-react';
+import { Newspaper, Megaphone, Search, Bell, User, X, Eye, EyeOff, Plus } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
@@ -7,6 +7,7 @@ import { authService } from '@/services/auth/authService';
 import SendNotificationSimpleModal from '@/components/notifications/SendNotificationSimpleModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import ActionButton from '@/components/common/ActionButton';
+import AnnouncementFormModal from '@/components/announcements/AnnouncementFormModal';
 import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
@@ -33,6 +34,7 @@ export default function BranchNewsPage() {
   const [announcementsSearchTerm, setAnnouncementsSearchTerm] = useState('');
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [isAnnouncementPreviewModalOpen, setIsAnnouncementPreviewModalOpen] = useState(false);
+  const [isAnnouncementFormModalOpen, setIsAnnouncementFormModalOpen] = useState(false);
   
   // Notification modal states
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -245,6 +247,22 @@ export default function BranchNewsPage() {
   return (
     <AdminLayout>
       <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-end">
+          {activeTab === 'announcements' && (
+            <button
+              onClick={() => {
+                setSelectedAnnouncement(null);
+                setIsAnnouncementFormModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Duyuru
+            </button>
+          )}
+        </div>
+
         {/* Tabs */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -609,6 +627,19 @@ export default function BranchNewsPage() {
             </div>
           </div>
         )}
+
+        {/* Announcement Form Modal */}
+        <AnnouncementFormModal
+          announcement={null}
+          isOpen={isAnnouncementFormModalOpen}
+          onClose={() => {
+            setIsAnnouncementFormModalOpen(false);
+          }}
+          onSuccess={() => {
+            setIsAnnouncementFormModalOpen(false);
+            fetchAnnouncements();
+          }}
+        />
 
         {/* Notification Modal */}
         {isNotificationModalOpen && notificationData && (

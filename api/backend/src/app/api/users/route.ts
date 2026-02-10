@@ -15,7 +15,7 @@ import {
 } from '@/lib/utils/response';
 
 // Default password to use when none is provided by admin/branch manager
-const DEFAULT_PASSWORD = 'parola123.'; // Per product decision: default for new users
+const DEFAULT_PASSWORD = '123456'; // Per product decision: default for new users
 
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';

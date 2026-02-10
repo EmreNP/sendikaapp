@@ -352,7 +352,7 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
 - `firstName`: Zorunlu, en az 2 karakter, en fazla 50 karakter
 - `lastName`: Zorunlu, en az 2 karakter, en fazla 50 karakter
 - `email`: Zorunlu, geçerli email formatı
-- `password`: **Opsiyonel.** Eğer boş bırakılırsa varsayılan parola `parola123.` kullanılacaktır. (Verilmişse: en az 8 karakter, en az 1 büyük harf, en az 1 küçük harf, en az 1 rakam)
+- `password`: **Opsiyonel.** Eğer boş bırakılırsa varsayılan parola `123456` kullanılacaktır. (Verilmişse: en az 8 karakter, en az 1 büyük harf, en az 1 küçük harf, en az 1 rakam)
 - `role`: Opsiyonel, default: `"user"` (Branch Manager sadece `"user"` oluşturabilir)
 - `branchId`: Opsiyonel (Branch Manager için otomatik atanır)
 - `status`: Opsiyonel, default: Admin için `"active"`, Branch Manager için `"pending_branch_review"`

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Upload, FileText, Download, ExternalLink } from 'lucide-react';
+import { X, Upload, FileText, Download } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
@@ -241,39 +241,30 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
               {/* PDF Upload (optional for all roles) */}
               {selectedStatus === 'active' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kayıt Formu PDF (Opsiyonel)
-                  </label>
+                  <div className="p-4 border-[0.5px] border-black/60 rounded-md bg-transparent">
+                    <label className="block text-sm font-medium text-gray-900 mb-1">Kayıt Formu PDF</label>
+                    <p className="text-xs text-gray-700 mb-3">Kullanıcının kayıt formu PDF'sini buradan yükleyebilir veya template indirebilirsiniz. Maksimum 10MB, yalnızca PDF.</p>
 
-                  {userData?.documentUrl && !pdfFile && (
-                    <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm text-blue-900 flex-1">
-                        Mevcut Döküman Yüklü
-                      </span>
-                      <a
-                        href={userData.documentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        <span className="text-xs">Görüntüle</span>
-                      </a>
-                    </div>
-                  )}
-                  
-                  {/* Generate PDF Template Button */}
-                  <button
-                    type="button"
-                    onClick={handleGeneratePDF}
-                    className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Kullanıcı Bilgileriyle PDF Oluştur ve İndir
-                  </button>
-                  
-                  <div className="space-y-2">
+                    {/* Mevcut PDF Durumu */}
+                    {userData?.documentUrl && !pdfFile && (
+                      <div className="flex items-center gap-3 p-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-blue-900">Mevcut PDF Dökümanı</p>
+                          <p className="text-xs text-blue-700 truncate">Yüklü döküman mevcut</p>
+                        </div>
+                        <a
+                          href={userData.documentUrl}
+                          download
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex-shrink-0"
+                        >
+                          <Download className="w-4 h-4" />
+                          İndir
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Eylemler: Yükle ve Template İndir */}
                     <div className="flex items-center gap-2">
                       <label className="flex-1 cursor-pointer">
                         <input
@@ -297,39 +288,36 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
                           className="hidden"
                           id="pdf-upload"
                         />
-                        <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
-                          <Upload className="w-5 h-5 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {pdfFile ? 'Dosya değiştir' : userData?.documentUrl ? 'Yeni dosya seç' : 'PDF dosyası seç'}
-                          </span>
+                        <div className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                          <Upload className="w-4 h-4" />
+                          <span>{pdfFile ? 'Dosyayı Değiştir' : (userData?.documentUrl ? 'Yeni PDF Yükle' : 'PDF Yükle')}</span>
                         </div>
                       </label>
+
+                      <button
+                        type="button"
+                        onClick={handleGeneratePDF}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-1.5 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Template İndir</span>
+                      </button>
                     </div>
-                    
+
                     {pdfFile && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm text-blue-900 flex-1 truncate">
-                          {pdfFile.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setPdfFile(null)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                        <FileText className="w-4 h-4 text-gray-600" />
+                        <span className="truncate max-w-sm">{pdfFile.name}</span>
+                        <button type="button" onClick={() => setPdfFile(null)} className="text-sm text-gray-500 hover:text-gray-700 ml-2">Sil</button>
                       </div>
                     )}
-                    
+
                     {uploadProgress > 0 && uploadProgress < 100 && (
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
+                      <div className="w-full bg-gray-200 rounded-full h-1 mt-2 overflow-hidden">
+                        <div className="bg-blue-600 h-1 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                       </div>
                     )}
+
                   </div>
                 </div>
               )}

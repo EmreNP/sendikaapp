@@ -114,7 +114,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     }
 
     // Default password if empty
-    const finalPassword = password || 'parola123.';
+    const finalPassword = password || '123456';
 
     const body = {
       firstName,
@@ -292,10 +292,10 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      placeholder="Boş bırakılırsa: parola123."
+                      placeholder="Boş bırakılırsa: 123456"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Parola boş bırakılırsa varsayılan parola "parola123." kullanılacaktır
+                      Parola boş bırakılırsa varsayılan parola "123456" kullanılacaktır
                     </p>
                   </div>
                   <div>

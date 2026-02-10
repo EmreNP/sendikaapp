@@ -101,7 +101,7 @@ export const usersPaths = {
                 firstName: { type: 'string', minLength: 2, maxLength: 50 },
                 lastName: { type: 'string', minLength: 2, maxLength: 50 },
                 email: { type: 'string', format: 'email' },
-                password: { type: 'string', minLength: 8, description: 'Opsiyonel. Eğer boş bırakılırsa varsayılan parola: "parola123." kullanılacaktır.' },
+                password: { type: 'string', minLength: 8, description: 'Opsiyonel. Eğer boş bırakılırsa varsayılan parola: "123456" kullanılacaktır.' },
                 role: { type: 'string', enum: ['admin', 'branch_manager', 'user'], default: 'user' },
                 branchId: { type: 'string' },
                 status: { type: 'string' },

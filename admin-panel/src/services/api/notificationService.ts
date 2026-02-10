@@ -9,6 +9,7 @@ export interface SendNotificationRequest {
   imageUrl?: string;
   targetAudience?: TargetAudience;
   branchId?: string;
+  branchIds?: string[];
   data?: Record<string, string>;
 }
 

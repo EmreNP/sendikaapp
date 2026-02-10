@@ -37,11 +37,11 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // Query oluştur
       let query = db.collection('news') as admin.firestore.Query;
       
-      // USER/BRANCH_MANAGER için sadece yayınlanan haberler
-      if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
+      // USER için sadece yayınlanan haberler
+      if (userRole === USER_ROLE.USER) {
         query = query.where('isPublished', '==', true);
-      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
-        // Admin/Superadmin için isPublished filtresi kullanılabilir
+      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN || userRole === USER_ROLE.BRANCH_MANAGER) {
+        // Admin/Superadmin/Branch Manager için isPublished filtresi kullanılabilir
         if (isPublishedParam !== null) {
           query = query.where('isPublished', '==', isPublishedParam === 'true');
         }

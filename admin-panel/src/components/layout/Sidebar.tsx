@@ -13,12 +13,7 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  {
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    path: '/admin/dashboard',
-    roles: ['admin', 'branch_manager'],
-  },
+
   {
     icon: Users,
     label: 'Kullanıcılar',
@@ -35,13 +30,7 @@ const sidebarItems: SidebarItem[] = [
     icon: Newspaper,
     label: 'Haberler & Duyurular',
     path: '/admin/news',
-    roles: ['admin'],
-  },
-  {
-    icon: Newspaper,
-    label: 'Haberler & Duyurular',
-    path: '/branch/news',
-    roles: ['branch_manager'],
+    roles: ['admin', 'branch_manager'],
   },
   {
     icon: BookOpen,

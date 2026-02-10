@@ -27,6 +27,7 @@ interface SendNotificationRequest {
   imageUrl?: string;
   targetAudience?: TargetAudience;
   branchId?: string;
+  branchIds?: string[];
   data?: Record<string, string>;
 }
 
@@ -66,7 +67,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       contentId, 
       imageUrl, 
       targetAudience = 'all',
-      branchId, 
+      branchId,
+      branchIds,
       data 
     } = body;
     
@@ -94,29 +96,120 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       }
       
       if (targetAudience === 'branch') {
-        if (!branchId) {
+        if (!currentUserData!.branchId) {
           throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_REQUIRED);
         }
-        
-        if (branchId !== currentUserData!.branchId) {
+
+        if (branchId && branchId !== currentUserData!.branchId) {
+          throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
+        }
+
+        if (branchIds && branchIds.some(id => id !== currentUserData!.branchId)) {
           throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
         }
       }
     }
     
+    const resolveBranchIds = (): string[] => {
+      if (userRole === USER_ROLE.BRANCH_MANAGER) {
+        return currentUserData!.branchId ? [currentUserData!.branchId] : [];
+      }
+      if (Array.isArray(branchIds) && branchIds.length > 0) {
+        return branchIds;
+      }
+      if (branchId) {
+        return [branchId];
+      }
+      return [];
+    };
+
     // 5. Token'ları al - hedef kitleye göre
     let tokens: string[] = [];
-    
-    if (targetAudience === 'active') {
+    let totalSent = 0;
+    let totalFailed = 0;
+
+    if (targetAudience === 'branch') {
+      const branchIdsToSend = resolveBranchIds();
+
+      if (branchIdsToSend.length === 0) {
+        throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_REQUIRED);
+      }
+
+      for (const branchIdItem of branchIdsToSend) {
+        tokens = [];
+
+        const branchUsersSnapshot = await db.collection('users')
+          .where('branchId', '==', branchIdItem)
+          .where('isActive', '==', true)
+          .select()
+          .get();
+
+        const branchUserIds = branchUsersSnapshot.docs.map(doc => doc.id);
+
+        if (branchUserIds.length > 0) {
+          const chunkSize = 10;
+          const tokenPromises: Promise<admin.firestore.QuerySnapshot>[] = [];
+
+          for (let i = 0; i < branchUserIds.length; i += chunkSize) {
+            const chunk = branchUserIds.slice(i, i + chunkSize);
+            tokenPromises.push(
+              db.collection('fcmTokens')
+                .where('userId', 'in', chunk)
+                .where('isActive', '==', true)
+                .get()
+            );
+          }
+
+          const tokenSnapshots = await Promise.all(tokenPromises);
+
+          tokenSnapshots.forEach(snapshot => {
+            snapshot.docs.forEach(doc => {
+              const tokenData = doc.data();
+              if (tokenData.token) {
+                tokens.push(tokenData.token);
+              }
+            });
+          });
+        }
+
+        const result = await sendMulticastNotification(
+          tokens,
+          title,
+          messageBody,
+          type,
+          contentId,
+          imageUrl,
+          data,
+          branchIdItem
+        );
+
+        totalSent += result.successCount;
+        totalFailed += result.failureCount;
+
+        await saveNotificationHistory({
+          title,
+          body: messageBody,
+          type,
+          contentId,
+          sentBy: user.uid,
+          targetAudience,
+          branchId: branchIdItem,
+          sentCount: result.successCount,
+          failedCount: result.failureCount,
+          imageUrl,
+          data,
+        });
+      }
+    } else if (targetAudience === 'active') {
       // Aktif kullanıcıların token'larını al
       const activeUsersSnapshot = await db.collection('users')
         .where('status', '==', USER_STATUS.ACTIVE)
         .where('isActive', '==', true)
         .select()
         .get();
-      
+
       const activeUserIds = activeUsersSnapshot.docs.map(doc => doc.id);
-      
+
       if (activeUserIds.length === 0) {
         return successResponse(
           NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
@@ -125,11 +218,11 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT
         );
       }
-      
+
       // Firestore 'in' operatörü max 10 item destekler, chunking yap
       const chunkSize = 10;
       const tokenPromises: Promise<admin.firestore.QuerySnapshot>[] = [];
-      
+
       for (let i = 0; i < activeUserIds.length; i += chunkSize) {
         const chunk = activeUserIds.slice(i, i + chunkSize);
         tokenPromises.push(
@@ -139,9 +232,9 @@ export const POST = asyncHandler(async (request: NextRequest) => {
             .get()
         );
       }
-      
+
       const tokenSnapshots = await Promise.all(tokenPromises);
-      
+
       tokenSnapshots.forEach(snapshot => {
         snapshot.docs.forEach(doc => {
           const tokenData = doc.data();
@@ -150,57 +243,12 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           }
         });
       });
-      
-    } else if (targetAudience === 'branch' && branchId) {
-      // Şubedeki kullanıcıların token'larını al
-      const branchUsersSnapshot = await db.collection('users')
-        .where('branchId', '==', branchId)
-        .where('isActive', '==', true)
-        .select()
-        .get();
-      
-      const branchUserIds = branchUsersSnapshot.docs.map(doc => doc.id);
-      
-      if (branchUserIds.length === 0) {
-        return successResponse(
-          NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
-          { sent: 0, failed: 0, message: NOTIFICATION_ERROR_MESSAGE.NO_BRANCH_USERS },
-          200,
-          NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT
-        );
-      }
-      
-      // Firestore 'in' operatörü max 10 item destekler, chunking yap
-      const chunkSize = 10;
-      const tokenPromises: Promise<admin.firestore.QuerySnapshot>[] = [];
-      
-      for (let i = 0; i < branchUserIds.length; i += chunkSize) {
-        const chunk = branchUserIds.slice(i, i + chunkSize);
-        tokenPromises.push(
-          db.collection('fcmTokens')
-            .where('userId', 'in', chunk)
-            .where('isActive', '==', true)
-            .get()
-        );
-      }
-      
-      const tokenSnapshots = await Promise.all(tokenPromises);
-      
-      tokenSnapshots.forEach(snapshot => {
-        snapshot.docs.forEach(doc => {
-          const tokenData = doc.data();
-          if (tokenData.token) {
-            tokens.push(tokenData.token);
-          }
-        });
-      });
-      
     } else {
       // 'all' - Tüm aktif token'lar
       const tokensSnapshot = await db.collection('fcmTokens')
         .where('isActive', '==', true)
         .get();
-      
+
       tokensSnapshot.docs.forEach(doc => {
         const tokenData = doc.data();
         if (tokenData.token) {
@@ -208,48 +256,53 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         }
       });
     }
-    
-    if (tokens.length === 0) {
-      return successResponse(
-        NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
-        { sent: 0, failed: 0, message: NOTIFICATION_ERROR_MESSAGE.NO_ACTIVE_TOKENS },
-        200,
-        NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT
+
+    if (targetAudience !== 'branch') {
+      if (tokens.length === 0) {
+        return successResponse(
+          NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
+          { sent: 0, failed: 0, message: NOTIFICATION_ERROR_MESSAGE.NO_ACTIVE_TOKENS },
+          200,
+          NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT
+        );
+      }
+
+      // 6. Bildirim gönder
+      const result = await sendMulticastNotification(
+        tokens,
+        title,
+        messageBody,
+        type,
+        contentId,
+        imageUrl,
+        data,
+        branchId
       );
+
+      totalSent += result.successCount;
+      totalFailed += result.failureCount;
+
+      // 7. Geçmişe kaydet
+      await saveNotificationHistory({
+        title,
+        body: messageBody,
+        type,
+        contentId,
+        sentBy: user.uid,
+        targetAudience,
+        branchId,
+        sentCount: result.successCount,
+        failedCount: result.failureCount,
+        imageUrl,
+        data,
+      });
     }
-    
-    // 6. Bildirim gönder
-    const result = await sendMulticastNotification(
-      tokens,
-      title,
-      messageBody,
-      type,
-      contentId,
-      imageUrl,
-      data,
-      branchId
-    );
-    
-    // 7. Geçmişe kaydet
-    await saveNotificationHistory({
-      title,
-      body: messageBody,
-      type,
-      contentId,
-      sentBy: user.uid,
-      targetAudience,
-      branchId,
-      sentCount: result.successCount,
-      failedCount: result.failureCount,
-      imageUrl,
-      data,
-    });
-    
+
     return successResponse(
       NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
       {
-        sent: result.successCount,
-        failed: result.failureCount,
+        sent: totalSent,
+        failed: totalFailed,
       },
       200,
       NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT

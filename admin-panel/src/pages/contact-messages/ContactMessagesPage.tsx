@@ -70,7 +70,19 @@ export default function ContactMessagesPage() {
   const fetchTopics = async () => {
     try {
       const data = await contactService.getTopics();
-      setTopics(data.topics || []);
+      let fetched = data.topics || [];
+
+      // Şube yöneticisi ise, sadece şubelere görünür olan konuları göster
+      if (user?.role === 'branch_manager') {
+        fetched = fetched.filter((t) => t.isVisibleToBranchManager);
+      }
+
+      setTopics(fetched);
+
+      // Eğer seçilen konu artık listede yoksa, filtreyi varsayılan hale getir
+      if (selectedTopicId !== 'all' && !fetched.some((t) => t.id === selectedTopicId)) {
+        setSelectedTopicId('all');
+      }
     } catch (err) {
       console.error('Error fetching topics:', err);
     }
