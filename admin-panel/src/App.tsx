@@ -71,7 +71,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/trainings/detail"
+            path="/admin/trainings/:trainingId"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <TrainingDetailPage />
@@ -79,7 +79,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/lessons/detail"
+            path="/admin/trainings/:trainingId/lessons/:lessonId"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <LessonDetailPage />

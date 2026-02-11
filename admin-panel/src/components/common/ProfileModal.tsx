@@ -3,6 +3,8 @@ import { X, MapPin, Building2, FileText, Save, User as UserIcon } from 'lucide-r
 import { useAuth } from '@/context/AuthContext';
 import { userService, UpdateProfileRequest } from '@/services/api/userService';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import type { EducationLevel } from '@shared/constants/education';
 import type { User as SharedUser } from '../../../../shared/types/user';
 
 interface ProfileModalProps {
@@ -99,7 +101,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           fatherName: sharedUser.fatherName || '',
           motherName: sharedUser.motherName || '',
           birthPlace: sharedUser.birthPlace || '',
-          education: sharedUser.education as 'ilkögretim' | 'lise' | 'yüksekokul' | undefined,
+          education: (sharedUser.education || undefined) as EducationLevel | undefined,
           kurumSicil: sharedUser.kurumSicil || '',
           kadroUnvani: sharedUser.kadroUnvani || '',
           kadroUnvanKodu: sharedUser.kadroUnvanKodu || '',
@@ -437,9 +439,9 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   >
                     <option value="">Seçiniz</option>
-                    <option value="ilkögretim">İlköğretim</option>
-                    <option value="lise">Lise</option>
-                    <option value="yüksekokul">Yüksekokul</option>
+                    {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

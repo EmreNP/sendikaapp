@@ -4,6 +4,7 @@ import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF } from '@/utils/pdfGenerator';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 
 interface Props {
   userId: string | null;
@@ -504,9 +505,9 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                       required
                     >
                       <option value="">Seçiniz</option>
-                      <option value="ilköğretim">İlköğretim</option>
-                      <option value="lise">Lise</option>
-                      <option value="yüksekokul">Yüksek Okul</option>
+                      {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

@@ -49,7 +49,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     // Kullanıcının rolünü kontrol et
     const { error, user: currentUserData } = await getCurrentUser(user.uid);
     
-    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+    if (error || !currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 

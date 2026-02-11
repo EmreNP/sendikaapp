@@ -22,7 +22,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 

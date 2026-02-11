@@ -3,7 +3,9 @@ import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, Check
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
+import { batchFetchUserNames } from '@/services/api/userNameService';
 import UserStatusModal from './UserStatusModal';
+import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
 
 interface UserDetail {
   uid: string;
@@ -148,32 +150,12 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
   };
 
   const fetchUserNames = async (userIds: string[]) => {
-    const uniqueUserIds = [...new Set(userIds)];
-    const names: Record<string, { firstName: string; lastName: string }> = {};
-    
-    await Promise.all(
-      uniqueUserIds.map(async (uid) => {
-        try {
-          const userData = await apiRequest<{ user: UserDetail }>(`/api/users/${uid}`);
-          if (userData.user) {
-            names[uid] = {
-              firstName: userData.user.firstName,
-              lastName: userData.user.lastName,
-            };
-          }
-        } catch (err: any) {
-          // 403 hatası (yetkisiz erişim) sessizce ignore edilir
-          // Örneğin branch manager admin kullanıcılarını göremez, bu normal bir durum
-          const isUnauthorized = err?.response?.status === 403 || err?.code === 'UNAUTHORIZED';
-          if (!isUnauthorized) {
-            // Sadece 403 dışındaki hataları logla
-            console.error(`❌ Error fetching user ${uid}:`, err);
-          }
-        }
-      })
-    );
-    
-    setUserNames((prev) => ({ ...prev, ...names }));
+    try {
+      const names = await batchFetchUserNames(userIds);
+      setUserNames((prev) => ({ ...prev, ...names }));
+    } catch (err: any) {
+      console.error('❌ Error batch fetching user names:', err);
+    }
   };
 
   const fetchLogs = async () => {
@@ -400,12 +382,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     }
     
     if (field === 'education') {
-      const eduLabels: Record<string, string> = {
-        'ilköğretim': 'İlköğretim',
-        'lise': 'Lise',
-        'yüksekokul': 'Yüksekokul/Üniversite',
-      };
-      return eduLabels[value] || value;
+      return (EDUCATION_LEVEL_LABELS as Record<string, string>)[value] || value;
     }
     
     if (field === 'status') {

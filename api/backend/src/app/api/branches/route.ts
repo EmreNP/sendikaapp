@@ -234,7 +234,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             'createdAt'
           );
           items = paginatedResult.items;
-          total = paginatedResult.total;
+          total = paginatedResult.total ?? 0;
           hasMore = paginatedResult.hasMore;
         }
         

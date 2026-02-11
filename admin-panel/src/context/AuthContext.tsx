@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { authService } from '@/services/auth/authService';
+import { clearUserNameCache } from '@/services/api/userNameService';
 import type { User } from '@/types/user';
 
 interface AuthContextType {
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     await authService.signOut();
+    clearUserNameCache();
     setUser(null);
   };
 

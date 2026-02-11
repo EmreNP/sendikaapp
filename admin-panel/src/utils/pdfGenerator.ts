@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
 
 interface UserData {
   firstName?: string;
@@ -52,12 +53,7 @@ function getGenderLabel(gender?: 'male' | 'female' | ''): string {
  */
 function getEducationLabel(education?: string): string {
   if (!education) return '-';
-  const labels: Record<string, string> = {
-    'ilköğretim': 'İlköğretim',
-    'lise': 'Lise',
-    'yüksekokul': 'Yüksek Okul',
-  };
-  return labels[education] || education;
+  return (EDUCATION_LEVEL_LABELS as Record<string, string>)[education] || education;
 }
 
 /**

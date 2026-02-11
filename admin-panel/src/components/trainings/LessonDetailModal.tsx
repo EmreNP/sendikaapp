@@ -161,7 +161,7 @@ export default function LessonDetailModal({
               <button
                 type="button"
                 onClick={() => {
-                  navigate('/admin/lessons/detail', { state: { lessonId: lessonData.id, trainingId: trainingId } });
+                  navigate(`/admin/trainings/${trainingId}/lessons/${lessonData.id}`);
                   onClose();
                 }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"

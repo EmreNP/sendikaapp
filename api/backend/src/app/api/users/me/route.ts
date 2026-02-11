@@ -26,7 +26,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       }
       
       const userData = userDoc.data();
-      const userWithData = {
+      const userWithData: Record<string, any> = {
         uid: userDoc.id,
         ...userData,
       };

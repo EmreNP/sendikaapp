@@ -3,6 +3,7 @@ import { X, CheckCircle } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 
 interface Props {
   isOpen: boolean;
@@ -494,9 +495,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                       required
                     >
                       <option value="">Seçiniz</option>
-                      <option value="ilköğretim">İlköğretim</option>
-                      <option value="lise">Lise</option>
-                      <option value="yüksekokul">Yüksek Okul</option>
+                      {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

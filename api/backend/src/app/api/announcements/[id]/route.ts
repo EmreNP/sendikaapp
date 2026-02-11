@@ -86,7 +86,7 @@ export const PUT = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -197,7 +197,7 @@ export const DELETE = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

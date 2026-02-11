@@ -48,6 +48,9 @@ export default function SendNotificationSimpleModal({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
 
+  const isBranchManager = user?.role === 'branch_manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   // Admin/superadmin ve branch_manager için branch listesini yükle
   useEffect(() => {
     if (isOpen && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager')) {
@@ -173,9 +176,6 @@ export default function SendNotificationSimpleModal({
   };
 
   if (!isOpen) return null;
-
-  const isBranchManager = user?.role === 'branch_manager';
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

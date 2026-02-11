@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Edit, Trash2, Video, FileText, ClipboardList, Search } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
@@ -15,10 +15,8 @@ import type { Lesson, Content, VideoContent, DocumentContent, TestContent } from
 type ContentTab = 'all' | 'video' | 'document' | 'test';
 
 export default function LessonDetailPage() {
-  const location = useLocation();
+  const { trainingId, lessonId } = useParams<{ trainingId: string; lessonId: string }>();
   const navigate = useNavigate();
-  const lessonId = (location.state as { lessonId?: string; trainingId?: string })?.lessonId;
-  const trainingId = (location.state as { lessonId?: string; trainingId?: string })?.trainingId;
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [contents, setContents] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,7 +135,7 @@ export default function LessonDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/admin/trainings/detail', { state: { trainingId: trainingId || lesson.trainingId } })}
+              onClick={() => navigate(`/admin/trainings/${trainingId || lesson.trainingId}`)}
               className="text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-6 h-6" />

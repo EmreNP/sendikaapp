@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Upload, FileText } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 
 interface Props {
   userId: string | null;
@@ -354,13 +355,9 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
                     disabled={loading}
                   >
                     <option value="">Seçiniz</option>
-                    <option value="primary">İlkokul</option>
-                    <option value="middle">Ortaokul</option>
-                    <option value="high">Lise</option>
-                    <option value="associate">Ön Lisans</option>
-                    <option value="bachelor">Lisans</option>
-                    <option value="master">Yüksek Lisans</option>
-                    <option value="doctorate">Doktora</option>
+                    {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

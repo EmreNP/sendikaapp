@@ -62,9 +62,12 @@ export async function apiRequest<T = any>(
   const url = api.url(endpoint);
   
   const makeRequest = async (authToken: string | null): Promise<Response> => {
-    const defaultHeaders: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    const defaultHeaders: HeadersInit = {};
+    
+    // FormData ise Content-Type set etme - tarayıcı otomatik boundary ekler
+    if (!(options?.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
     
     if (authToken) {
       defaultHeaders['Authorization'] = `Bearer ${authToken}`;
@@ -92,8 +95,34 @@ export async function apiRequest<T = any>(
     // 401 hatası alındıysa, token'ı force refresh et ve tekrar dene
     if (response.status === 401) {
       console.log('🔄 Token expired, refreshing and retrying...');
-      token = await authService.getIdToken(true); // Force refresh
-      response = await makeRequest(token); // Retry request
+      try {
+        token = await authService.getIdToken(true); // Force refresh
+        if (!token) {
+          // Token alınamadı - oturum sonlandı
+          console.error('❌ Token refresh failed: no token returned. Redirecting to login.');
+          await authService.signOut();
+          window.location.href = '/login';
+          throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+        }
+        response = await makeRequest(token); // Retry request
+        
+        // Retry sonrası hâlâ 401 ise, hesap devre dışı veya geçersiz
+        if (response.status === 401) {
+          console.error('❌ Still 401 after token refresh. Account may be disabled. Redirecting to login.');
+          await authService.signOut();
+          window.location.href = '/login';
+          throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+        }
+      } catch (refreshError: any) {
+        // Token refresh sırasında hata (hesap disable, silinen hesap vs.)
+        if (refreshError.message?.includes('Oturumunuz sona erdi')) {
+          throw refreshError;
+        }
+        console.error('❌ Token refresh error:', refreshError);
+        await authService.signOut();
+        window.location.href = '/login';
+        throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+      }
     }
     
     if (isStatusUpdate) {

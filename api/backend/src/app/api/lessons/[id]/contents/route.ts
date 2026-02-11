@@ -103,7 +103,7 @@ export const GET = asyncHandler(async (
       // Generate signed URLs for all contents
       const contentsWithUrls = await Promise.all(
         contents.map(async (content) => {
-          const result = { ...content };
+          const result: Record<string, any> = { ...content };
           
           // Handle video content
           if (content.type === 'video') {

@@ -63,6 +63,15 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
     }
   }, [isOpen, news]);
 
+  // Blob URL'lerini component unmount olduğunda temizle — memory leak önlemi
+  useEffect(() => {
+    return () => {
+      if (croppedImagePreview) {
+        URL.revokeObjectURL(croppedImagePreview);
+      }
+    };
+  }, [croppedImagePreview]);
+
   // Görsel seçildiğinde crop modal'ı aç
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

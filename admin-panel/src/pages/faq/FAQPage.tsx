@@ -6,7 +6,7 @@ import ActionButton from '@/components/common/ActionButton';
 import FAQFormModal from '@/components/faq/FAQFormModal';
 import FAQPreviewModal from '@/components/faq/FAQPreviewModal';
 import { faqService } from '@/services/api/faqService';
-import { authService } from '@/services/auth/authService';
+import { batchFetchUserNames } from '@/services/api/userNameService';
 import type { FAQ } from '@/types/faq';
 import type { User as UserType } from '@/types/user';
 
@@ -59,34 +59,23 @@ export default function FAQPage() {
       setFaqs(data.faqs || []);
       setTotal(data.total || 0);
 
-      // Kullanıcı bilgilerini cache'le
+      // Kullanıcı bilgilerini toplu olarak çek (batch)
       const uniqueUserIds = new Set<string>();
       data.faqs?.forEach((item) => {
         if (item.createdBy) uniqueUserIds.add(item.createdBy);
         if (item.updatedBy) uniqueUserIds.add(item.updatedBy);
       });
 
-      // Cache'de olmayan kullanıcıları getir
+      // Cache'de olmayan kullanıcıları toplu getir
       const userIdsToFetch = Array.from(uniqueUserIds).filter(uid => !userCache[uid]);
       
       if (userIdsToFetch.length > 0) {
-        const userPromises = userIdsToFetch.map(async (uid) => {
-          try {
-            const userData = await authService.getUserData(uid);
-            return userData ? { uid, user: userData } : null;
-          } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
-            return null;
-          }
-        });
-
-        const userResults = await Promise.all(userPromises);
+        const batchNames = await batchFetchUserNames(userIdsToFetch);
         const newUserCache: Record<string, UserType> = {};
-        userResults.forEach((result) => {
-          if (result) {
-            newUserCache[result.uid] = result.user;
-          }
-        });
+        
+        for (const [uid, name] of Object.entries(batchNames)) {
+          newUserCache[uid] = { firstName: name.firstName, lastName: name.lastName } as UserType;
+        }
 
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }

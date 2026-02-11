@@ -46,7 +46,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const search = url.searchParams.get('search');
     
     // 3. Query oluştur
-    let query = db.collection('notificationHistory');
+    let query: FirebaseFirestore.Query = db.collection('notificationHistory');
     
     // Branch Manager sadece kendi şubesine ait bildirimleri görebilir
     if (userRole === USER_ROLE.BRANCH_MANAGER) {
@@ -125,8 +125,9 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     // Standard pagination without search
     query = query.orderBy('createdAt', 'desc');
     
-    const totalSnapshot = await query.get();
-    const total = totalSnapshot.size;
+    // Firestore count() aggregation query ile toplam sayıyı al — tüm dökümanları çekmeden
+    const countSnapshot = await query.count().get();
+    const total = countSnapshot.data().count;
     
     const snapshot = await query
       .limit(limit)

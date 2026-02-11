@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addCorsHeaders, corsOptionsResponse } from './lib/utils/cors';
-// Rate limiting disabled by request — keep implementation and env vars for now. To re-enable, uncomment the next line:
-// import { rateLimitByPath } from './lib/utils/rateLimit';
+import { rateLimitByPath } from './lib/utils/rateLimit';
 import { errorResponse } from './lib/utils/response';
 
 export async function middleware(request: NextRequest) {
@@ -13,9 +12,7 @@ export async function middleware(request: NextRequest) {
     return corsOptionsResponse(request);
   }
 
-  // Rate limiting disabled by request — all API calls are allowed.
-  // Previous behavior (kept as comment for easy re-enable):
-  /*
+  // Rate limiting
   try {
     const rateLimitResult = await rateLimitByPath(request, path, method);
     
@@ -56,10 +53,6 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     return addCorsHeaders(response, request);
   }
-  */
-
-  // Allow the request unconditionally
-  return addCorsHeaders(NextResponse.next(), request);
 }
 
 export const config = {

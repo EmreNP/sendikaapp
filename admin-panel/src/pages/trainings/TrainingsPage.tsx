@@ -342,7 +342,7 @@ export default function TrainingsPage() {
                               variant="view"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate('/admin/trainings/detail', { state: { trainingId: training.id } });
+                                navigate(`/admin/trainings/${training.id}`);
                               }}
                               title="Derslere Git"
                             />

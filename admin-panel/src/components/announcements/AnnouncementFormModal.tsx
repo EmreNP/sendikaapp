@@ -69,6 +69,15 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
     }
   }, [isOpen, announcement, user]);
 
+  // Blob URL'lerini component unmount olduğunda temizle — memory leak önlemi
+  useEffect(() => {
+    return () => {
+      if (croppedImagePreview) {
+        URL.revokeObjectURL(croppedImagePreview);
+      }
+    };
+  }, [croppedImagePreview]);
+
 
 
   // Görsel seçildiğinde crop modal'ı aç
