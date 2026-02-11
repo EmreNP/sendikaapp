@@ -67,6 +67,11 @@ export interface ActivityListResponse {
   message: string;
   data: {
     activities: Activity[];
+    total?: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+    nextCursor?: string;
   };
 }
 

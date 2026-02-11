@@ -25,9 +25,10 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     // Query parametreleri
     const url = new URL(request.url);
     const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 25, 1), 100);
     const topicId = url.searchParams.get('topicId');
     const isRead = url.searchParams.get('isRead');
+    const search = url.searchParams.get('search');
 
     let query: admin.firestore.Query = db.collection('contact_messages');
 
@@ -101,6 +102,34 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       }
     }
 
+    if (search) {
+      // Search logic - fetch more, filter in memory
+      const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
+      const allMessages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as ContactMessage[];
+
+      const searchLower = search.toLowerCase();
+      const filteredMessages = allMessages.filter(msg => 
+        (msg.message || '').toLowerCase().includes(searchLower)
+      );
+
+      const total = filteredMessages.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
+
+      return successResponse('Mesajlar getirildi', {
+        messages: paginatedMessages,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      });
+    }
+
+    // Standard pagination without search
     // Toplam sayı için count query
     const countSnapshot = await query.count().get();
     const total = countSnapshot.data().count;
@@ -122,7 +151,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       messages,
       total,
       page,
-      limit
+      limit,
+      totalPages: Math.ceil(total / limit)
     });
   });
 });

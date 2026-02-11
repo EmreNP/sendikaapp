@@ -26,6 +26,9 @@ export default function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(25);
   const [processing, setProcessing] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -48,8 +51,13 @@ export default function ActivitiesPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await activityService.getActivities();
+      const response = await activityService.getActivities({
+        page,
+        limit,
+        search: searchTerm || undefined
+      });
       setActivities(response.activities);
+      setTotal(response.total || 0);
     } catch (err: any) {
       setError(err.message || 'Aktiviteler yüklenirken hata oluştu');
     } finally {
@@ -75,7 +83,14 @@ export default function ActivitiesPage() {
       try {
         if (user?.role !== 'admin' && user?.role !== 'superadmin') return;
         const { apiRequest } = await import('@/utils/api');
-        const data = await apiRequest<{ branches: BranchOption[] }>('/api/branches');
+        const data = await apiRequest<{ 
+          branches: BranchOption[];
+          total?: number;
+          page: number;
+          limit: number;
+          hasMore: boolean;
+          nextCursor?: string;
+        }>('/api/branches');
         setBranches(data.branches || []);
       } catch (e) {
         // ignore
@@ -90,7 +105,7 @@ export default function ActivitiesPage() {
     if (activeTab === 'activities') {
       fetchActivities();
     }
-  }, [activeTab, user?.role]);
+  }, [activeTab, user?.role, page, searchTerm]);
 
   // If a non-admin somehow has `categories` active (e.g., bookmarked URL), force back to activities
   useEffect(() => {
@@ -98,14 +113,6 @@ export default function ActivitiesPage() {
       setActiveTab('activities');
     }
   }, [activeTab, user?.role]);
-
-  // Filter activities
-  const filteredActivities = activities.filter(activity => {
-    const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
 
   // Activity handlers
   const handleCreateActivity = () => {
@@ -320,13 +327,14 @@ export default function ActivitiesPage() {
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   <p className="mt-2 text-gray-600">Yükleniyor...</p>
                 </div>
-              ) : filteredActivities.length === 0 ? (
+              ) : activities.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aktivite bulunamadı</h3>
                   <p className="text-gray-600">Filtreleri temizleyip tekrar deneyin veya yeni aktivite oluşturun.</p>
                 </div>
               ) : (
+                <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
@@ -338,7 +346,7 @@ export default function ActivitiesPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {filteredActivities.map((activity) => {
+                      {activities.map((activity) => {
                         const categoryName = getCategoryName(activity.categoryId);
                         return (
                           <tr 
@@ -389,6 +397,34 @@ export default function ActivitiesPage() {
                     </tbody>
                   </table>
                 </div>
+                {/* Pagination */}
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-500">
+                    Toplam {total} aktiviteden {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
+                  </div>
+                  {Math.ceil(total / limit) > 1 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Önceki
+                      </button>
+                      <span className="px-4 py-2 text-sm text-gray-700">
+                        Sayfa {page} / {Math.ceil(total / limit)}
+                      </span>
+                      <button
+                        onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
+                        disabled={page === Math.ceil(total / limit)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Sonraki
+                      </button>
+                    </div>
+                  )}
+                </div>
+                </>
               )}
             </div>
           </div>

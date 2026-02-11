@@ -83,20 +83,36 @@ export const authService = {
 
   /**
    * Mevcut kullanıcının ID token'ını al
+   * Token cache'lenir, sadece gerektiğinde refresh edilir
    */
-  async getIdToken(): Promise<string | null> {
+  async getIdToken(forceRefresh: boolean = false): Promise<string | null> {
     const user = auth.currentUser;
     if (!user) return null;
-    return await user.getIdToken();
+    // forceRefresh = false: Cache'den al, sadece expired ise refresh et
+    // forceRefresh = true: Her zaman fresh token al (401 hatası sonrası retry için)
+    return await user.getIdToken(forceRefresh);
   },
 
   /**
-   * Kullanıcı bilgilerini Firestore'dan al
+   * Kullanıcı bilgilerini al
+   * - Kendi kullanıcısı için: Firestore (rules izin verir)
+   * - Diğer kullanıcılar için: Backend API (Firestore rules'a takılmasın)
    */
   async getUserData(uid: string): Promise<User | null> {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (!userDoc.exists()) return null;
-    return userDoc.data() as User;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+
+    // Own profile can be read via Firestore rules.
+    if (currentUser.uid === uid) {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (!userDoc.exists()) return null;
+      return userDoc.data() as User;
+    }
+
+    // Other users: fetch from backend (admin SDK) to avoid Firestore permission issues.
+    const { apiRequest } = await import('@/utils/api');
+    const data = await apiRequest<{ user: User }>(`/api/users/${uid}`);
+    return data?.user || null;
   },
 };
 

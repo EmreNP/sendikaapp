@@ -40,6 +40,8 @@ const defaultCenter = {
   lng: 28.9784,
 };
 
+const GOOGLE_MAPS_LIBRARIES: ("places")[] = ['places'];
+
 export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: BranchFormModalProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -97,7 +99,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
   // useLoadScript hook'u - script'i sadece bir kez yükler
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: googleMapsApiKey,
-    libraries: ['places'],
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Haritaya tıklama - koordinat seçme

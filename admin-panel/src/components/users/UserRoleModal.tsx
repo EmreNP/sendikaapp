@@ -46,7 +46,14 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
   const fetchBranches = async () => {
     try {
       setBranchesLoading(true);
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches.filter(b => b.isActive) || []);
     } catch (err: any) {
       console.error('Error fetching branches:', err);

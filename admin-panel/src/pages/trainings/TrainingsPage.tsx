@@ -22,6 +22,7 @@ export default function TrainingsPage() {
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const limit = 25;
   const [selectedTrainingIds, setSelectedTrainingIds] = useState<Set<string>>(new Set());
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -41,7 +42,7 @@ export default function TrainingsPage() {
       setError(null);
       const response = await trainingService.getTrainings({
         page,
-        limit: 20,
+        limit,
         isActive: filterActive ?? undefined,
         search: searchTerm || undefined,
       });
@@ -394,7 +395,7 @@ export default function TrainingsPage() {
         </div>
 
         {/* Pagination */}
-        {total > 20 && (
+        {total > limit && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg border border-gray-200">
             <div className="text-sm text-gray-700">
               Toplam <span className="font-medium">{total}</span> eğitim
@@ -409,14 +410,14 @@ export default function TrainingsPage() {
               </button>
               <button
                 onClick={() => setPage(p => p + 1)}
-                disabled={page * 20 >= total}
+                disabled={page * limit >= total}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               >
                 Sonraki
               </button>
             </div>
           </div>
-        )}
+        )} 
 
         {/* Confirm Dialog */}
         <ConfirmDialog

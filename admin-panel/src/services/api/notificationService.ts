@@ -68,6 +68,7 @@ export const notificationService = {
     type?: 'announcement' | 'news';
     targetAudience?: 'all' | 'active' | 'branch';
     branchId?: string;
+    search?: string;
   }): Promise<NotificationHistoryListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -75,6 +76,7 @@ export const notificationService = {
     if (params?.type) queryParams.append('type', params.type);
     if (params?.targetAudience) queryParams.append('targetAudience', params.targetAudience);
     if (params?.branchId) queryParams.append('branchId', params.branchId);
+    if (params?.search) queryParams.append('search', params.search);
 
     const queryString = queryParams.toString();
     const endpoint = `/api/notifications/history${queryString ? `?${queryString}` : ''}`;

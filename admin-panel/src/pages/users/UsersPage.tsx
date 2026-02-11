@@ -34,6 +34,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [userTypeFilter, setUserTypeFilter] = useState<'users' | 'managers'>('users');
@@ -49,6 +50,12 @@ export default function UsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [managersTotal, setManagersTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const pageSize = 25;
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -65,43 +72,132 @@ export default function UsersPage() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchUsers(1);
     if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchBranches();
     } else if (user?.role === 'branch_manager' && user?.branchId) {
       // Branch manager için otomatik olarak kendi şubesini filtrele
       setBranchFilter(user.branchId);
     }
-  }, [statusFilter, branchFilter, user?.role, user?.branchId]);
+  }, [statusFilter, branchFilter, userTypeFilter, user?.role, user?.branchId, debouncedSearch]);
+
+  useEffect(() => {
+    fetchUsers(currentPage);
+  }, [currentPage]);
 
   const fetchBranches = async () => {
     try {
       const { apiRequest } = await import('@/utils/api');
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error: any) {
       console.error('Error fetching branches:', error);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page: number = 1) => {
     try {
       setLoading(true);
       setError(null);
       
-      let url = '/api/users?page=1&limit=100';
+      let url = `/api/users?page=${page}&limit=${pageSize}`;
       if (statusFilter !== 'all') {
         url += `&status=${statusFilter}`;
+      }
+      if (debouncedSearch) {
+        url += `&search=${encodeURIComponent(debouncedSearch)}`;
+      }
+      if (branchFilter !== 'all') {
+        url += `&branchId=${branchFilter}`;
+      }
+
+      // Role filter: ask backend to return only users or only managers when requested
+      if (userTypeFilter === 'users') {
+        url += `&role=user`;
+      } else if (userTypeFilter === 'managers') {
+        url += `&role=managers`;
       }
 
       const { apiRequest } = await import('@/utils/api');
       
       console.log('📡 Fetching users from:', url);
       
-      const data = await apiRequest<{ users: User[]; total: number; page: number; limit: number }>(url);
+      const data = await apiRequest<{ 
+        users: User[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>(url);
       
       console.log('✅ Users data received:', data);
       setUsers(data.users || []);
+      
+      const total = data.total || 0;
+      if (userTypeFilter === 'users') {
+        setTotalUsers(total);
+      } else {
+        setManagersTotal(total);
+      }
+      setTotalPages(Math.ceil(total / pageSize));
+      setHasMore(data.hasMore);
+      setHasMore(data.hasMore || false);
+
+      // DEBUG: Determine why some returned users might be filtered out by UI filters
+      try {
+        const received = data.users || [];
+        const filteredOut = received.filter((u: any) => {
+          const matchesSearch =
+            searchTerm === '' ||
+            `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+          const matchesBranch = branchFilter === 'all' || u.branchId === branchFilter;
+
+          // Branch filtresi sadece admin/superadmin için geçerli
+          if (user?.role === 'admin' || user?.role === 'superadmin') {
+            return !(matchesSearch && matchesBranch);
+          }
+
+          return !matchesSearch;
+        });
+
+        if (filteredOut.length > 0) {
+          // Provide detailed reasons per filtered user
+          const details = filteredOut.map((u: any) => {
+            const reasons: string[] = [];
+            if (!(searchTerm === '' || `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()))) {
+              reasons.push('searchMismatch');
+            }
+            if ((user?.role === 'admin' || user?.role === 'superadmin') && !(branchFilter === 'all' || u.branchId === branchFilter)) {
+              reasons.push('branchMismatch');
+            }
+            return { uid: u.uid, role: u.role, branchId: u.branchId, status: u.status, reasons };
+          });
+
+          console.log('🧩 Users filtered out (count):', filteredOut.length, details);
+        } else {
+          console.log('🧩 No users filtered out by client-side filters');
+        }
+      } catch (e) {
+        console.warn('Debug filtering failed:', e);
+      }
     } catch (error: any) {
       console.error('❌ Error fetching users:', error);
       setError(error.message || 'Kullanıcılar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
@@ -111,27 +207,7 @@ export default function UsersPage() {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesBranch = branchFilter === 'all' || u.branchId === branchFilter;
-    
-    // Kullanıcı tipi filtresi: users veya managers
-    const matchesUserType = userTypeFilter === 'users' 
-      ? u.role === 'user'
-      : (u.role === 'superadmin' || u.role === 'admin' || u.role === 'branch_manager');
-    
-    // Branch manager sadece kendi şubesindeki kullanıcıları/yöneticileri görebilir
-    if (user?.role === 'branch_manager') {
-      const isSameBranch = u.branchId === user.branchId;
-      return matchesSearch && isSameBranch && matchesUserType;
-    }
-    
-    return matchesSearch && matchesBranch && matchesUserType;
-  });
+
 
 
   const getStatusLabel = (status: string) => {
@@ -151,7 +227,7 @@ export default function UsersPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedUserIds(new Set(filteredUsers.map(u => u.uid)));
+      setSelectedUserIds(new Set(users.map(u => u.uid)));
     } else {
       setSelectedUserIds(new Set());
     }
@@ -324,10 +400,8 @@ export default function UsersPage() {
     }
   };
 
-  // Calculate stats - only for users, not managers
-  const totalUsers = userTypeFilter === 'users' 
-    ? filteredUsers.length 
-    : filteredUsers.length;
+  // Calculate stats - showing real total from API and filtered count
+
   
   // Rol bazlı bekleyen kullanıcı sayısı
   const getPendingStatus = () => {
@@ -343,7 +417,7 @@ export default function UsersPage() {
   const pendingStatus = getPendingStatus();
   // Count users that are in the resolved pending status (only 'pending_branch_review')
   const pendingUsers = userTypeFilter === 'users' && pendingStatus
-    ? filteredUsers.filter((u) => u.status === pendingStatus).length
+    ? users.filter((u) => u.status === pendingStatus).length
     : 0;
 
   return (
@@ -474,7 +548,7 @@ export default function UsersPage() {
               <UsersIcon className="w-12 h-12 text-red-400 mx-auto mb-2" />
               <p className="text-red-600">{error}</p>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="p-8 text-center">
               <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">Kullanıcı bulunamadı</p>
@@ -488,7 +562,7 @@ export default function UsersPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                         <input
                           type="checkbox"
-                          checked={filteredUsers.length > 0 && selectedUserIds.size === filteredUsers.length}
+                          checked={users.length > 0 && selectedUserIds.size === users.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                           className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                           onClick={(e) => e.stopPropagation()}
@@ -519,7 +593,7 @@ export default function UsersPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map((userItem) => (
+                    {users.map((userItem) => (
                       <tr 
                         key={userItem.uid} 
                         className={`hover:bg-gray-50 transition-colors ${
@@ -700,11 +774,100 @@ export default function UsersPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
+              {/* Total Count & Pagination */}
+              <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 gap-3">
                 <div className="text-sm text-gray-600">
-                  Toplam üye sayısı: <span className="font-medium text-gray-900">{totalUsers}</span>
+                  {userTypeFilter === 'users' ? (
+                    <>Toplam üye sayısı: <span className="font-medium text-gray-900">{totalUsers}</span></>
+                  ) : (
+                    <>Toplam yönetici sayısı: <span className="font-medium text-gray-900">{managersTotal}</span></>
+                  )}
                 </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Önceki
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {/* İlk sayfa */}
+                      {currentPage > 3 && (
+                        <>
+                          <button
+                            onClick={() => setCurrentPage(1)}
+                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            1
+                          </button>
+                          {currentPage > 4 && (
+                            <span className="px-2 text-gray-500">...</span>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Ortadaki sayfalar */}
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        if (pageNum < 1 || pageNum > totalPages) return null;
+                        if (currentPage > 3 && pageNum === 1) return null;
+                        if (currentPage < totalPages - 2 && pageNum === totalPages) return null;
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-slate-700 text-white'
+                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      {/* Son sayfa */}
+                      {currentPage < totalPages - 2 && (
+                        <>
+                          {currentPage < totalPages - 3 && (
+                            <span className="px-2 text-gray-500">...</span>
+                          )}
+                          <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            {totalPages}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Sonraki
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

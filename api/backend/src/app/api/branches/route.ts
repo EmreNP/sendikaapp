@@ -13,6 +13,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { getBranchDetails } from '@/lib/utils/branchQueries';
+import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
 // Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
 // artık getBranchDetails() utility fonksiyonu kullanılıyor (src/lib/utils/branchQueries.ts)
@@ -143,8 +144,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
       // Query parametreleri
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = parseQueryParamAsNumber(url, 'limit', 20, 1);
+    const paginationParams = parsePaginationParams(url);
 
       // Branch manager sadece kendi şubesini görebilir
       if (userData.role === USER_ROLE.BRANCH_MANAGER && userData.branchId) {
@@ -159,7 +159,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
               branches: [],
               total: 0,
               page: 1,
-              limit: limit
+              limit: paginationParams.limit,
+              hasMore: false,
             }
           );
         }
@@ -185,17 +186,60 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             branches: [branchWithManagers],
             total: 1,
             page: 1,
-            limit: limit
+            limit: paginationParams.limit,
+            hasMore: false,
           }
         );
       }
       
       // Admin/Superadmin: Tüm şubeleri görebilir (aktif + pasif)
       if (userData.role === USER_ROLE.ADMIN || userData.role === USER_ROLE.SUPERADMIN) {
-        const snapshot = await db.collection('branches').get();
+        let items: any[] = [];
+        let total = 0;
+        let hasMore = false;
+
+        const search = url.searchParams.get('search');
+
+        if (search) {
+          const searchLower = search.toLowerCase();
+          // Fetch larger set for searching (limit 500)
+          const snapshot = await db.collection('branches')
+            .orderBy('createdAt', 'desc')
+            .limit(500)
+            .get();
+
+          const allItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          // Filter by name, code, or city
+          const filtered = allItems.filter((item: any) => 
+            (item.name?.toLowerCase().includes(searchLower)) ||
+            (item.code?.toLowerCase().includes(searchLower)) ||
+            (item.city?.toLowerCase().includes(searchLower))
+          );
+
+          total = filtered.length;
+
+          // Slice for pagination
+          const startIndex = (paginationParams.page - 1) * paginationParams.limit;
+          items = filtered.slice(startIndex, startIndex + paginationParams.limit);
+          hasMore = startIndex + paginationParams.limit < total;
+        } else {
+          // Server-side pagination for branches without search
+          const query = db.collection('branches');
+          
+          const paginatedResult = await paginateHybrid(
+            query,
+            paginationParams,
+            (doc) => ({ id: doc.id, ...doc.data() }),
+            'createdAt'
+          );
+          items = paginatedResult.items;
+          total = paginatedResult.total;
+          hasMore = paginatedResult.hasMore;
+        }
         
         // Tüm branch ID'lerini topla
-        const branchIds = snapshot.docs.map(doc => doc.id);
+        const branchIds = items.map(b => b.id);
         
         // Tüm manager'ları ve sayıları tek batch query ile getir (N+1 query problemini çözer)
         const [managersByBranch, countsByBranch] = await Promise.all([
@@ -204,73 +248,67 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         ]);
         
         // Branch'leri manager'larla ve sayılarla birleştir
-        const allBranches: BranchWithManagers[] = snapshot.docs.map(doc => {
-          const branchId = doc.id;
+        const branchesWithDetails: BranchWithManagers[] = items.map(branch => {
+          const branchId = branch.id;
           const counts = countsByBranch[branchId] || { eventCount: 0, educationCount: 0 };
           
-          const branch: Branch = {
-            id: branchId,
-            ...doc.data(),
+          const branchWithCounts: Branch = {
+            ...branch,
             eventCount: counts.eventCount,
             educationCount: counts.educationCount,
           } as Branch;
           
           return { 
-            ...branch, 
+            ...branchWithCounts, 
             managers: managersByBranch[branchId] || [] 
           };
         });
         
-        // Sayfalama
-        const total = allBranches.length;
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const paginatedBranches = allBranches.slice(startIndex, endIndex);
-        
         return successResponse(
           'Şubeler başarıyla getirildi',
           { 
-            branches: paginatedBranches,
-            total,
-            page,
-            limit
+            branches: branchesWithDetails,
+            total: total,
+            page: paginationParams.page,
+            limit: paginationParams.limit,
+            hasMore: hasMore,
           }
         );
       }
       
       // User: Sadece aktif şubeleri görebilir (manager bilgisi yok)
-      const snapshot = await db.collection('branches')
-        .where('isActive', '==', true)
-        .get();
+      const query = db.collection('branches').where('isActive', '==', true);
       
-      const branchIds = snapshot.docs.map(doc => doc.id);
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }),
+        'createdAt'
+      );
+      
+      const branchIds = paginatedResult.items.map(b => b.id);
       const countsByBranch = await getBranchCountsBatch(branchIds);
       
-      const allBranches: Branch[] = snapshot.docs.map(doc => {
-        const branchId = doc.id;
+      const branchesWithCounts: Branch[] = paginatedResult.items.map(branch => {
+        const branchId = branch.id;
         const counts = countsByBranch[branchId] || { eventCount: 0, educationCount: 0 };
         
         return {
-          id: branchId,
-          ...doc.data(),
+          ...branch,
           eventCount: counts.eventCount,
           educationCount: counts.educationCount,
         } as Branch;
       });
       
-      // Sayfalama
-      const total = allBranches.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedBranches = allBranches.slice(startIndex, endIndex);
-      
       return successResponse(
         'Şubeler başarıyla getirildi',
         { 
-          branches: paginatedBranches,
-          total,
-          page,
-          limit
+          branches: branchesWithCounts,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   }, { skipEmailVerification: true });

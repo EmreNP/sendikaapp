@@ -62,7 +62,7 @@ export default function BranchNewsPage() {
 
       const data = await newsService.getNews({
         page: 1,
-        limit: 100,
+        limit: 25,
         isPublished: true, // Sadece yayındakiler
         search: searchTerm || undefined,
       });
@@ -115,7 +115,7 @@ export default function BranchNewsPage() {
 
       const data = await announcementService.getAnnouncements({
         page: 1,
-        limit: 100,
+        limit: 25,
         isPublished: true, // Sadece yayındakiler
         search: announcementsSearchTerm || undefined,
       });

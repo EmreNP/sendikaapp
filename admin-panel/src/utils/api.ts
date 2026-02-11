@@ -20,6 +20,7 @@ export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
  * API çağrısı yapar ve response'u işler
+ * 401 hatası alındığında token'ı refresh eder ve otomatik retry yapar
  * @param endpoint API endpoint
  * @param options Fetch options
  * @returns Parsed data veya error throw eder
@@ -56,33 +57,44 @@ export async function apiRequest<T = any>(
     }
   }
   
-  const token = await authService.getIdToken();
-  
+  // İlk deneme: Cache'lenmiş token ile
+  let token = await authService.getIdToken(false);
   const url = api.url(endpoint);
   
-  const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`;
-    if (isStatusUpdate) {
-      console.log('🔑 Token available for status update request');
+  const makeRequest = async (authToken: string | null): Promise<Response> => {
+    const defaultHeaders: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (authToken) {
+      defaultHeaders['Authorization'] = `Bearer ${authToken}`;
+      if (isStatusUpdate) {
+        console.log('🔑 Token available for status update request');
+      }
+    } else {
+      if (isStatusUpdate) {
+        console.warn('⚠️ No token available for status update request');
+      }
     }
-  } else {
-    if (isStatusUpdate) {
-      console.warn('⚠️ No token available for status update request');
-    }
-  }
-  
-  try {
-    const response = await fetch(url, {
+    
+    return fetch(url, {
       ...options,
       headers: {
         ...defaultHeaders,
         ...options?.headers,
       },
     });
+  };
+  
+  try {
+    let response = await makeRequest(token);
+    
+    // 401 hatası alındıysa, token'ı force refresh et ve tekrar dene
+    if (response.status === 401) {
+      console.log('🔄 Token expired, refreshing and retrying...');
+      token = await authService.getIdToken(true); // Force refresh
+      response = await makeRequest(token); // Retry request
+    }
     
     if (isStatusUpdate) {
       console.log('📡 Status update response status:', response.status, response.statusText);

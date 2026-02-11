@@ -43,6 +43,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const type = url.searchParams.get('type');
     const targetAudience = url.searchParams.get('targetAudience');
     const branchIdParam = url.searchParams.get('branchId');
+    const search = url.searchParams.get('search');
     
     // 3. Query oluştur
     let query = db.collection('notificationHistory');
@@ -66,6 +67,62 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     }
     
     // 4. Sıralama ve sayfalama
+    
+    // Search filter optimization
+    if (search) {
+      const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
+      const searchLower = search.toLowerCase();
+      
+      const allDocs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let createdAt: any = null;
+        if (data.createdAt) {
+          if (data.createdAt.toDate) {
+            createdAt = data.createdAt.toDate().toISOString();
+          } else if (data.createdAt.seconds) {
+            createdAt = new Date(data.createdAt.seconds * 1000).toISOString();
+          } else if (data.createdAt instanceof Date) {
+            createdAt = data.createdAt.toISOString();
+          }
+        }
+        return {
+          id: doc.id,
+          title: data.title,
+          body: data.body,
+          type: data.type,
+          targetAudience: data.targetAudience,
+          sentCount: data.sentCount || 0,
+          failedCount: data.failedCount || 0,
+          status: data.status,
+          createdAt,
+          sentBy: data.sentBy,
+          branchId: data.branchId,
+          sentByUser: data.sentByUser
+        };
+      });
+
+      const filteredNotifications = allDocs.filter((n: any) => 
+        (n.title || '').toLowerCase().includes(searchLower) || 
+        (n.body || '').toLowerCase().includes(searchLower)
+      );
+      
+      const total = filteredNotifications.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedNotifications = filteredNotifications.slice(startIndex, endIndex);
+      
+      return successResponse('Bildirim geçmişi başarıyla getirildi', {
+        notifications: paginatedNotifications,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    }
+
+    // Standard pagination without search
     query = query.orderBy('createdAt', 'desc');
     
     const totalSnapshot = await query.get();

@@ -14,6 +14,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
 // GET - Tüm eğitimleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -25,8 +26,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       const userRole = currentUserData!.role;
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isActiveParam = url.searchParams.get('isActive');
     const search = url.searchParams.get('search');
       
@@ -41,38 +41,52 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           query = query.where('isActive', '==', isActiveParam === 'true');
         }
       }
-      
-      const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').get();
-      
-      let trainings = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Training[];
-      
-      // Search filtresi
+
+      // ⚠️ IMPORTANT: Search filter handled client-side
       if (search) {
+        const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').limit(500).get();
         const searchLower = search.toLowerCase();
-        trainings = trainings.filter((t: Training) => {
-          const title = (t.title || '').toLowerCase();
-          return title.includes(searchLower);
+        const allDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Training[];
+        let trainings = allDocs.filter((t: Training) => (t.title || '').toLowerCase().includes(searchLower));
+        
+        const total = trainings.length;
+        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
+        const endIndex = startIndex + paginationParams.limit;
+        const paginatedTrainings = trainings.slice(startIndex, endIndex);
+        const hasMore = endIndex < total;
+        
+        const serializedTrainings = paginatedTrainings.map(t => serializeTrainingTimestamps(t));
+        
+        return successResponse('Eğitimler başarıyla getirildi', {
+          trainings: serializedTrainings,
+          total,
+          page: paginationParams.page,
+          limit: paginationParams.limit,
+          hasMore,
         });
       }
       
-      // Sayfalama
-      const total = trainings.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedTrainings = trainings.slice(startIndex, endIndex);
+      // Server-side pagination - Note: Using 'order' field as primary sort
+      query = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
       
-      const serializedTrainings = paginatedTrainings.map(t => serializeTrainingTimestamps(t));
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }) as Training,
+        'order'
+      );
+      
+      const serializedTrainings = paginatedResult.items.map(t => serializeTrainingTimestamps(t));
       
       return successResponse(
         'Eğitimler başarıyla getirildi',
         {
           trainings: serializedTrainings,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });

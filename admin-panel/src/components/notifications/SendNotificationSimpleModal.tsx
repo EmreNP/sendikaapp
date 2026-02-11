@@ -72,7 +72,14 @@ export default function SendNotificationSimpleModal({
   const fetchBranches = async () => {
     try {
       setLoadingBranches(true);
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
       console.error('Error fetching branches:', error);

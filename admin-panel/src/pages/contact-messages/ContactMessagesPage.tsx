@@ -28,7 +28,7 @@ export default function ContactMessagesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 20;
+  const limit = 25;
 
   // Topics states
   const [topicsList, setTopicsList] = useState<Topic[]>([]);
@@ -65,7 +65,7 @@ export default function ContactMessagesPage() {
     if (activeTab === 'messages') {
       fetchMessages();
     }
-  }, [page, filter, selectedTopicId]);
+  }, [page, filter, selectedTopicId, searchTerm]);
 
   const fetchTopics = async () => {
     try {
@@ -113,6 +113,7 @@ export default function ContactMessagesPage() {
         limit: number;
         topicId?: string;
         isRead?: boolean;
+        search?: string;
       } = {
         page,
         limit,
@@ -128,6 +129,10 @@ export default function ContactMessagesPage() {
         params.isRead = false;
       }
 
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+
       const data = await contactService.getContactMessages(params);
       setMessages(data.messages || []);
       setTotal(data.total || 0);
@@ -139,13 +144,6 @@ export default function ContactMessagesPage() {
       setMessagesLoading(false);
     }
   };
-
-  const filteredMessages = messages.filter((message) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return message.message.toLowerCase().includes(searchLower) ||
-           getTopicName(message.topicId).toLowerCase().includes(searchLower);
-  });
 
   const handleMessageClick = (message: ContactMessage) => {
     setSelectedMessage(message);
@@ -383,7 +381,7 @@ export default function ContactMessagesPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
                   <p className="text-gray-500 mt-2">Yükleniyor...</p>
                 </div>
-              ) : filteredMessages.length === 0 ? (
+              ) : messages.length === 0 ? (
                 <div className="p-8 text-center">
                   <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-500">Mesaj bulunamadı</p>
@@ -391,7 +389,7 @@ export default function ContactMessagesPage() {
               ) : (
                 <>
                   <div className="divide-y divide-gray-200">
-                    {filteredMessages.map((message) => (
+                    {messages.map((message) => (
                       <div
                         key={message.id}
                         onClick={() => handleMessageClick(message)}
@@ -433,7 +431,7 @@ export default function ContactMessagesPage() {
                   </div>
 
                   {/* Pagination */}
-                  {totalPages > 1 && !searchTerm && (
+                  {totalPages > 1 && (
                     <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
                       <div className="text-sm text-gray-500">
                         Toplam {total} mesajdan {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
@@ -457,11 +455,6 @@ export default function ContactMessagesPage() {
                           Sonraki
                         </button>
                       </div>
-                    </div>
-                  )}
-                  {searchTerm && (
-                    <div className="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
-                      {filteredMessages.length} sonuç bulundu
                     </div>
                   )}
                 </>

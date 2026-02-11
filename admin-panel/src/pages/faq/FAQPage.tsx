@@ -20,8 +20,9 @@ export default function FAQPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [filterPublished, setFilterPublished] = useState<boolean | null>(null);
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const limit = 25;
   const [userCache, setUserCache] = useState<Record<string, UserType>>({});
   const [selectedFAQIds, setSelectedFAQIds] = useState<Set<string>>(new Set());
   
@@ -50,7 +51,7 @@ export default function FAQPage() {
 
       const data = await faqService.getFAQ({
         page,
-        limit: 100,
+        limit: 25,
         isPublished: filterPublished ?? undefined,
         search: searchTerm || undefined,
       });
@@ -135,17 +136,9 @@ export default function FAQPage() {
     });
   };
 
-  const filteredFAQ = faqs.filter((item) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.answer.replace(/<[^>]*>/g, '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedFAQIds(new Set(filteredFAQ.map(f => f.id)));
+      setSelectedFAQIds(new Set(faqs.map(f => f.id)));
     } else {
       setSelectedFAQIds(new Set());
     }
@@ -343,7 +336,7 @@ export default function FAQPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
               <p className="text-gray-500 mt-2">Yükleniyor...</p>
             </div>
-          ) : filteredFAQ.length === 0 ? (
+          ) : faqs.length === 0 ? (
             <div className="p-8 text-center">
               <HelpCircle className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">FAQ bulunamadı</p>
@@ -357,7 +350,7 @@ export default function FAQPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                         <input
                           type="checkbox"
-                          checked={filteredFAQ.length > 0 && selectedFAQIds.size === filteredFAQ.length}
+                          checked={faqs.length > 0 && selectedFAQIds.size === faqs.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                           className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                           onClick={(e) => e.stopPropagation()}
@@ -381,7 +374,7 @@ export default function FAQPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredFAQ.map((item, index) => (
+                    {faqs.map((item, index) => (
                       <tr 
                         key={item.id || `faq-${index}`} 
                         className={`hover:bg-gray-50 transition-colors ${
@@ -499,11 +492,32 @@ export default function FAQPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Toplam FAQ sayısı: <span className="font-medium text-gray-900">{total}</span>
+              {/* Pagination */}
+              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Toplam {total} FAQ'dan {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
                 </div>
+                {Math.ceil(total / limit) > 1 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Önceki
+                    </button>
+                    <span className="px-4 py-2 text-sm text-gray-700">
+                      Sayfa {page} / {Math.ceil(total / limit)}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
+                      disabled={page === Math.ceil(total / limit)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Sonraki
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

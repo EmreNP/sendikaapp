@@ -13,6 +13,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
 // GET - Tüm haberleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -28,8 +29,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       // Query parametreleri
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isPublishedParam = url.searchParams.get('isPublished');
     const isFeaturedParam = url.searchParams.get('isFeatured');
     const search = url.searchParams.get('search');
@@ -51,40 +51,52 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && isFeaturedParam !== null) {
         query = query.where('isFeatured', '==', isFeaturedParam === 'true');
       }
-      
-      // Query'yi çalıştır
-      const snapshot = await query.orderBy('createdAt', 'desc').get();
-      
-      let news = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as News[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
+
+      // ⚠️ IMPORTANT: Search filter handled client-side (see announcements endpoint for details)
       if (search) {
+        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
         const searchLower = search.toLowerCase();
-        news = news.filter((n: News) => {
-          const title = (n.title || '').toLowerCase();
-          return title.includes(searchLower);
+        const allDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as News[];
+        let news = allDocs.filter((n: News) => (n.title || '').toLowerCase().includes(searchLower));
+        
+        const total = news.length;
+        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
+        const endIndex = startIndex + paginationParams.limit;
+        const paginatedNews = news.slice(startIndex, endIndex);
+        const hasMore = endIndex < total;
+        
+        const serializedNews = paginatedNews.map(n => serializeNewsTimestamps(n));
+        
+        return successResponse('Haberler başarıyla getirildi', {
+          news: serializedNews,
+          total,
+          page: paginationParams.page,
+          limit: paginationParams.limit,
+          hasMore,
         });
       }
       
-      // Sayfalama
-      const total = news.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedNews = news.slice(startIndex, endIndex);
+      // Server-side pagination with Firestore
+      query = query.orderBy('createdAt', 'desc');
       
-      // Timestamp'leri serialize et
-      const serializedNews = paginatedNews.map(n => serializeNewsTimestamps(n));
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }) as News,
+        'createdAt'
+      );
+      
+      const serializedNews = paginatedResult.items.map(n => serializeNewsTimestamps(n));
       
       return successResponse(
         'Haberler başarıyla getirildi',
         {
           news: serializedNews,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });

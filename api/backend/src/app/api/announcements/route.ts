@@ -13,6 +13,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
 // GET - Tüm duyuruları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -28,8 +29,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       // Query parametreleri
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isPublishedParam = url.searchParams.get('isPublished');
     const isFeaturedParam = url.searchParams.get('isFeatured');
     const search = url.searchParams.get('search');
@@ -65,40 +65,76 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && isFeaturedParam !== null) {
         query = query.where('isFeatured', '==', isFeaturedParam === 'true');
       }
+
+      // ⚠️ IMPORTANT: Search filter is moved to client-side due to Firestore limitations
+      // Firestore doesn't support full-text search natively
+      // For production: Consider using Algolia, Elasticsearch, or Firestore text search extensions
+      // For now: If search is provided, we fetch more results and filter client-side
+      // This is acceptable for small result sets, but should be replaced with proper search service
       
-      // Query'yi çalıştır
-      const snapshot = await query.orderBy('createdAt', 'desc').get();
-      
-      let announcements = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Announcement[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
       if (search) {
+        // If search is active, we need to fetch more results to filter
+        // This is a compromise - still better than fetching ALL documents
+        // Consider implementing proper search service for production
+        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
+        
         const searchLower = search.toLowerCase();
-        announcements = announcements.filter((a: Announcement) => {
-          const title = (a.title || '').toLowerCase();
-          return title.includes(searchLower);
-        });
+        const allDocs = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Announcement[];
+        let announcements = allDocs.filter((a: Announcement) => {
+            const title = (a.title || '').toLowerCase();
+            return title.includes(searchLower);
+          });
+        
+        // Manual pagination after filtering
+        const total = announcements.length;
+        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
+        const endIndex = startIndex + paginationParams.limit;
+        const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
+        const hasMore = endIndex < total;
+        
+        const serializedAnnouncements = paginatedAnnouncements.map(a => serializeAnnouncementTimestamps(a));
+        
+        return successResponse(
+          'Duyurular başarıyla getirildi',
+          {
+            announcements: serializedAnnouncements,
+            total,
+            page: paginationParams.page,
+            limit: paginationParams.limit,
+            hasMore,
+          }
+        );
       }
       
-      // Sayfalama
-      const total = announcements.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
+      // Server-side pagination with Firestore (BEST PRACTICE)
+      // Only fetches documents needed for current page
+      query = query.orderBy('createdAt', 'desc');
+      
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Announcement,
+        'createdAt'
+      );
       
       // Timestamp'leri serialize et
-      const serializedAnnouncements = paginatedAnnouncements.map(a => serializeAnnouncementTimestamps(a));
+      const serializedAnnouncements = paginatedResult.items.map(a => serializeAnnouncementTimestamps(a));
       
       return successResponse(
         'Duyurular başarıyla getirildi',
         {
           announcements: serializedAnnouncements,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });

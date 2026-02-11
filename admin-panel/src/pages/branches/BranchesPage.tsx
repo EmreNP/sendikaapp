@@ -34,6 +34,10 @@ export default function BranchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBranches, setTotalBranches] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -53,9 +57,19 @@ export default function BranchesPage() {
     onConfirm: () => {},
   });
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); // Reset to first page on search change
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchBranches();
-  }, []);
+  }, [page, debouncedSearch]);
 
   const fetchBranches = async () => {
     try {
@@ -64,12 +78,28 @@ export default function BranchesPage() {
 
       const { apiRequest } = await import('@/utils/api');
       
-      console.log('📡 Fetching branches from:', '/api/branches');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '25',
+      });
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
 
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      console.log('📡 Fetching branches from:', `/api/branches?${params.toString()}`);
+
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+      }>(`/api/branches?${params.toString()}`);
       
       console.log('✅ Branches data received:', data);
       setBranches(data.branches || []);
+      setTotalBranches(data.total || 0);
+      setTotalPages(Math.ceil((data.total || 0) / 25));
     } catch (error: any) {
       console.error('❌ Error fetching branches:', error);
       setError(error.message || 'Şubeler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
@@ -78,14 +108,6 @@ export default function BranchesPage() {
       setLoading(false);
     }
   };
-
-  const filteredBranches = branches.filter((branch) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      branch.address?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
 
   const handleDeleteBranch = async (branchId: string) => {
     try {
@@ -137,7 +159,7 @@ export default function BranchesPage() {
     }
   };
 
-  const totalBranches = filteredBranches.length;
+
 
   return (
     <AdminLayout>
@@ -191,7 +213,7 @@ export default function BranchesPage() {
               <Building2 className="w-12 h-12 text-red-400 mx-auto mb-2" />
               <p className="text-red-600">{error}</p>
             </div>
-          ) : filteredBranches.length === 0 ? (
+          ) : branches.length === 0 ? (
             <div className="p-8 text-center">
               <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">Şube bulunamadı</p>
@@ -229,7 +251,7 @@ export default function BranchesPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredBranches.map((branch) => (
+                    {branches.map((branch) => (
                       <tr 
                         key={branch.id} 
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -358,10 +380,51 @@ export default function BranchesPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Toplam şube sayısı: <span className="font-medium text-gray-900">{totalBranches}</span>
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Önceki
+                  </button>
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page >= totalPages}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Sonraki
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Toplam <span className="font-medium">{totalBranches}</span> sonuçtan <span className="font-medium">{(page - 1) * 25 + 1}</span> - <span className="font-medium">{Math.min(page * 25, totalBranches)}</span> arası gösteriliyor
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Önceki
+                      </button>
+                      <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        Sayfa {page} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPage(p => p + 1)}
+                        disabled={page >= totalPages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Sonraki
+                      </button>
+                    </nav>
+                  </div>
                 </div>
               </div>
             </>

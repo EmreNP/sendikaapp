@@ -21,7 +21,7 @@ export default function NotificationHistoryPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [limit] = useState(20);
+  const [limit] = useState(25);
   const [filterType, setFilterType] = useState<'all' | 'announcement' | 'news'>('all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filterBranchId, setFilterBranchId] = useState<string>('');
@@ -44,7 +44,14 @@ export default function NotificationHistoryPage() {
 
   const fetchBranches = async () => {
     try {
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
       console.error('Error fetching branches:', error);
@@ -62,19 +69,10 @@ export default function NotificationHistoryPage() {
         type: filterType === 'all' ? undefined : filterType,
         // Branch manager için backend'e kendi şubesi gönderilsin, diğerleri seçime göre
         branchId: user?.role === 'branch_manager' ? (user.branchId || undefined) : (filterBranchId || undefined),
+        search: searchTerm || undefined,
       });
 
-      let filteredNotifications = data.notifications || [];
-      
-      // Client-side search filtering
-      if (searchTerm) {
-        filteredNotifications = filteredNotifications.filter(notification => 
-          notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          notification.body.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-
-      setNotifications(filteredNotifications);
+      setNotifications(data.notifications || []);
       setTotal(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 0);
     } catch (error: any) {

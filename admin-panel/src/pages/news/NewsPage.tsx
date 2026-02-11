@@ -38,8 +38,9 @@ export default function NewsPage() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [filterPublished, setFilterPublished] = useState<boolean | null>(null);
   const [filterFeatured, setFilterFeatured] = useState<boolean | null>(null);
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [limit] = useState(25);
   const [userCache, setUserCache] = useState<Record<string, UserType>>({});
   const [selectedNewsIds, setSelectedNewsIds] = useState<Set<string>>(new Set());
   
@@ -54,8 +55,9 @@ export default function NewsPage() {
   const [isAnnouncementPreviewModalOpen, setIsAnnouncementPreviewModalOpen] = useState(false);
   const [announcementsFilterPublished, setAnnouncementsFilterPublished] = useState<boolean | null>(null);
   const [announcementsFilterFeatured, setAnnouncementsFilterFeatured] = useState<boolean | null>(null);
-  const [announcementsPage] = useState(1);
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
   const [announcementsTotal, setAnnouncementsTotal] = useState(0);
+  const [announcementsLimit] = useState(25);
   const [selectedAnnouncementIds, setSelectedAnnouncementIds] = useState<Set<string>>(new Set());
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -96,7 +98,7 @@ export default function NewsPage() {
 
       const data = await newsService.getNews({
         page,
-        limit: 100,
+        limit: 25,
         isPublished: filterPublished ?? undefined,
         isFeatured: filterFeatured ?? undefined,
         search: searchTerm || undefined,
@@ -205,16 +207,9 @@ export default function NewsPage() {
     });
   };
 
-  const filteredNews = news.filter((item) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      item.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedNewsIds(new Set(filteredNews.map(n => n.id)));
+      setSelectedNewsIds(new Set(news.map(n => n.id)));
     } else {
       setSelectedNewsIds(new Set());
     }
@@ -338,7 +333,7 @@ export default function NewsPage() {
 
       const data = await announcementService.getAnnouncements({
         page: announcementsPage,
-        limit: 100,
+        limit: 25,
         isPublished: announcementsFilterPublished ?? undefined,
         isFeatured: announcementsFilterFeatured ?? undefined,
         search: announcementsSearchTerm || undefined,
@@ -387,16 +382,9 @@ export default function NewsPage() {
     }
   };
 
-  const filteredAnnouncements = announcements.filter((item) => {
-    const matchesSearch =
-      announcementsSearchTerm === '' ||
-      item.title.toLowerCase().includes(announcementsSearchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const handleSelectAllAnnouncements = (checked: boolean) => {
     if (checked) {
-      setSelectedAnnouncementIds(new Set(filteredAnnouncements.map(a => a.id)));
+      setSelectedAnnouncementIds(new Set(announcements.map(a => a.id)));
     } else {
       setSelectedAnnouncementIds(new Set());
     }
@@ -668,7 +656,7 @@ export default function NewsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
               <p className="text-gray-500 mt-2">Yükleniyor...</p>
             </div>
-          ) : filteredNews.length === 0 ? (
+          ) : news.length === 0 ? (
             <div className="p-8 text-center">
               <Newspaper className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">Haber bulunamadı</p>
@@ -682,7 +670,7 @@ export default function NewsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                         <input
                           type="checkbox"
-                          checked={filteredNews.length > 0 && selectedNewsIds.size === filteredNews.length}
+                          checked={news.length > 0 && selectedNewsIds.size === news.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                           className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                           onClick={(e) => e.stopPropagation()}
@@ -709,7 +697,7 @@ export default function NewsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredNews.map((item, index) => (
+                    {news.map((item, index) => (
                       <tr 
                         key={item.id || `news-${index}`} 
                         className={`hover:bg-gray-50 transition-colors ${
@@ -867,11 +855,32 @@ export default function NewsPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Toplam haber sayısı: <span className="font-medium text-gray-900">{total}</span>
+              {/* Pagination */}
+              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Toplam {total} haberden {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
                 </div>
+                {Math.ceil(total / limit) > 1 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Önceki
+                    </button>
+                    <span className="px-4 py-2 text-sm text-gray-700">
+                      Sayfa {page} / {Math.ceil(total / limit)}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
+                      disabled={page === Math.ceil(total / limit)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Sonraki
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -884,7 +893,7 @@ export default function NewsPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
                 <p className="text-gray-500 mt-2">Yükleniyor...</p>
               </div>
-            ) : filteredAnnouncements.length === 0 ? (
+            ) : announcements.length === 0 ? (
               <div className="p-8 text-center">
                 <Megaphone className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">Duyuru bulunamadı</p>
@@ -898,7 +907,7 @@ export default function NewsPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                           <input
                             type="checkbox"
-                            checked={filteredAnnouncements.length > 0 && selectedAnnouncementIds.size === filteredAnnouncements.length}
+                            checked={announcements.length > 0 && selectedAnnouncementIds.size === announcements.length}
                             onChange={(e) => handleSelectAllAnnouncements(e.target.checked)}
                             className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                             onClick={(e) => e.stopPropagation()}
@@ -925,7 +934,7 @@ export default function NewsPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredAnnouncements.map((item, index) => (
+                      {announcements.map((item, index) => (
                         <tr 
                           key={item.id || `announcement-${index}`} 
                           className={`hover:bg-gray-50 transition-colors ${
@@ -1083,11 +1092,32 @@ export default function NewsPage() {
                     </tbody>
                   </table>
                 </div>
-                {/* Total Count */}
-                <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
-                    Toplam duyuru sayısı: <span className="font-medium text-gray-900">{announcementsTotal}</span>
+                {/* Pagination */}
+                <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-500">
+                    Toplam {announcementsTotal} duyurudan {((announcementsPage - 1) * announcementsLimit) + 1}-{Math.min(announcementsPage * announcementsLimit, announcementsTotal)} arası gösteriliyor
                   </div>
+                  {Math.ceil(announcementsTotal / announcementsLimit) > 1 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setAnnouncementsPage((p) => Math.max(1, p - 1))}
+                        disabled={announcementsPage === 1}
+                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Önceki
+                      </button>
+                      <span className="px-4 py-2 text-sm text-gray-700">
+                        Sayfa {announcementsPage} / {Math.ceil(announcementsTotal / announcementsLimit)}
+                      </span>
+                      <button
+                        onClick={() => setAnnouncementsPage((p) => Math.min(Math.ceil(announcementsTotal / announcementsLimit), p + 1))}
+                        disabled={announcementsPage === Math.ceil(announcementsTotal / announcementsLimit)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Sonraki
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -22,6 +22,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
+import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
 // GET /api/users - Kullanıcı listesi
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -45,16 +46,15 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const status = url.searchParams.get('status');
     const role = url.searchParams.get('role');
     const branchId = url.searchParams.get('branchId');
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = parseQueryParamAsNumber(url, 'limit', 20, 1);
+    const paginationParams = parsePaginationParams(url);
     const search = url.searchParams.get('search');
       
       // Query oluştur
       let query: Query = db.collection('users');
       
-      // Branch Manager sadece kendi şubesindeki 'user' rolündeki kullanıcıları görebilir
+      // Branch Manager sadece kendi şubesindeki kullanıcıları/yöneticileri görebilir
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
-        query = query.where('branchId', '==', currentUserData!.branchId).where('role', '==', USER_ROLE.USER);
+        query = query.where('branchId', '==', currentUserData!.branchId);
       }
       
       // Admin ve Superadmin için filtreleme
@@ -71,32 +71,54 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       // Role filtresi
       if (role) {
-        query = query.where('role', '==', role);
+        // Support special 'managers' alias to fetch all manager/admin roles
+        if (role === 'managers') {
+          query = query.where('role', 'in', [USER_ROLE.SUPERADMIN, USER_ROLE.ADMIN, USER_ROLE.BRANCH_MANAGER]);
+        } else {
+          query = query.where('role', '==', role);
+        }
       }
       
-      // Query'yi çalıştır
-      const snapshot = await query.get();
-      
-      let users = snapshot.docs.map((doc) => ({
-        uid: doc.id,
-        ...doc.data(),
-      })) as User[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
+      let items: User[] = [];
+      let total = 0;
+      let hasMore = false;
+
       if (search) {
+        // For search, fetch recent 500 users matching the filters
+        // Using limit(500) prevents fetching entire collection
+        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
+        
+        const allUsers = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        })) as User[];
+        
         const searchLower = search.toLowerCase();
-        users = users.filter((u: User) => {
+        const filtered = allUsers.filter((u: User) => {
           const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
           const email = (u.email || '').toLowerCase();
           return fullName.includes(searchLower) || email.includes(searchLower);
         });
+        
+        total = filtered.length;
+        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
+        items = filtered.slice(startIndex, startIndex + paginationParams.limit);
+        hasMore = startIndex + paginationParams.limit < total;
+      } else {
+        // Standard server-side pagination
+        query = query.orderBy('createdAt', 'desc');
+        const paginatedResult = await paginateHybrid(
+          query,
+          paginationParams,
+          (doc) => ({ uid: doc.id, ...doc.data() }) as User,
+          'createdAt'
+        );
+        items = paginatedResult.items;
+        total = paginatedResult.total;
+        hasMore = paginatedResult.hasMore;
       }
-      
-      // Sayfalama
-      const total = users.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedUsers = users.slice(startIndex, endIndex);
+
+      const paginatedUsers = items;
       
       // Generate signed URLs for documents
       const usersWithUrls = await Promise.all(
@@ -115,12 +137,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       );
       
       return successResponse(
-        'Kullanıcı listesi başarıyla getirildi',
+        'Kullanıcılar başarıyla getirildi',
         {
           users: usersWithUrls,
           total,
-          page,
-          limit,
+          page: paginationParams.page,
+          limit: paginationParams.limit,
+          hasMore,
         }
       );
   });

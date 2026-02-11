@@ -36,9 +36,11 @@ export interface UpdateAnnouncementRequest {
 
 export interface AnnouncementListResponse {
   announcements: Announcement[];
-  total: number;
+  total?: number;
   page: number;
   limit: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export type BulkAnnouncementAction = 'delete' | 'publish' | 'unpublish';
