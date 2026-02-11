@@ -35,14 +35,14 @@ export const authService = {
       const userData = userDoc.data() as User;
       console.log('👤 User data:', { role: userData.role, status: userData.status });
 
-      // Sadece admin ve branch_manager giriş yapabilir
-      if (userData.role !== 'admin' && userData.role !== 'branch_manager') {
+      // Sadece admin, superadmin ve branch_manager giriş yapabilir
+      if (userData.role !== 'admin' && userData.role !== 'branch_manager' && userData.role !== 'superadmin') {
         console.error('❌ Invalid role:', userData.role);
         await firebaseSignOut(auth);
         throw new Error('Bu panele erişim yetkiniz yok');
       }
 
-      // Admin ve branch_manager için status kontrolü yok - direkt giriş yapabilirler
+      // Admin, superadmin ve branch_manager için status kontrolü yok - direkt giriş yapabilirler
 
       return {
         user: userData,

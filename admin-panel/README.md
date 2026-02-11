@@ -17,7 +17,9 @@ cp .env.example .env
 3. `.env` dosyasını düzenleyin:
 ```env
 # Backend API URL
-VITE_API_BASE_URL=http://localhost:3001
+VITE_API_BASE_URL=/api  # When hosted via Firebase Hosting this will be proxied to Cloud Run
+
+Runtime override: you can override the API base at runtime by setting `window.__API_BASE__` before your app loads, or if you open the hosted build locally (http://localhost:5000 or `vite preview`) it will automatically use `http://localhost:3001` for convenience.
 ```
 
 **Production için:**
@@ -45,7 +47,7 @@ Build çıktısı `dist` klasöründe olacaktır.
 
 ## Environment Variables
 
-- `VITE_API_BASE_URL`: Backend API base URL'i (default: `http://localhost:3001`)
+- `VITE_API_BASE_URL`: Backend API base URL'i (production default: `/api` — Firebase Hosting proxies `/api/**` to Cloud Run). Hosted admin panel: https://sendikaapp.web.app
 
 ## Özellikler
 

@@ -13,7 +13,7 @@ interface ActivityFormModalProps {
   activity?: Activity | null;
   categories: ActivityCategory[];
   branches: BranchOption[];
-  currentUserRole: 'admin' | 'branch_manager';
+  currentUserRole: 'admin' | 'branch_manager' | 'superadmin';
   currentUserBranchId?: string;
   onSubmit: (data: CreateActivityRequest | UpdateActivityRequest) => Promise<void>;
   onCancel: () => void;
@@ -44,6 +44,37 @@ export default function ActivityFormModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Branch name for display (branch_manager sees name instead of raw id)
+  const [branchName, setBranchName] = useState('');
+
+  // Keep branchName in sync when activity, current user branch or branches list changes
+  useEffect(() => {
+    const loadBranchName = async () => {
+      const branchIdToLookup = activity?.branchId || currentUserBranchId;
+      if (!branchIdToLookup) {
+        setBranchName('');
+        return;
+      }
+
+      // Prefer provided branches list
+      const found = branches.find(b => b.id === branchIdToLookup);
+      if (found) {
+        setBranchName(found.name);
+        return;
+      }
+
+      // Fall back to fetching single branch from API
+      try {
+        const { apiRequest } = await import('@/utils/api');
+        const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchIdToLookup}`);
+        setBranchName(data.branch?.name || branchIdToLookup);
+      } catch (e) {
+        setBranchName(branchIdToLookup);
+      }
+    };
+
+    loadBranchName();
+  }, [activity?.branchId, currentUserBranchId, branches]);
 
   useEffect(() => {
     if (activity) {
@@ -107,7 +138,7 @@ export default function ActivityFormModal({
     }
 
     if (!activity) {
-      if (currentUserRole === 'admin' && !formData.branchId) {
+      if ((currentUserRole === 'admin' || currentUserRole === 'superadmin') && !formData.branchId) {
         newErrors.branchId = 'Şube seçimi zorunludur';
       }
       if (currentUserRole === 'branch_manager' && !formData.branchId) {
@@ -281,10 +312,10 @@ export default function ActivityFormModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Şube {currentUserRole === 'admin' ? '*' : ''}
+                  Şube {(currentUserRole === 'admin' || currentUserRole === 'superadmin') ? '*' : ''}
                 </label>
 
-                {currentUserRole === 'admin' ? (
+                {(currentUserRole === 'admin' || currentUserRole === 'superadmin') ? (
                   <select
                     value={formData.branchId}
                     onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))}
@@ -301,9 +332,10 @@ export default function ActivityFormModal({
                 ) : (
                   <input
                     type="text"
-                    value={formData.branchId}
+                    value={branchName || formData.branchId}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
                     disabled
+                    placeholder={branchName ? undefined : 'Şube bilgisi bulunamadı'}
                   />
                 )}
 

@@ -2,12 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
-import AdminDashboard from './pages/dashboard/AdminDashboard';
-import BranchDashboard from './pages/dashboard/BranchDashboard';
+// Dashboard removed — Users page will be the landing page
 import UsersPage from './pages/users/UsersPage';
 import BranchesPage from './pages/branches/BranchesPage';
 import NewsPage from './pages/news/NewsPage';
-import BranchNewsPage from './pages/news/BranchNewsPage';
 import ActivitiesPage from './pages/activities/ActivitiesPage';
 import TrainingsPage from './pages/trainings/TrainingsPage';
 import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
@@ -24,14 +22,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           
           {/* Admin Routes */}
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* Dashboard removed — redirect legacy routes to Users list */}
+          <Route path="/admin/dashboard" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/branch/dashboard" element={<Navigate to="/admin/users" replace />} />
           <Route
             path="/admin/users"
             element={
@@ -51,7 +44,7 @@ function App() {
           <Route
             path="/admin/news"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
                 <NewsPage />
               </ProtectedRoute>
             }
@@ -113,23 +106,9 @@ function App() {
             }
           />
           
-          {/* Branch Manager Routes */}
-          <Route
-            path="/branch/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['branch_manager']}>
-                <BranchDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/branch/news"
-            element={
-              <ProtectedRoute allowedRoles={['branch_manager']}>
-                <BranchNewsPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Legacy branch routes - redirect to Users list */}
+          <Route path="/branch/dashboard" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/branch/news" element={<Navigate to="/admin/news" replace />} />
           
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

@@ -73,7 +73,7 @@ export default function ActivitiesPage() {
   useEffect(() => {
     const loadBranchesIfNeeded = async () => {
       try {
-        if (user?.role !== 'admin') return;
+        if (user?.role !== 'admin' && user?.role !== 'superadmin') return;
         const { apiRequest } = await import('@/utils/api');
         const data = await apiRequest<{ branches: BranchOption[] }>('/api/branches');
         setBranches(data.branches || []);
@@ -89,6 +89,13 @@ export default function ActivitiesPage() {
 
     if (activeTab === 'activities') {
       fetchActivities();
+    }
+  }, [activeTab, user?.role]);
+
+  // If a non-admin somehow has `categories` active (e.g., bookmarked URL), force back to activities
+  useEffect(() => {
+    if (activeTab === 'categories' && !(user?.role === 'admin' || user?.role === 'superadmin')) {
+      setActiveTab('activities');
     }
   }, [activeTab, user?.role]);
 
@@ -243,16 +250,18 @@ export default function ActivitiesPage() {
               >
                 Aktiviteler
               </button>
-              <button
-                onClick={() => setActiveTab('categories')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'categories'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Kategoriler
-              </button>
+              {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <button
+                  onClick={() => setActiveTab('categories')}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'categories'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Kategoriler
+                </button>
+              )}
             </nav>
 
             {activeTab === 'activities' && (
@@ -266,7 +275,7 @@ export default function ActivitiesPage() {
               </button>
             )}
 
-            {activeTab === 'categories' && (
+            {activeTab === 'categories' && (user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={handleCreateCategory}
                 disabled={processing}
@@ -426,7 +435,7 @@ export default function ActivitiesPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-2">
-                                {user?.role === 'admin' && (
+                                {(user?.role === 'admin' || user?.role === 'superadmin') && (
                                   <>
                                     <ActionButton
                                       icon={Edit}
@@ -462,7 +471,7 @@ export default function ActivitiesPage() {
             activity={selectedActivity}
             categories={categories}
             branches={branches}
-            currentUserRole={(user?.role as 'admin' | 'branch_manager') || 'branch_manager'}
+            currentUserRole={(user?.role as 'admin' | 'branch_manager' | 'superadmin') || 'branch_manager' }
             currentUserBranchId={user?.branchId}
             onSubmit={handleActivityFormSubmit}
             onCancel={() => {

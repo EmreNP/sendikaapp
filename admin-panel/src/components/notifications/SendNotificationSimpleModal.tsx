@@ -40,6 +40,7 @@ export default function SendNotificationSimpleModal({
   const [body, setBody] = useState('');
   const [targetAudience, setTargetAudience] = useState<TargetAudience>('all');
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const [branchIds, setBranchIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -47,9 +48,9 @@ export default function SendNotificationSimpleModal({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
 
-  // Admin için branch listesini yükle
+  // Admin/superadmin ve branch_manager için branch listesini yükle
   useEffect(() => {
-    if (isOpen && user?.role === 'admin') {
+    if (isOpen && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager')) {
       fetchBranches();
     }
   }, [isOpen, user]);
@@ -59,8 +60,9 @@ export default function SendNotificationSimpleModal({
     if (isOpen) {
       setTitle(initialTitle);
       setBody(initialBody);
-      setTargetAudience(user?.role === 'admin' ? 'all' : 'branch');
+      setTargetAudience(user?.role === 'admin' || user?.role === 'superadmin' ? 'all' : 'branch');
       setBranchId(user?.role === 'branch_manager' ? user.branchId : undefined);
+      setBranchIds([]);
       setError(null);
       setSuccess(false);
       setResult(null);
@@ -117,9 +119,9 @@ export default function SendNotificationSimpleModal({
       }
     }
 
-    // Admin için branch seçimi kontrolü
-    if (user?.role === 'admin' && targetAudience === 'branch' && !branchId) {
-      setError('Şube seçimi zorunludur');
+    // Admin/superadmin için branch seçimi kontrolü
+    if ((user?.role === 'admin' || user?.role === 'superadmin') && targetAudience === 'branch' && branchIds.length === 0) {
+      setError('En az bir şube seçilmelidir');
       return;
     }
 
@@ -133,7 +135,8 @@ export default function SendNotificationSimpleModal({
         targetAudience: targetAudience,
         contentId: contentId,
         imageUrl: imageUrl,
-        branchId: branchId,
+        branchId: user?.role === 'branch_manager' ? branchId : undefined,
+        branchIds: isAdmin && targetAudience === 'branch' ? branchIds : undefined,
       };
 
       const response = await notificationService.sendNotification(requestData);
@@ -165,7 +168,7 @@ export default function SendNotificationSimpleModal({
   if (!isOpen) return null;
 
   const isBranchManager = user?.role === 'branch_manager';
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -273,6 +276,7 @@ export default function SendNotificationSimpleModal({
                   setTargetAudience(audience);
                   if (audience !== 'branch') {
                     setBranchId(undefined);
+                    setBranchIds([]);
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -301,25 +305,40 @@ export default function SendNotificationSimpleModal({
                 {isBranchManager ? (
                   <input
                     type="text"
-                    value={user?.branchId || ''}
+                    value={branches.find(b => b.id === user?.branchId)?.name || user?.branchId || ''}
                     disabled
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                   />
                 ) : (
-                  <select
-                    value={branchId || ''}
-                    onChange={(e) => setBranchId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    disabled={loadingBranches}
-                  >
-                    <option value="">Şube Seçin</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-2 space-y-1">
+                      {branches.map((branch) => {
+                        const isChecked = branchIds.includes(branch.id);
+                        return (
+                          <label key={branch.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setBranchIds((prev) => [...prev, branch.id]);
+                                } else {
+                                  setBranchIds((prev) => prev.filter((id) => id !== branch.id));
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              disabled={loadingBranches}
+                            />
+                            <span className="text-sm text-gray-700">{branch.name}</span>
+                          </label>
+                        );
+                      })}
+                      {branches.length === 0 && !loadingBranches && (
+                        <div className="text-sm text-gray-500 px-2 py-1">Şube bulunamadı</div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">Birden fazla şube seçebilirsiniz</p>
+                  </div>
                 )}
               </div>
             )}

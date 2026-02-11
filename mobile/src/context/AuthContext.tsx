@@ -1,59 +1,83 @@
+// Auth Context
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import apiService from '../services/api';
-import type { User } from '@shared/types/user';
+import type { User, UserStatus, UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
+  isLoading: boolean;
   isAuthenticated: boolean;
+  status: UserStatus | null;
+  role: UserRole | null;
+  isPendingDetails: boolean;
+  isActive: boolean;
+  canAccessTrainings: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  registerBasic: (data: { 
+    email: string; 
+    password: string; 
+    firstName: string; 
+    lastName: string;
+    birthDate: string;
+    gender: 'male' | 'female';
+  }) => Promise<void>;
+  registerDetails: (data: any) => Promise<void>;
   refreshUser: () => Promise<void>;
-  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Listen to Firebase Auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔄 Auth state changed:', firebaseUser ? firebaseUser.uid : 'no user');
       if (firebaseUser) {
         try {
           const userData = await apiService.getCurrentUser();
-          console.log('✅ User state updated:', { uid: userData.uid, status: userData.status });
           setUser(userData);
-        } catch (error: any) {
-          console.error('❌ Failed to get user data:', error.message);
-          // Hata durumunda user'ı null yapma, Firebase user varsa bekleyelim
-          // Çünkü Firestore'da henüz user oluşmamış olabilir (register basic sonrası)
+        } catch (error) {
+          console.error('Failed to get user data:', error);
+          setUser(null);
         }
       } else {
         setUser(null);
       }
-      setLoading(false);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await apiService.login(email, password);
-    console.log('✅ Login successful, setting user:', { uid: response.user.uid, status: response.user.status });
-    // onAuthStateChanged otomatik olarak tetiklenecek ama hemen setUser yapalım
-    // ki navigation çalışsın
-    setUser(response.user);
+    const { user: userData } = await apiService.login(email, password);
+    setUser(userData);
   };
 
   const logout = async () => {
     await apiService.logout();
     setUser(null);
+  };
+
+  const registerBasic = async (data: { 
+    email: string; 
+    password: string; 
+    firstName: string; 
+    lastName: string;
+    birthDate: string;
+    gender: 'male' | 'female';
+  }) => {
+    const { user: userData } = await apiService.registerBasic(data);
+    setUser(userData);
+  };
+
+  const registerDetails = async (data: any) => {
+    const { user: userData } = await apiService.registerDetails(data);
+    setUser(userData);
   };
 
   const refreshUser = async () => {
@@ -65,28 +89,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        refreshUser,
-        setUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    status: user?.status || null,
+    role: user?.role || null,
+    isPendingDetails: user?.status === 'pending_details',
+    isActive: user?.status === 'active',
+    canAccessTrainings: user?.status === 'active',
+    login,
+    logout,
+    registerBasic,
+    registerDetails,
+    refreshUser,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
-

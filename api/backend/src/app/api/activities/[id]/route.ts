@@ -76,7 +76,7 @@ export const PUT = asyncHandler(async (
     }
 
     // Check permissions
-    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
+    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError('Bu işlem için yeterli yetkiniz yok');
     }
 
@@ -159,7 +159,7 @@ export const DELETE = asyncHandler(async (
     }
 
     // Check permissions
-    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
+    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError('Bu işlem için yeterli yetkiniz yok');
     }
 

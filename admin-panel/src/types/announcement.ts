@@ -5,6 +5,7 @@ export interface Announcement {
   content?: string;
   externalUrl?: string;
   imageUrl?: string;
+  branchId?: string | null;
   isPublished: boolean;
   isFeatured: boolean;
   publishedAt?: string | Date;

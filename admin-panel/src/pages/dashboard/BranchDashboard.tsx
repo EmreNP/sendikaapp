@@ -23,16 +23,17 @@ export default function BranchDashboard() {
       const data = await apiRequest<{ stats: { 
         total: number; 
         byStatus: { 
+          pending_details: number;
           pending_branch_review: number; 
-          pending_admin_approval: number; 
+          active: number;
           rejected: number;
         } 
       } }>('/api/users/stats');
       
       setStats({
         total: data.stats?.total || 0,
-        pending: data.stats?.byStatus?.pending_branch_review || 0,
-        approved: data.stats?.byStatus?.pending_admin_approval || 0,
+        pending: (data.stats?.byStatus?.pending_branch_review || 0),
+        approved: data.stats?.byStatus?.active || 0,
         rejected: data.stats?.byStatus?.rejected || 0,
       });
     } catch (error) {

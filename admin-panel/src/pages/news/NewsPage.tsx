@@ -10,6 +10,7 @@ import SendNotificationSimpleModal from '@/components/notifications/SendNotifica
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
 import { authService } from '@/services/auth/authService';
+import { useAuth } from '@/context/AuthContext';
 import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
@@ -18,7 +19,12 @@ import type { NotificationType } from '@shared/constants/notifications';
 type TabType = 'news' | 'announcements';
 
 export default function NewsPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('news');
+  
+  // Rol bazlı yetkilendirme: admin ve superadmin oluşturabilir
+  const canCreateNews = user?.role === 'admin' || user?.role === 'superadmin';
+  const canCreateAnnouncement = user?.role === 'admin' || user?.role === 'superadmin';
   
   // News states
   const [news, setNews] = useState<News[]>([]);
@@ -509,21 +515,23 @@ export default function NewsPage() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-end">
-          <button
-            onClick={() => {
-              if (activeTab === 'news') {
-                setSelectedNews(null);
-                setIsFormModalOpen(true);
-              } else {
-                setSelectedAnnouncement(null);
-                setIsAnnouncementFormModalOpen(true);
-              }
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            {activeTab === 'news' ? 'Yeni Haber' : 'Yeni Duyuru'}
-          </button>
+          {((activeTab === 'news' && canCreateNews) || (activeTab === 'announcements' && canCreateAnnouncement)) && (
+            <button
+              onClick={() => {
+                if (activeTab === 'news') {
+                  setSelectedNews(null);
+                  setIsFormModalOpen(true);
+                } else {
+                  setSelectedAnnouncement(null);
+                  setIsAnnouncementFormModalOpen(true);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {activeTab === 'news' ? 'Yeni Haber' : 'Yeni Duyuru'}
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -790,36 +798,40 @@ export default function NewsPage() {
                               }}
                               title="Önizle"
                             />
-                            <ActionButton
-                              icon={Edit}
-                              variant="edit"
-                              onClick={() => {
-                                setSelectedNews(item);
-                                setIsFormModalOpen(true);
-                              }}
-                              title="Düzenle"
-                              disabled={processing}
-                            />
-                            <ActionButton
-                              icon={item.isPublished ? XCircle : CheckCircle}
-                              variant={item.isPublished ? 'unpublish' : 'publish'}
-                              onClick={() => {
-                                setConfirmDialog({
-                                  isOpen: true,
-                                  title: item.isPublished ? 'Haber Yayından Kaldır' : 'Haber Yayınla',
-                                  message: `${item.title} haberini ${
-                                    item.isPublished ? 'yayından kaldırmak' : 'yayınlamak'
-                                  } istediğinizden emin misiniz?`,
-                                  variant: item.isPublished ? 'warning' : 'info',
-                                  onConfirm: () => {
-                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                    handleTogglePublished(item.id, item.isPublished);
-                                  },
-                                });
-                              }}
-                              title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
-                              disabled={processing}
-                            />
+                            {canCreateNews && (
+                              <>
+                                <ActionButton
+                                  icon={Edit}
+                                  variant="edit"
+                                  onClick={() => {
+                                    setSelectedNews(item);
+                                    setIsFormModalOpen(true);
+                                  }}
+                                  title="Düzenle"
+                                  disabled={processing}
+                                />
+                                <ActionButton
+                                  icon={item.isPublished ? XCircle : CheckCircle}
+                                  variant={item.isPublished ? 'unpublish' : 'publish'}
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: item.isPublished ? 'Haber Yayından Kaldır' : 'Haber Yayınla',
+                                      message: `${item.title} haberini ${
+                                        item.isPublished ? 'yayından kaldırmak' : 'yayınlamak'
+                                      } istediğinizden emin misiniz?`,
+                                      variant: item.isPublished ? 'warning' : 'info',
+                                      onConfirm: () => {
+                                        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                        handleTogglePublished(item.id, item.isPublished);
+                                      },
+                                    });
+                                  }}
+                                  title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
+                                  disabled={processing}
+                                />
+                              </>
+                            )}
                             <ActionButton
                               icon={Bell}
                               variant="info"
@@ -827,24 +839,26 @@ export default function NewsPage() {
                               title="Bildirim Gönder"
                               disabled={processing}
                             />
-                            <ActionButton
-                              icon={Trash2}
-                              variant="delete"
-                              onClick={() => {
-                                setConfirmDialog({
-                                  isOpen: true,
-                                  title: 'Haber Sil',
-                                  message: `${item.title} haberini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
-                                  variant: 'danger',
-                                  onConfirm: () => {
-                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                    handleDeleteNews(item.id);
-                                  },
-                                });
-                              }}
-                              title="Sil"
-                              disabled={processing}
-                            />
+                            {canCreateNews && (
+                              <ActionButton
+                                icon={Trash2}
+                                variant="delete"
+                                onClick={() => {
+                                  setConfirmDialog({
+                                    isOpen: true,
+                                    title: 'Haber Sil',
+                                    message: `${item.title} haberini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+                                    variant: 'danger',
+                                    onConfirm: () => {
+                                      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                      handleDeleteNews(item.id);
+                                    },
+                                  });
+                                }}
+                                title="Sil"
+                                disabled={processing}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1000,36 +1014,40 @@ export default function NewsPage() {
                                 }}
                                 title="Önizle"
                               />
-                              <ActionButton
-                                icon={Edit}
-                                variant="edit"
-                                onClick={() => {
-                                  setSelectedAnnouncement(item);
-                                  setIsAnnouncementFormModalOpen(true);
-                                }}
-                                title="Düzenle"
-                                disabled={announcementsProcessing}
-                              />
-                              <ActionButton
-                                icon={item.isPublished ? XCircle : CheckCircle}
-                                variant={item.isPublished ? 'unpublish' : 'publish'}
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: item.isPublished ? 'Duyuru Yayından Kaldır' : 'Duyuru Yayınla',
-                                    message: `${item.title} duyurusunu ${
-                                      item.isPublished ? 'yayından kaldırmak' : 'yayınlamak'
-                                    } istediğinizden emin misiniz?`,
-                                    variant: item.isPublished ? 'warning' : 'info',
-                                    onConfirm: () => {
-                                      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                      handleToggleAnnouncementPublished(item.id, item.isPublished);
-                                    },
-                                  });
-                                }}
-                                title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
-                                disabled={announcementsProcessing}
-                              />
+                              {canCreateAnnouncement && (
+                                <>
+                                  <ActionButton
+                                    icon={Edit}
+                                    variant="edit"
+                                    onClick={() => {
+                                      setSelectedAnnouncement(item);
+                                      setIsAnnouncementFormModalOpen(true);
+                                    }}
+                                    title="Düzenle"
+                                    disabled={announcementsProcessing}
+                                  />
+                                  <ActionButton
+                                    icon={item.isPublished ? XCircle : CheckCircle}
+                                    variant={item.isPublished ? 'unpublish' : 'publish'}
+                                    onClick={() => {
+                                      setConfirmDialog({
+                                        isOpen: true,
+                                        title: item.isPublished ? 'Duyuru Yayından Kaldır' : 'Duyuru Yayınla',
+                                        message: `${item.title} duyurusunu ${
+                                          item.isPublished ? 'yayından kaldırmak' : 'yayınlamak'
+                                        } istediğinizden emin misiniz?`,
+                                        variant: item.isPublished ? 'warning' : 'info',
+                                        onConfirm: () => {
+                                          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                          handleToggleAnnouncementPublished(item.id, item.isPublished);
+                                        },
+                                      });
+                                    }}
+                                    title={item.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
+                                    disabled={announcementsProcessing}
+                                  />
+                                </>
+                              )}
                               <ActionButton
                                 icon={Bell}
                                 variant="info"
@@ -1037,24 +1055,26 @@ export default function NewsPage() {
                                 title="Bildirim Gönder"
                                 disabled={announcementsProcessing}
                               />
-                              <ActionButton
-                                icon={Trash2}
-                                variant="delete"
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: 'Duyuru Sil',
-                                    message: `${item.title} duyurusunu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
-                                    variant: 'danger',
-                                    onConfirm: () => {
-                                      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                      handleDeleteAnnouncement(item.id);
-                                    },
-                                  });
-                                }}
-                                title="Sil"
-                                disabled={announcementsProcessing}
-                              />
+                              {canCreateAnnouncement && (
+                                <ActionButton
+                                  icon={Trash2}
+                                  variant="delete"
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: 'Duyuru Sil',
+                                      message: `${item.title} duyurusunu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+                                      variant: 'danger',
+                                      onConfirm: () => {
+                                        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                        handleDeleteAnnouncement(item.id);
+                                      },
+                                    });
+                                  }}
+                                  title="Sil"
+                                  disabled={announcementsProcessing}
+                                />
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1075,7 +1095,7 @@ export default function NewsPage() {
 
         {/* Action Buttons */}
         {activeTab === 'news' ? (
-          selectedNewsIds.size > 0 && (
+          selectedNewsIds.size > 0 && canCreateNews && (
             <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
               <span className="text-sm text-gray-600 mr-2">
                 {selectedNewsIds.size} seçili
@@ -1143,7 +1163,7 @@ export default function NewsPage() {
             </div>
           )
         ) : (
-          selectedAnnouncementIds.size > 0 && (
+          selectedAnnouncementIds.size > 0 && canCreateAnnouncement && (
             <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
               <span className="text-sm text-gray-600 mr-2">
                 {selectedAnnouncementIds.size} seçili

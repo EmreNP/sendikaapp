@@ -9,6 +9,7 @@ export type ActionButtonVariant =
   | 'activate'       // Aktif Et
   | 'deactivate'     // Pasif Et
   | 'role'           // Rol Değiştir
+  | 'status'         // Durum Değiştir
   | 'view'           // Detaylara Git
   | 'custom';        // Özel stil
 
@@ -58,6 +59,9 @@ export default function ActionButton({
       
       case 'role':
         return `${baseStyles} text-blue-600 hover:bg-blue-50 hover:text-blue-700`;
+      
+      case 'status':
+        return `${baseStyles} text-purple-600 hover:bg-purple-50 hover:text-purple-700`;
       
       case 'view':
         return `${baseStyles} text-blue-600 hover:bg-blue-50 hover:text-blue-700`;

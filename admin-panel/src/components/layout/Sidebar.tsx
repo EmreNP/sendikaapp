@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Bell, Calendar } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Bell, Calendar, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProfileModal from '@/components/common/ProfileModal';
 import { contactService } from '@/services/api/contactService';
@@ -9,16 +9,11 @@ interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   path: string;
-  roles: ('admin' | 'branch_manager')[];
+  roles: ('admin' | 'branch_manager' | 'superadmin')[];
 }
 
 const sidebarItems: SidebarItem[] = [
-  {
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    path: '/admin/dashboard',
-    roles: ['admin', 'branch_manager'],
-  },
+
   {
     icon: Users,
     label: 'Kullanıcılar',
@@ -35,13 +30,7 @@ const sidebarItems: SidebarItem[] = [
     icon: Newspaper,
     label: 'Haberler & Duyurular',
     path: '/admin/news',
-    roles: ['admin'],
-  },
-  {
-    icon: Newspaper,
-    label: 'Haberler & Duyurular',
-    path: '/branch/news',
-    roles: ['branch_manager'],
+    roles: ['admin', 'branch_manager'],
   },
   {
     icon: BookOpen,
@@ -76,19 +65,22 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function Sidebar() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showProfileOptions, setShowProfileOptions] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Kullanıcının rolüne göre menü öğelerini filtrele
+  // Kullanıcının rolüne göre menü öğelerini filtrele (superadmin tüm öğeleri görür)
   const filteredItems = sidebarItems.filter((item) =>
-    item.roles.includes(user?.role as 'admin' | 'branch_manager')
+    user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
   );
 
   // Okunmamış mesaj sayısını al
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'branch_manager')) {
+    if (user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'branch_manager')) {
       const fetchUnreadCount = async () => {
         try {
           const data = await contactService.getContactMessages({
@@ -109,6 +101,33 @@ export default function Sidebar() {
     }
   }, [user]);
 
+  // Click outside and ESC handler to close dropdown
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (showProfileOptions && containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowProfileOptions(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (showProfileOptions && e.key === 'Escape') setShowProfileOptions(false);
+    };
+
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showProfileOptions]);
+
+  // Close dropdown and profile modal when sidebar collapses
+  useEffect(() => {
+    if (!isExpanded) {
+      setShowProfileOptions(false);
+      setShowProfileModal(false);
+    }
+  }, [isExpanded]);
+
   return (
     <aside 
       className={`bg-white border-r border-gray-200 flex flex-col py-4 transition-all duration-300 ${
@@ -127,7 +146,7 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 truncate">SendikaApp</h2>
               <p className="text-xs text-gray-500 truncate">
-                {user?.role === 'admin' ? 'Admin Paneli' : 'Şube Paneli'}
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin Paneli' : 'Şube Paneli'}
               </p>
             </div>
           )}
@@ -170,12 +189,14 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Profile Button */}
-      <div className={`px-2 pt-4 border-t border-gray-200 ${isExpanded ? 'px-4' : 'px-2'}`}>
+      {/* Profile & Logout */}
+      <div ref={containerRef} className={`relative overflow-visible px-2 pt-4 border-t border-gray-200 ${isExpanded ? 'px-4' : 'px-2'}`}>
         <button
-          onClick={() => setShowProfileModal(true)}
-          className="w-full flex items-center gap-3 p-3 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={(e) => { e.stopPropagation(); setShowProfileOptions((s) => !s); }}
+          className="w-full flex items-center gap-3 p-2.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           title={!isExpanded ? 'Profil' : undefined}
+          aria-expanded={showProfileOptions}
+          aria-haspopup="menu"
         >
           <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
             {user?.firstName?.[0] || 'U'}
@@ -186,12 +207,44 @@ export default function Sidebar() {
                 {user?.firstName} {user?.lastName}
               </div>
               <div className="text-xs text-gray-500 truncate">
-                {user?.role === 'admin' ? 'Admin' : 'Şube Yöneticisi'}
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin' : 'İlçe Temsilcisi'}
               </div>
             </div>
           )}
         </button>
+
+        {/* Compact dropdown: opens upwards and is anchored near the button */}
+        {showProfileOptions && (
+          <div role="menu" className={`absolute bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-md z-50 w-44 ${isExpanded ? 'right-2' : 'left-1/2 -translate-x-1/2'}`}>
+            <button
+              role="menuitem"
+              onClick={() => { setShowProfileModal(true); setShowProfileOptions(false); }}
+              className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+            >
+              <UserIcon className="w-4 h-4" />
+              {isExpanded ? 'Profilimi Düzenle' : 'Profil'}
+            </button>
+            <button
+              role="menuitem"
+              onClick={async () => {
+                try {
+                  await signOut();
+                } catch (err) {
+                  console.error('Sign out failed', err);
+                }
+                setShowProfileOptions(false);
+                navigate('/login');
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm text-red-600"
+            >
+              <LogOut className="w-4 h-4" />
+              {isExpanded ? 'Çıkış Yap' : 'Çıkış'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* close dropdown on outside click or ESC */}
 
       {/* Expand/Collapse Button */}
       <div className={`px-2 pt-2 ${isExpanded ? 'px-4' : 'px-2'}`}>
@@ -212,7 +265,7 @@ export default function Sidebar() {
       </div>
 
       {/* Profile Modal */}
-      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <ProfileModal isOpen={showProfileModal} onClose={() => { setShowProfileModal(false); setShowProfileOptions(false); }} />
     </aside>
   );
 }

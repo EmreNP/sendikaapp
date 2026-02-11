@@ -1,20 +1,8 @@
 import { validateEmail } from './commonValidation';
 
 export const validatePassword = (password: string): { valid: boolean; error?: string } => {
-  if (password.length < 8) {
-    return { valid: false, error: 'Şifre en az 8 karakter olmalıdır' };
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, error: 'Şifre en az bir büyük harf içermelidir' };
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, error: 'Şifre en az bir küçük harf içermelidir' };
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, error: 'Şifre en az bir rakam içermelidir' };
+  if (password.length < 6) {
+    return { valid: false, error: 'Şifre en az 6 karakter olmalıdır' };
   }
   
   return { valid: true };

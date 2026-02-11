@@ -1,3 +1,4 @@
+// Custom Button Component
 import React from 'react';
 import {
   TouchableOpacity,
@@ -7,14 +8,16 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZE } from '../constants/theme';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZE, SHADOW } from '../constants/theme';
 
 interface CustomButtonProps {
   title: string;
   onPress: () => void;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
+  icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -22,43 +25,77 @@ interface CustomButtonProps {
 export const CustomButton: React.FC<CustomButtonProps> = ({
   title,
   onPress,
+  variant = 'primary',
+  size = 'md',
   loading = false,
   disabled = false,
-  variant = 'primary',
+  icon,
   style,
   textStyle,
 }) => {
-  const isDisabled = disabled || loading;
+  const getButtonStyle = (): ViewStyle[] => {
+    const baseStyle: ViewStyle[] = [styles.button, styles[`button_${size}`]];
+
+    switch (variant) {
+      case 'primary':
+        baseStyle.push(styles.buttonPrimary);
+        break;
+      case 'secondary':
+        baseStyle.push(styles.buttonSecondary);
+        break;
+      case 'outline':
+        baseStyle.push(styles.buttonOutline);
+        break;
+      case 'ghost':
+        baseStyle.push(styles.buttonGhost);
+        break;
+    }
+
+    if (disabled || loading) {
+      baseStyle.push(styles.buttonDisabled);
+    }
+
+    return baseStyle;
+  };
+
+  const getTextStyle = (): TextStyle[] => {
+    const baseStyle: TextStyle[] = [styles.text, styles[`text_${size}`]];
+
+    switch (variant) {
+      case 'primary':
+        baseStyle.push(styles.textPrimary);
+        break;
+      case 'secondary':
+        baseStyle.push(styles.textSecondary);
+        break;
+      case 'outline':
+        baseStyle.push(styles.textOutline);
+        break;
+      case 'ghost':
+        baseStyle.push(styles.textGhost);
+        break;
+    }
+
+    return baseStyle;
+  };
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        variant === 'primary' && styles.primaryButton,
-        variant === 'secondary' && styles.secondaryButton,
-        variant === 'outline' && styles.outlineButton,
-        isDisabled && styles.disabledButton,
-        style,
-      ]}
+      style={[...getButtonStyle(), style]}
       onPress={onPress}
-      disabled={isDisabled}
+      disabled={disabled || loading}
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.white} />
+        <ActivityIndicator
+          color={variant === 'primary' ? COLORS.textWhite : COLORS.primary}
+          size="small"
+        />
       ) : (
-        <Text
-          style={[
-            styles.buttonText,
-            variant === 'primary' && styles.primaryButtonText,
-            variant === 'secondary' && styles.secondaryButtonText,
-            variant === 'outline' && styles.outlineButtonText,
-            isDisabled && styles.disabledButtonText,
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
+        <>
+          {icon}
+          <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -66,43 +103,65 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.sm,
   },
-  primaryButton: {
+  button_sm: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  button_md: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  button_lg: {
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+  },
+  buttonPrimary: {
     backgroundColor: COLORS.primary,
+    ...SHADOW.md,
   },
-  secondaryButton: {
+  buttonSecondary: {
     backgroundColor: COLORS.secondary,
+    ...SHADOW.md,
   },
-  outlineButton: {
+  buttonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: COLORS.primary,
   },
-  disabledButton: {
-    backgroundColor: COLORS.border,
+  buttonGhost: {
+    backgroundColor: 'transparent',
+  },
+  buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
-    fontSize: FONT_SIZE.md,
+  text: {
     fontWeight: '600',
   },
-  primaryButtonText: {
-    color: COLORS.white,
+  text_sm: {
+    fontSize: FONT_SIZE.sm,
   },
-  secondaryButtonText: {
-    color: COLORS.white,
+  text_md: {
+    fontSize: FONT_SIZE.md,
   },
-  outlineButtonText: {
+  text_lg: {
+    fontSize: FONT_SIZE.lg,
+  },
+  textPrimary: {
+    color: COLORS.textWhite,
+  },
+  textSecondary: {
+    color: COLORS.textWhite,
+  },
+  textOutline: {
     color: COLORS.primary,
   },
-  disabledButtonText: {
-    color: COLORS.textLight,
+  textGhost: {
+    color: COLORS.primary,
   },
 });
-

@@ -31,8 +31,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     
     const userRole = currentUserData!.role;
     
-    // Sadece admin ve branch manager bildirim geçmişini görebilir
-    if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) {
+    // Sadece admin, superadmin ve branch manager bildirim geçmişini görebilir
+    if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.SUPERADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError('Bu işlem için yetkiniz yok');
     }
     
@@ -61,7 +61,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       query = query.where('targetAudience', '==', targetAudience);
     }
     
-    if (branchIdParam && userRole === USER_ROLE.ADMIN) {
+    if (branchIdParam && (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN)) {
       query = query.where('branchId', '==', branchIdParam);
     }
     

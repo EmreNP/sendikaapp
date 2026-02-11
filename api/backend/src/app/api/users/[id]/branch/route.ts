@@ -36,8 +36,8 @@ export const PATCH = asyncHandler(async (
       
       const userRole = currentUserData!.role;
       
-      // Sadece Admin şube atayabilir
-      if (userRole !== USER_ROLE.ADMIN) {
+      // Sadece Admin veya Superadmin şube atayabilir
+      if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

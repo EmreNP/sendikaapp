@@ -253,16 +253,7 @@ export async function rateLimitByPath(
   else if (path === '/api/auth/password/change') {
     config = rateLimitConfigs.authPasswordChange;
   }
-  else if (path === '/api/auth/verify-email/send') {
-    config = rateLimitConfigs.authEmailVerification;
-    // Email bazlı identifier
-    try {
-      const body = await request.clone().json().catch(() => null);
-      if (body?.email) {
-        customIdentifier = `email-verify:${body.email}`;
-      }
-    } catch {}
-  }
+
   
   // ========== FILE UPLOAD ==========
   else if (path.includes('/files/') && path.includes('/upload')) {

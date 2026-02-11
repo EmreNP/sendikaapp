@@ -12,9 +12,31 @@ interface ActivityDetailModalProps {
 export default function ActivityDetailModal({ activity, categories, branches, onClose }: ActivityDetailModalProps) {
   const categoryName = categories.find(c => c.id === activity.categoryId)?.name || 'Bilinmeyen Kategori';
   
-  // Branch name bulma
-  const branch = branches?.find(b => b.id === activity.branchId);
-  const branchName = branch?.name || 'Merkez Şube';
+  // Branch name bulma (try props first, fall back to API)
+  const [branchName, setBranchName] = useState<string>(() => {
+    const found = branches?.find(b => b.id === activity.branchId);
+    return found?.name || 'Merkez Şube';
+  });
+
+  useEffect(() => {
+    const loadBranchName = async () => {
+      const found = branches?.find(b => b.id === activity.branchId);
+      if (found) {
+        setBranchName(found.name);
+        return;
+      }
+
+      try {
+        const { apiRequest } = await import('@/utils/api');
+        const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${activity.branchId}`);
+        setBranchName(data.branch?.name || 'Merkez Şube');
+      } catch (error) {
+        setBranchName('Merkez Şube');
+      }
+    };
+
+    loadBranchName();
+  }, [activity.branchId, branches]);
   
   // User names için state
   const [userNames, setUserNames] = useState<Record<string, string>>({});

@@ -157,7 +157,7 @@ export default function BranchesPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={() => {
                   setSelectedBranch(null);
@@ -280,7 +280,7 @@ export default function BranchesPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || user?.role === 'superadmin') && (
                               <>
                                 <ActionButton
                                   icon={Edit}

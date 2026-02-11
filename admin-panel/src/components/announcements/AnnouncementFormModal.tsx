@@ -5,6 +5,8 @@ import 'react-quill/dist/quill.snow.css';
 import { announcementService } from '@/services/api/announcementService';
 import type { Announcement, CreateAnnouncementRequest, UpdateAnnouncementRequest } from '@/types/announcement';
 import ImageCropModal from '../news/ImageCropModal';
+import { useAuth } from '@/context/AuthContext';
+
 
 interface AnnouncementFormModalProps {
   announcement: Announcement | null;
@@ -14,6 +16,7 @@ interface AnnouncementFormModalProps {
 }
 
 export default function AnnouncementFormModal({ announcement, isOpen, onClose, onSuccess }: AnnouncementFormModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -64,7 +67,9 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       setCroppedImagePreview('');
       setIsCropModalOpen(false);
     }
-  }, [isOpen, announcement]);
+  }, [isOpen, announcement, user]);
+
+
 
   // Görsel seçildiğinde crop modal'ı aç
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +196,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
 
   if (!isOpen) return null;
 
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
@@ -239,6 +245,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                   maxLength={200}
                 />
               </div>
+
 
               {/* İçerik */}
               <div>

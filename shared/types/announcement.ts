@@ -6,6 +6,7 @@ export interface Announcement {
   content?: string;                  // HTML string (sanitize edilmiş), externalUrl yoksa zorunlu
   externalUrl?: string;              // URL string, content yoksa zorunlu
   imageUrl?: string;                 // Opsiyonel görsel URL
+  branchId?: string | null;          // Şube bazlı duyuru (opsiyonel)
   isPublished: boolean;              // Yayın durumu
   isFeatured: boolean;                // Öne çıkan duyuru (default: false)
   publishedAt?: Timestamp | Date;    // Yayınlanma tarihi (isPublished: true ise set edilir)
@@ -21,6 +22,7 @@ export interface CreateAnnouncementRequest {
   content?: string;        // HTML string - externalUrl yoksa zorunlu
   externalUrl?: string;    // URL string - content yoksa zorunlu
   imageUrl?: string;
+  branchId?: string | null; // Opsiyonel şube ID
   isPublished?: boolean;  // Default: false
   isFeatured?: boolean;   // Default: false
 }

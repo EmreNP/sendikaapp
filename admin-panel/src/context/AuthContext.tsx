@@ -22,8 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         try {
           const userData = await authService.getUserData(firebaseUser.uid);
-          // Admin ve branch_manager için status kontrolü yok
-          if (userData && (userData.role === 'admin' || userData.role === 'branch_manager')) {
+          // Superadmin, admin ve branch_manager için status kontrolü yok
+          if (userData && (userData.role === 'superadmin' || userData.role === 'admin' || userData.role === 'branch_manager')) {
             setUser(userData);
           } else {
             setUser(null);

@@ -34,8 +34,11 @@ export default function NotificationHistoryPage() {
   }, [page, filterType, filterBranchId, searchTerm]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchBranches();
+    } else if (user?.role === 'branch_manager') {
+      // Şube yöneticileri yalnızca kendi şubelerinin bildirimlerini görmelidir
+      setFilterBranchId(user.branchId || '');
     }
   }, [user]);
 
@@ -57,7 +60,8 @@ export default function NotificationHistoryPage() {
         page,
         limit,
         type: filterType === 'all' ? undefined : filterType,
-        branchId: filterBranchId || undefined,
+        // Branch manager için backend'e kendi şubesi gönderilsin, diğerleri seçime göre
+        branchId: user?.role === 'branch_manager' ? (user.branchId || undefined) : (filterBranchId || undefined),
       });
 
       let filteredNotifications = data.notifications || [];
@@ -221,22 +225,24 @@ export default function NotificationHistoryPage() {
               </button>
             </div>
 
-            {/* Şube Filtresi */}
-            <select
-              value={filterBranchId}
-              onChange={(e) => {
-                setFilterBranchId(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
-            >
-              <option value="">Tüm Şubeler</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
+            {/* Şube Filtresi (sadece admin/superadmin) */}
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <select
+                value={filterBranchId}
+                onChange={(e) => {
+                  setFilterBranchId(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
+              >
+                <option value="">Tüm Şubeler</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 

@@ -1,288 +1,249 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { signInWithEmailAndPassword, signInWithCustomToken, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
-import type { ApiResponse } from '../types';
-import type { RegisterBasicRequest, RegisterDetailsRequest, User } from '@shared/types/user';
-import type { Branch } from '@shared/types/branch';
-
-// API Base URL - Update this to your backend URL
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3001/api';
+// API Service
+import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
+import type { User, Training, Lesson, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
 
 class ApiService {
-  private api: AxiosInstance;
-
-  constructor() {
-    this.api = axios.create({
-      baseURL: API_BASE_URL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Request interceptor to add auth token
-    this.api.interceptors.request.use(
-      async (config: any) => {
-        const token = await this.getAuthToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-          console.log('🔑 Auth token added to request:', config.url);
-        } else {
-          console.warn('⚠️ No auth token available for request:', config.url);
-        }
-        return config;
-      },
-      (error: any) => Promise.reject(error)
-    );
-
-    // Response interceptor for error handling
-    this.api.interceptors.response.use(
-      (response: any) => response,
-      async (error: AxiosError<ApiResponse>) => {
-        if (error.response?.status === 401) {
-          // Token expired or invalid
-          await this.clearAuth();
-        }
-        return Promise.reject(error);
-      }
-    );
+  private async getAuthToken(): Promise<string | null> {
+    const user = auth.currentUser;
+    if (user) {
+      return await user.getIdToken();
+    }
+    return null;
   }
 
-  // Auth Methods - Firebase Authentication
-  async login(email: string, password: string): Promise<{ user: User; token: string }> {
-    try {
-      console.log('🔐 Attempting login for:', email);
-      // Firebase Authentication ile giriş
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('✅ Firebase sign in successful:', userCredential.user.uid);
-      const firebaseUser = userCredential.user;
+  private isNgrokUrl(url: string): boolean {
+    return /ngrok/i.test(url);
+  }
 
-      // ID token al
-      const idToken = await firebaseUser.getIdToken();
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    requireAuth: boolean = true
+  ): Promise<T> {
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
 
-      // Firestore'dan user bilgilerini al
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-
-      if (!userDoc.exists()) {
-        await firebaseSignOut(auth);
-        throw new Error('Kullanıcı bulunamadı');
-      }
-
-      const userData = userDoc.data() as User;
-      console.log('✅ User data retrieved:', { uid: userData.uid, status: userData.status });
-
-      return {
-        user: userData,
-        token: idToken,
-      };
-    } catch (error: any) {
-      // Firebase hatalarını Türkçe'ye çevir
-      if (error.code === 'auth/user-not-found' || 
-          error.code === 'auth/wrong-password' || 
-          error.code === 'auth/invalid-credential') {
-        throw new Error('E-posta veya şifre hatalı');
-      }
-      if (error.code === 'auth/too-many-requests') {
-        throw new Error('Çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin');
-      }
-      if (error.code === 'auth/user-disabled') {
-        throw new Error('Bu hesap devre dışı bırakılmış');
-      }
-      if (error.code === 'auth/invalid-email') {
-        throw new Error('Geçersiz e-posta adresi');
-      }
-      throw new Error(error.message || 'Giriş başarısız');
+    // Ngrok bazen browser warning HTML'i döndürebiliyor; bu header onu bypass eder.
+    if (this.isNgrokUrl(API_BASE_URL)) {
+      (headers as Record<string, string>)['ngrok-skip-browser-warning'] = 'true';
     }
+
+    if (requireAuth) {
+      const token = await this.getAuthToken();
+      if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const rawText = await response.text();
+
+    let data: any;
+    if (contentType.includes('application/json')) {
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        // JSON bekleniyordu ama parse edilemedi
+        throw new Error(`JSON Parse error: Unexpected response. Status ${response.status}. Body: ${rawText.slice(0, 200)}`);
+      }
+    } else {
+      // HTML/text döndüyse (ngrok warning veya error page), anlamlı hata dön
+      throw new Error(
+        `Unexpected response type (${contentType || 'unknown'}). Status ${response.status}. Body: ${rawText.slice(0, 200)}`
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.message || 'Bir hata oluştu');
+    }
+
+    return data as T;
+  }
+
+  // Auth Methods
+  async login(email: string, password: string): Promise<{ user: User }> {
+    await signInWithEmailAndPassword(auth, email, password);
+    const user = await this.getCurrentUser();
+    return { user };
   }
 
   async logout(): Promise<void> {
-    await firebaseSignOut(auth);
+    await signOut(auth);
   }
 
-  async registerBasic(data: RegisterBasicRequest): Promise<{ uid: string; email: string; customToken?: string }> {
-    try {
-      const response = await this.api.post<ApiResponse<{ uid: string; email: string; customToken?: string }>>(
-        '/auth/register/basic',
-        data
-      );
-      
-      if (response.data.success && response.data.data) {
-        const result = response.data.data;
-        
-        // Custom token varsa Firebase'e sign in yap
-        if (result.customToken) {
-          try {
-            await signInWithCustomToken(auth, result.customToken);
-            console.log('✅ Signed in with custom token');
-          } catch (signInError: any) {
-            console.error('⚠️ Failed to sign in with custom token:', signInError);
-            // Custom token ile sign in başarısız olsa bile kayıt başarılı
-          }
-        }
-        
-        return result;
-      }
-      
-      throw new Error(response.data.message || 'Registration failed');
-    } catch (error: any) {
-      // Axios error ise, response'dan mesajı al
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-      throw error;
-    }
-  }
+  async registerBasic(data: { 
+    email: string; 
+    password: string; 
+    firstName: string; 
+    lastName: string;
+    birthDate: string;
+    gender: 'male' | 'female';
+  }): Promise<{ user: User }> {
+    // IMPORTANT:
+    // Firestore rules'lar client'tan /users yazmayı engelleyebilir.
+    // Bu yüzden basic register backend üzerinden yapılır (Admin SDK Firestore'a yazar).
+    const response = await this.request<{
+      success: boolean;
+      data: { uid: string; email: string; customToken?: string; nextStep?: string };
+    }>(
+      API_ENDPOINTS.AUTH.REGISTER_BASIC,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+      false
+    );
 
-  async registerDetails(data: RegisterDetailsRequest): Promise<{ uid: string; status: string }> {
-    try {
-      console.log('📝 Registering details:', JSON.stringify(data, null, 2));
-      const response = await this.api.post<ApiResponse<{ user: { uid: string; status: string } }>>(
-        '/auth/register/details',
-        data
-      );
-      
-      if (response.data.success && response.data.data) {
-        console.log('✅ Registration details successful:', response.data.data.user);
-        return response.data.data.user;
-      }
-      
-      throw new Error(response.data.message || 'Registration details failed');
-    } catch (error: any) {
-      // Axios error handling
-      if (error.response) {
-        // Backend'den hata döndü
-        const errorData = error.response.data;
-        console.error('❌ Backend error response:', JSON.stringify(errorData, null, 2));
-        
-        const errorMessage = errorData?.message || errorData?.error || 'Kayıt işlemi başarısız oldu';
-        console.error('❌ Error message:', errorMessage);
-        throw new Error(errorMessage);
-      } else if (error.request) {
-        // İstek gönderildi ama response alınamadı
-        console.error('❌ No response received:', error.request);
-        throw new Error('Sunucuya bağlanılamadı');
-      } else {
-        // İstek oluşturulurken hata oluştu
-        console.error('❌ Request setup error:', error.message);
-        throw error;
-      }
-    }
-  }
+    const customToken = response.data?.customToken;
 
-  // User Methods
-  async getCurrentUser(): Promise<User> {
-    // Try to get from Firebase Auth first
-    const firebaseUser = auth.currentUser;
-    if (firebaseUser) {
-      try {
-        console.log('📄 Getting user from Firestore:', firebaseUser.uid);
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
-          console.log('✅ User data from Firestore:', { uid: userData.uid, status: userData.status });
-          return userData;
-        } else {
-          console.warn('⚠️ User document not found in Firestore');
-        }
-      } catch (error: any) {
-        console.error('❌ Failed to get user from Firestore:', error.message);
-      }
+    if (customToken) {
+      await signInWithCustomToken(auth, customToken);
     } else {
-      console.warn('⚠️ No Firebase user found');
+      // Fallback: backend user'ı oluşturduğu için email/password ile login yapılabilir
+      await signInWithEmailAndPassword(auth, data.email, data.password);
     }
 
-    // Fallback to API (requires auth token)
-    try {
-      console.log('📡 Fetching user from API...');
-      const response = await this.api.get<ApiResponse<{ user: User }>>('/users/me');
-      
-      if (response.data.success && response.data.data) {
-        console.log('✅ User data from API:', { uid: response.data.data.user.uid, status: response.data.data.user.status });
-        return response.data.data.user;
-      }
-      
-      throw new Error(response.data.message || 'Failed to fetch user');
-    } catch (error: any) {
-      // If 401, user is not authenticated
-      if (error.response?.status === 401) {
-        throw new Error('Kimlik doğrulaması gerekli. Lütfen giriş yapın.');
-      }
-      console.error('❌ Failed to get user from API:', error.message);
-      throw error;
-    }
+    const user = await this.getCurrentUser();
+    return { user };
   }
 
-  // Branch Methods
+  async registerDetails(data: {
+    phone: string;
+    tcKimlik: string;
+    branchId: string;
+    workplace?: string;
+    position?: string;
+    city?: string;
+    district?: string;
+    address?: string;
+  }): Promise<{ user: User }> {
+    const response = await this.request<{ success: boolean; data: User }>(
+      API_ENDPOINTS.AUTH.REGISTER_DETAILS,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+
+    return { user: response.data };
+  }
+
+  async getCurrentUser(): Promise<User> {
+    const response = await this.request<{ success: boolean; data: User }>(
+      API_ENDPOINTS.USERS.ME
+    );
+    return response.data;
+  }
+
+  // Trainings
+  async getTrainings(): Promise<Training[]> {
+    const response = await this.request<{ success: boolean; data: Training[] }>(
+      API_ENDPOINTS.TRAININGS.BASE,
+      {},
+      true
+    );
+    return response.data;
+  }
+
+  async getTraining(id: string): Promise<Training> {
+    const response = await this.request<{ success: boolean; data: Training }>(
+      API_ENDPOINTS.TRAININGS.BY_ID(id)
+    );
+    return response.data;
+  }
+
+  async getLessons(trainingId: string): Promise<Lesson[]> {
+    const response = await this.request<{ success: boolean; data: Lesson[] }>(
+      API_ENDPOINTS.TRAININGS.LESSONS(trainingId)
+    );
+    return response.data;
+  }
+
+  async getLesson(trainingId: string, lessonId: string): Promise<Lesson> {
+    const response = await this.request<{ success: boolean; data: Lesson }>(
+      API_ENDPOINTS.TRAININGS.LESSON_BY_ID(trainingId, lessonId)
+    );
+    return response.data;
+  }
+
+  // Branches
   async getBranches(): Promise<Branch[]> {
-    try {
-      console.log('📡 Fetching branches...');
-      const response = await this.api.get<ApiResponse<{ branches: Branch[] }>>('/branches');
-      
-      if (response.data.success && response.data.data) {
-        console.log('✅ Branches fetched:', response.data.data.branches.length);
-        return response.data.data.branches;
-      }
-      
-      throw new Error(response.data.message || 'Failed to fetch branches');
-    } catch (error: any) {
-      console.error('❌ Failed to fetch branches:', error.response?.data || error.message);
-      if (error.response?.status === 401) {
-        throw new Error('Kimlik doğrulaması gerekli. Lütfen giriş yapın.');
-      }
-      throw error;
-    }
+    const response = await this.request<{ success: boolean; data: Branch[] }>(
+      API_ENDPOINTS.BRANCHES.BASE,
+      {},
+      false
+    );
+    return response.data;
   }
 
-  // Auth Token Management
-  async getAuthToken(): Promise<string | null> {
-    const user = auth.currentUser;
-    if (!user) {
-      console.warn('⚠️ No Firebase user found for token');
-      return null;
-    }
-    try {
-      const token = await user.getIdToken();
-      return token;
-    } catch (error: any) {
-      console.error('❌ Failed to get ID token:', error.message);
-      return null;
-    }
+  async getBranch(id: string): Promise<Branch> {
+    const response = await this.request<{ success: boolean; data: Branch }>(
+      API_ENDPOINTS.BRANCHES.BY_ID(id),
+      {},
+      false
+    );
+    return response.data;
   }
 
-  async clearAuth(): Promise<void> {
-    await firebaseSignOut(auth);
+  // News
+  async getNews(): Promise<News[]> {
+    const response = await this.request<{ success: boolean; data: News[] }>(
+      API_ENDPOINTS.NEWS.BASE,
+      {},
+      false
+    );
+    return response.data;
   }
 
-  // Error Handler Helper
-  getErrorMessage(error: unknown): string {
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<ApiResponse>;
-      // Backend'den gelen hata mesajını öncelikle kullan
-      if (axiosError.response?.data?.message) {
-        return axiosError.response.data.message;
-      }
-      if (axiosError.response?.data?.error) {
-        return axiosError.response.data.error;
-      }
-      // HTTP status code'a göre genel mesajlar
-      if (axiosError.response?.status === 400) {
-        return 'Geçersiz istek. Lütfen bilgilerinizi kontrol edin.';
-      }
-      if (axiosError.response?.status === 401) {
-        return 'Yetkilendirme hatası';
-      }
-      if (axiosError.response?.status === 500) {
-        return 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
-      }
-      return axiosError.message || 'Bir hata oluştu';
-    }
-    
-    if (error instanceof Error) {
-      return error.message;
-    }
-    
-    return 'Bilinmeyen bir hata oluştu';
+  async getNewsItem(id: string): Promise<News> {
+    const response = await this.request<{ success: boolean; data: News }>(
+      API_ENDPOINTS.NEWS.BY_ID(id),
+      {},
+      false
+    );
+    return response.data;
+  }
+
+  // Announcements
+  async getAnnouncements(): Promise<Announcement[]> {
+    const response = await this.request<{ success: boolean; data: Announcement[] }>(
+      API_ENDPOINTS.ANNOUNCEMENTS.BASE,
+      {},
+      false
+    );
+    return response.data;
+  }
+
+  // FAQ
+  async getFAQs(): Promise<FAQ[]> {
+    const response = await this.request<{ success: boolean; data: FAQ[] }>(
+      API_ENDPOINTS.FAQ.BASE,
+      {},
+      false
+    );
+    return response.data;
+  }
+
+  // Contact
+  async sendContactMessage(data: ContactMessage): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.CONTACT.BASE,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+      false
+    );
   }
 }
 

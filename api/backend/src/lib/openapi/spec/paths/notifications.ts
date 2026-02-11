@@ -2,7 +2,7 @@ export const notificationsPaths = {
   '/api/notifications/send': {
     post: {
       summary: 'Bildirim Gönder',
-      description: 'Push notification gönderir. Admin tüm kullanıcılara, Branch Manager sadece kendi şubesine bildirim gönderebilir.',
+      description: 'Push notification gönderir. Admin tüm kullanıcılara veya seçili şubelere, Branch Manager sadece kendi şubesine bildirim gönderebilir.',
       tags: ['Notifications'],
       security: [{ bearerAuth: [] }],
       requestBody: {

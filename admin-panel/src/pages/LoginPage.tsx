@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Users, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { authService } from '@/services/auth/authService';
@@ -6,32 +6,35 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { setUser, user, loading } = useAuth();
+  
+  // Eğer kullanıcı zaten giriş yapmışsa login sayfasına erişildiğinde users listesina yönlendir
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/admin/users');
+    }
+  }, [user, loading, navigate]);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const { user } = await authService.signIn(email, password);
       setUser(user);
       
-      // Role'e göre yönlendir
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (user.role === 'branch_manager') {
-        navigate('/branch/dashboard');
-      }
+      // Girişten sonra kullanıcı listesine yönlendir
+      navigate('/admin/users');
     } catch (err: any) {
       setError(err.message || 'Giriş başarısız');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -47,7 +50,7 @@ export default function LoginPage() {
             SendikaApp Yönetim Paneli
           </h1>
           <p className="text-gray-600">
-            Admin ve Şube Yöneticisi Girişi
+            Admin ve İlçe Temsilcisi Girişi
           </p>
         </div>
 
@@ -101,7 +104,7 @@ export default function LoginPage() {
                   required
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
                   placeholder="admin@example.com"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -123,7 +126,7 @@ export default function LoginPage() {
                   required
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
                   placeholder="••••••••"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -131,10 +134,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full bg-slate-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Giriş yapılıyor...</span>

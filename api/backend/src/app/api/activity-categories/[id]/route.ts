@@ -25,7 +25,7 @@ export const GET = asyncHandler(async (
     // Kullanıcının rolünü kontrol et
     const { error, user: currentUserData } = await getCurrentUser(user.uid);
     
-    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 
@@ -55,7 +55,7 @@ export const PUT = asyncHandler(async (
     // Kullanıcının rolünü kontrol et
     const { error, user: currentUserData } = await getCurrentUser(user.uid);
     
-    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 
@@ -118,7 +118,7 @@ export const DELETE = asyncHandler(async (
     // Kullanıcının rolünü kontrol et
     const { error, user: currentUserData } = await getCurrentUser(user.uid);
     
-    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+    if (error || !currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 
