@@ -16,7 +16,8 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    documentUrl: '',
+    documentUrl: '',     // Display URL (deprecated)
+    documentPath: '',    // Storage path (NEW)
     order: '' as string | number,
     isActive: true,
   });
@@ -36,6 +37,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           title: document.title || '',
           description: document.description || '',
           documentUrl: document.documentUrl || '',
+          documentPath: (document as any).documentPath || '',  // Storage path
           order: document.order || '',
           isActive: document.isActive ?? true,
         });
@@ -45,6 +47,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           title: '',
           description: '',
           documentUrl: '',
+          documentPath: '',
           order: '',
           isActive: true,
         });
@@ -96,6 +99,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
 
     try {
       setLoading(true);
+      let documentPath = formData.documentPath;
       let documentUrl = formData.documentUrl;
 
       // Yeni döküman için dosya yükleme
@@ -126,7 +130,8 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           
           clearInterval(progressInterval);
           setUploadProgress(100);
-          documentUrl = uploadResult.documentUrl;
+          documentPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
+          documentUrl = uploadResult.documentUrl;  // Display URL
           setUploading(false);
         } catch (uploadErr: any) {
           console.error('File upload error:', uploadErr);
@@ -138,13 +143,13 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
         }
       }
 
-      // Edit modunda dosya yüklenmemişse mevcut URL'i kullan
-      if (isEditMode && !documentUrl.trim() && document) {
-        documentUrl = document.documentUrl;
+      // Edit modunda dosya yüklenmemişse mevcut path/URL'i kullan
+      if (isEditMode && !documentPath && document) {
+        documentPath = (document as any).documentPath || document.documentUrl;
       }
 
-      if (!documentUrl.trim()) {
-        setError('Döküman URL zorunludur');
+      if (!documentPath) {
+        setError('Döküman path zorunludur');
         setLoading(false);
         return;
       }
@@ -153,7 +158,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
         const updateData: UpdateDocumentContentRequest = {
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          documentUrl: documentUrl.trim(),
+          documentPath: documentPath,  // Use documentPath
           documentType: 'pdf',
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,
@@ -164,7 +169,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           lessonId,
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          documentUrl: documentUrl.trim(),
+          documentPath: documentPath,  // Use documentPath
           documentType: 'pdf',
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,

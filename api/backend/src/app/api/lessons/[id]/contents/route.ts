@@ -3,7 +3,8 @@ import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
-import type { Content, ContentType } from '@shared/types/training';
+import type { Content, ContentType, VideoContent, DocumentContent } from '@shared/types/training';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeContentTimestamps
@@ -99,7 +100,47 @@ export const GET = asyncHandler(async (
       // Order'a göre sırala (tüm tipler birleştirildikten sonra)
       contents.sort((a, b) => a.order - b.order);
       
-      const serializedContents = contents.map(c => serializeContentTimestamps(c));
+      // Generate signed URLs for all contents
+      const contentsWithUrls = await Promise.all(
+        contents.map(async (content) => {
+          const result = { ...content };
+          
+          // Handle video content
+          if (content.type === 'video') {
+            const videoContent = content as VideoContent;
+            if (videoContent.videoSource === 'uploaded' && videoContent.videoPath) {
+              try {
+                result.videoUrl = await generateSignedUrl(videoContent.videoPath);
+              } catch (error) {
+                console.error(`Failed to generate video URL for ${videoContent.id}:`, error);
+              }
+            }
+            if (videoContent.thumbnailPath) {
+              try {
+                result.thumbnailUrl = await generateSignedUrl(videoContent.thumbnailPath);
+              } catch (error) {
+                console.error(`Failed to generate thumbnail URL for ${videoContent.id}:`, error);
+              }
+            }
+          }
+          
+          // Handle document content
+          if (content.type === 'document') {
+            const docContent = content as DocumentContent;
+            if (docContent.documentPath) {
+              try {
+                result.documentUrl = await generateSignedUrl(docContent.documentPath);
+              } catch (error) {
+                console.error(`Failed to generate document URL for ${docContent.id}:`, error);
+              }
+            }
+          }
+          
+          return result;
+        })
+      );
+      
+      const serializedContents = contentsWithUrls.map(c => serializeContentTimestamps(c));
       
       return successResponse(
         'İçerikler başarıyla getirildi',

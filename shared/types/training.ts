@@ -50,16 +50,19 @@ export interface BaseContent {
 // Video İçeriği
 export interface VideoContent extends BaseContent {
   type: 'video';
-  videoUrl: string;                  // YouTube/Vimeo URL veya yüklenen video URL
+  videoUrl?: string;                  // YouTube/Vimeo URL veya yüklenen video URL (deprecated for uploaded videos)
+  videoPath?: string;                 // Storage path for uploaded video
   videoSource: VideoSource;           // 'youtube' | 'vimeo' | 'uploaded'
-  thumbnailUrl?: string;              // Thumbnail görseli
+  thumbnailUrl?: string;              // Thumbnail görseli (deprecated, generated on-demand)
+  thumbnailPath?: string;             // Storage path for thumbnail
   duration?: number;                  // Video süresi (saniye)
 }
 
 // Döküman İçeriği
 export interface DocumentContent extends BaseContent {
   type: 'document';
-  documentUrl: string;                // Döküman URL (zorunlu)
+  documentUrl?: string;                // Döküman URL (deprecated, generated on-demand)
+  documentPath: string;                // Storage path for document (required)
   documentType: 'pdf';                 // Sadece PDF
   fileSize?: number;                  // Dosya boyutu (bytes, otomatik hesaplanır)
 }
@@ -140,9 +143,11 @@ export interface CreateVideoContentRequest {
   lessonId: string;
   title: string;
   description?: string;
-  videoUrl: string;                  // YouTube/Vimeo URL veya yüklenen video URL
+  videoUrl?: string;                  // YouTube/Vimeo URL (required for youtube/vimeo)
+  videoPath?: string;                 // Storage path (required for uploaded)
   videoSource: VideoSource;           // 'youtube' | 'vimeo' | 'uploaded'
-  thumbnailUrl?: string;
+  thumbnailUrl?: string;              // Deprecated, use thumbnailPath
+  thumbnailPath?: string;             // Storage path for thumbnail
   duration?: number;
   order?: number;
   isActive?: boolean;
@@ -151,9 +156,11 @@ export interface CreateVideoContentRequest {
 export interface UpdateVideoContentRequest {
   title?: string;
   description?: string;
-  videoUrl?: string;
+  videoUrl?: string;                  // YouTube/Vimeo URL
+  videoPath?: string;                 // Storage path for uploaded video
   videoSource?: VideoSource;
-  thumbnailUrl?: string;
+  thumbnailUrl?: string;              // Deprecated, use thumbnailPath
+  thumbnailPath?: string;             // Storage path for thumbnail
   duration?: number;
   order?: number;
   isActive?: boolean;
@@ -164,7 +171,8 @@ export interface CreateDocumentContentRequest {
   lessonId: string;
   title: string;
   description?: string;
-  documentUrl: string;
+  documentUrl?: string;               // Deprecated, use documentPath
+  documentPath?: string;              // Storage path (required for new uploads)
   documentType?: 'pdf';               // Opsiyonel, backend'de otomatik 'pdf' olarak set edilir
   fileSize?: number;                  // Opsiyonel, otomatik hesaplanır
   order?: number;
@@ -174,7 +182,8 @@ export interface CreateDocumentContentRequest {
 export interface UpdateDocumentContentRequest {
   title?: string;
   description?: string;
-  documentUrl?: string;
+  documentUrl?: string;               // Deprecated, use documentPath
+  documentPath?: string;              // Storage path
   documentType?: 'pdf';               // Opsiyonel, backend'de otomatik 'pdf' olarak set edilir
   fileSize?: number;                  // Opsiyonel, otomatik hesaplanır
   order?: number;

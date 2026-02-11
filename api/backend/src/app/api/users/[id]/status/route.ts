@@ -111,9 +111,15 @@ export const PATCH = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       
-      // PDF belgesi URL'i varsa ekle
+      // PDF belgesi URL/path varsa ekle
       if (documentUrl) {
-        updateData.documentUrl = documentUrl;
+        // If documentUrl looks like a storage path (doesn't start with http), save as documentPath
+        if (!documentUrl.startsWith('http')) {
+          updateData.documentPath = documentUrl;
+        } else {
+          // Legacy: still accept full URLs (but prefer paths)
+          updateData.documentUrl = documentUrl;
+        }
       }
       
       await db.collection('users').doc(targetUserId).update(updateData as any);

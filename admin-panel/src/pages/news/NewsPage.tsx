@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Newspaper, Plus, Search, Trash2, Edit, Eye, EyeOff, User, Megaphone, X, XCircle, CheckCircle, Bell } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
@@ -1354,7 +1355,7 @@ export default function NewsPage() {
                   <div className="mb-6">
                     <div
                       className="prose max-w-none"
-                      dangerouslySetInnerHTML={{ __html: selectedAnnouncement.content }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedAnnouncement.content) }}
                     />
                   </div>
                 )}

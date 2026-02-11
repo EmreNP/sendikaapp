@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { VideoContent, CreateVideoContentRequest } from '@shared/types/training';
 import { validateCreateVideoContent } from '@/lib/utils/validation/videoContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeVideoContentTimestamps
@@ -53,7 +54,34 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as VideoContent[];
       
-      const serializedVideos = videos.map(v => serializeVideoContentTimestamps(v));
+      // Generate signed URLs for uploaded videos and thumbnails
+      const videosWithUrls = await Promise.all(
+        videos.map(async (video) => {
+          const result = { ...video };
+          
+          // Generate signed URL for uploaded videos
+          if (video.videoSource === 'uploaded' && video.videoPath) {
+            try {
+              result.videoUrl = await generateSignedUrl(video.videoPath);
+            } catch (error) {
+              console.error(`Failed to generate video signed URL for ${video.videoPath}:`, error);
+            }
+          }
+          
+          // Generate signed URL for thumbnails
+          if (video.thumbnailPath) {
+            try {
+              result.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
+            } catch (error) {
+              console.error(`Failed to generate thumbnail signed URL for ${video.thumbnailPath}:`, error);
+            }
+          }
+          
+          return result;
+        })
+      );
+      
+      const serializedVideos = videosWithUrls.map(v => serializeVideoContentTimestamps(v));
       
       return successResponse(
         'Videolar başarıyla getirildi',
@@ -111,13 +139,12 @@ export const POST = asyncHandler(async (
         finalOrder = await getNextContentOrder(lessonId, 'video');
       }
       
-      const contentData = {
+      // For uploaded videos, use videoPath; for YouTube/Vimeo, use videoUrl
+      const contentData: any = {
         lessonId: videoData.lessonId,
         title: videoData.title.trim(),
         description: videoData.description?.trim() || null,
-        videoUrl: videoData.videoUrl.trim(),
         videoSource: videoData.videoSource,
-        thumbnailUrl: videoData.thumbnailUrl?.trim() || null,
         duration: videoData.duration || null,
         order: finalOrder,
         isActive: videoData.isActive !== undefined ? videoData.isActive : true,
@@ -125,6 +152,31 @@ export const POST = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         createdBy: user.uid,
       };
+      
+      // Add video URL or path based on source
+      if (videoData.videoSource === 'uploaded') {
+        contentData.videoPath = videoData.videoPath?.trim() || videoData.videoUrl?.trim();
+        if (!contentData.videoPath) {
+          throw new AppValidationError('videoPath gerekli (uploaded videos için)');
+        }
+      } else {
+        // YouTube or Vimeo
+        contentData.videoUrl = videoData.videoUrl?.trim();
+        if (!contentData.videoUrl) {
+          throw new AppValidationError('videoUrl gerekli (YouTube/Vimeo için)');
+        }
+      }
+      
+      // Add thumbnail path if provided
+      if (videoData.thumbnailPath) {
+        contentData.thumbnailPath = videoData.thumbnailPath.trim();
+      } else if (videoData.thumbnailUrl && !videoData.thumbnailUrl.startsWith('http')) {
+        // If thumbnailUrl is actually a path (backward compatibility)
+        contentData.thumbnailPath = videoData.thumbnailUrl.trim();
+      } else if (videoData.thumbnailUrl) {
+        // If it's an external URL (YouTube/Vimeo thumbnail)
+        contentData.thumbnailUrl = videoData.thumbnailUrl.trim();
+      }
       
       const videoRef = await db.collection('video_contents').add(contentData);
       const videoDoc = await videoRef.get();
@@ -139,6 +191,23 @@ export const POST = asyncHandler(async (
         type: 'video',
         ...docData,
       } as VideoContent;
+      
+      // Generate signed URLs for response
+      if (video.videoSource === 'uploaded' && video.videoPath) {
+        try {
+          video.videoUrl = await generateSignedUrl(video.videoPath);
+        } catch (error) {
+          console.error('Failed to generate video signed URL:', error);
+        }
+      }
+      
+      if (video.thumbnailPath) {
+        try {
+          video.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
+        } catch (error) {
+          console.error('Failed to generate thumbnail signed URL:', error);
+        }
+      }
       
       const serializedVideo = serializeVideoContentTimestamps(video);
       

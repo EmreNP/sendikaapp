@@ -5,6 +5,7 @@ import { validateName, validateAge, validateUserPhone, validateTCKimlikNo } from
 import { EDUCATION_LEVEL } from '@shared/constants/education';
 import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   notFoundError,
@@ -25,14 +26,24 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       }
       
       const userData = userDoc.data();
+      const userWithData = {
+        uid: userDoc.id,
+        ...userData,
+      };
+      
+      // Generate signed URL for document if path exists
+      if (userData?.documentPath) {
+        try {
+          userWithData.documentUrl = await generateSignedUrl(userData.documentPath);
+        } catch (error) {
+          console.error(`Failed to generate signed URL for user ${user.uid}:`, error);
+        }
+      }
       
       return successResponse(
         'Kullanıcı bilgileri başarıyla getirildi',
         {
-          user: {
-            uid: userDoc.id,
-            ...userData,
-          },
+          user: userWithData,
         }
       );
   });

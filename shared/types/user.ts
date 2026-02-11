@@ -38,7 +38,8 @@ export interface User {
   email: string;
   emailVerified?: boolean; // Email doğrulandı mı?
   isActive: boolean; // Kullanıcı aktif mi? (delete durumunda false olur)
-  documentUrl?: string; // Kullanıcı kayıt formu PDF URL'i
+  documentUrl?: string; // Kullanıcı kayıt formu PDF URL'i (deprecated, use documentPath)
+  documentPath?: string; // Storage path for user registration form PDF
   
   // Timestamps
   createdAt: Timestamp | Date;
@@ -80,7 +81,8 @@ export interface UserStatusUpdateData {
   status: UserStatus;
   updatedAt: FirestoreTimestamp;
   rejectionReason?: string;
-  documentUrl?: string; // PDF belgesi URL'i (Branch Manager admin'e gönderirken zorunlu)
+  documentUrl?: string; // PDF belgesi URL'i (deprecated, use documentPath)
+  documentPath?: string; // Storage path for PDF document
 }
 
 // User Role Update

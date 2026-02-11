@@ -20,16 +20,25 @@ export const validateCreateDocumentContent = (
     errors.title = titleValidation.error || 'Geçersiz başlık';
   }
   
-  if (!data.documentUrl || data.documentUrl.trim() === '') {
-    errors.documentUrl = 'Döküman URL zorunludur';
-  } else {
-    try {
-      const urlObj = new URL(data.documentUrl);
-      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-        errors.documentUrl = 'Geçersiz döküman URL protokolü';
+  // Accept either documentPath (new) or documentUrl (legacy)
+  const hasDocumentPath = data.documentPath && data.documentPath.trim() !== '';
+  const hasDocumentUrl = data.documentUrl && data.documentUrl.trim() !== '';
+  
+  if (!hasDocumentPath && !hasDocumentUrl) {
+    errors.documentPath = 'Döküman path veya URL zorunludur';
+  } else if (hasDocumentUrl && !hasDocumentPath) {
+    // If URL is provided, validate it (unless it's a path)
+    if (data.documentUrl && !data.documentUrl.startsWith('http')) {
+      // It's actually a path, that's fine
+    } else {
+      try {
+        const urlObj = new URL(data.documentUrl!);
+        if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+          errors.documentUrl = 'Geçersiz döküman URL protokolü';
+        }
+      } catch {
+        errors.documentUrl = 'Geçersiz döküman URL formatı';
       }
-    } catch {
-      errors.documentUrl = 'Geçersiz döküman URL formatı';
     }
   }
   

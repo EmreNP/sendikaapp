@@ -1,5 +1,6 @@
 export interface FileUploadResponse {
-  documentUrl: string;
+  documentUrl: string;      // Deprecated - 7 günlük signed URL
+  storagePath?: string;     // NEW - use this for storage path
   fileName: string;
   size: number;
   contentType: string;
@@ -42,6 +43,7 @@ export const fileUploadService = {
 
     return {
       documentUrl: data.data.documentUrl || data.data.fileUrl,
+      storagePath: data.data.storagePath,  // NEW - storage path
       fileName: data.data.fileName,
       size: data.data.size,
       contentType: data.data.contentType,
@@ -81,6 +83,7 @@ export const fileUploadService = {
 
     return {
       documentUrl: data.data.documentUrl || data.data.fileUrl,
+      storagePath: data.data.storagePath,  // NEW - storage path
       fileName: data.data.fileName,
       size: data.data.size,
       contentType: data.data.contentType,
@@ -120,6 +123,7 @@ export const fileUploadService = {
 
     return {
       documentUrl: data.data.documentUrl || data.data.fileUrl,
+      storagePath: data.data.storagePath,  // NEW - storage path
       fileName: data.data.fileName,
       size: data.data.size,
       contentType: data.data.contentType,
@@ -159,6 +163,7 @@ export const fileUploadService = {
 
     return {
       documentUrl: data.data.documentUrl || data.data.fileUrl,
+      storagePath: data.data.storagePath,  // NEW - storage path
       fileName: data.data.fileName,
       size: data.data.size,
       contentType: data.data.contentType,

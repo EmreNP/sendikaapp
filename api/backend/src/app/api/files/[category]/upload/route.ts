@@ -308,11 +308,12 @@ export const POST = asyncHandler(async (
       return successResponse(
         message,
         {
-          imageUrl: publicUrl, // Backward compatibility için
-          documentUrl: publicUrl, // Documents için
-          videoUrl: publicUrl, // Videos için
-          thumbnailUrl: publicUrl, // Thumbnails için
-          fileUrl: publicUrl, // Generic
+          imageUrl: publicUrl, // Backward compatibility için (deprecated)
+          documentUrl: publicUrl, // Documents için (deprecated)
+          videoUrl: publicUrl, // Videos için (deprecated)
+          thumbnailUrl: publicUrl, // Thumbnails için (deprecated)
+          fileUrl: publicUrl, // Generic (deprecated)
+          storagePath: storagePath, // Storage path (NEW - use this)
           fileName: fileName,
           size: fileObj.size,
           contentType: fileObj.type,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Newspaper, Megaphone, Search, Bell, User, X, Eye, EyeOff, Plus } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
@@ -603,7 +604,7 @@ export default function BranchNewsPage() {
                     <div className="mb-6">
                       <div
                         className="prose max-w-none"
-                        dangerouslySetInnerHTML={{ __html: selectedAnnouncement.content }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedAnnouncement.content) }}
                       />
                     </div>
                   )}

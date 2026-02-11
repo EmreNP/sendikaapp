@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { DocumentContent, CreateDocumentContentRequest } from '@shared/types/training';
 import { validateCreateDocumentContent } from '@/lib/utils/validation/documentContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeDocumentContentTimestamps
@@ -53,7 +54,23 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as DocumentContent[];
       
-      const serializedDocuments = documents.map(d => serializeDocumentContentTimestamps(d));
+      // Generate signed URLs for all documents
+      const documentsWithUrls = await Promise.all(
+        documents.map(async (doc) => {
+          if (doc.documentPath) {
+            try {
+              const documentUrl = await generateSignedUrl(doc.documentPath);
+              return { ...doc, documentUrl };
+            } catch (error) {
+              console.error(`Failed to generate signed URL for ${doc.documentPath}:`, error);
+              return doc;
+            }
+          }
+          return doc;
+        })
+      );
+      
+      const serializedDocuments = documentsWithUrls.map(d => serializeDocumentContentTimestamps(d));
       
       return successResponse(
         'Dökümanlar başarıyla getirildi',
@@ -111,11 +128,18 @@ export const POST = asyncHandler(async (
         finalOrder = await getNextContentOrder(lessonId, 'document');
       }
       
+      // Use documentPath if provided, otherwise fall back to documentUrl (backward compatibility)
+      const documentPath = documentData.documentPath || documentData.documentUrl;
+      
+      if (!documentPath) {
+        throw new AppValidationError('documentPath veya documentUrl gerekli');
+      }
+      
       const contentData = {
         lessonId: documentData.lessonId,
         title: documentData.title.trim(),
         description: documentData.description?.trim() || null,
-        documentUrl: documentData.documentUrl.trim(),
+        documentPath: documentPath.trim(), // Store path, not URL
         documentType: 'pdf', // Sadece PDF
         fileSize: documentData.fileSize || null,
         order: finalOrder,
@@ -138,6 +162,15 @@ export const POST = asyncHandler(async (
         type: 'document',
         ...docData,
       } as DocumentContent;
+      
+      // Generate signed URL for response
+      if (document.documentPath) {
+        try {
+          document.documentUrl = await generateSignedUrl(document.documentPath);
+        } catch (error) {
+          console.error('Failed to generate signed URL:', error);
+        }
+      }
       
       const serializedDocument = serializeDocumentContentTimestamps(document);
       

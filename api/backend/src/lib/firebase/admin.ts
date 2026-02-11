@@ -91,11 +91,22 @@ if (getApps().length === 0) {
     }
   } else {
     // Production'da environment variables veya default credentials kullan
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+    
+    if (!storageBucket) {
+      console.warn('⚠️  FIREBASE_STORAGE_BUCKET environment variable is not set');
+      console.warn('   Storage operations may not work correctly');
+    }
+    
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
+      ...(storageBucket && { storageBucket: storageBucket }),
     });
     
     console.log('✅ Firebase Admin SDK initialized (Production)');
+    if (storageBucket) {
+      console.log(`   Storage bucket: ${storageBucket}`);
+    }
   }
 }
 

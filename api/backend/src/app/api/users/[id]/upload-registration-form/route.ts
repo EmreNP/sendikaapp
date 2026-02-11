@@ -70,14 +70,22 @@ export const POST = asyncHandler(async (
       const file = bucket.file(path);
       await file.save(buffer, { metadata: { contentType } });
 
-      // Set ACL or generate signed URL
-      // Create signed URL valid for 7 days
-      const [signedUrl] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+      // Update user doc with storage path (not signed URL)
+      await db.collection('users').doc(targetUserId).update({ 
+        documentPath: path,  // Store path instead of URL
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+      });
 
-      // Update user doc
-      await db.collection('users').doc(targetUserId).update({ documentUrl: signedUrl, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      // Generate signed URL for response (temporary, 7 days)
+      const [signedUrl] = await file.getSignedUrl({ 
+        action: 'read', 
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000 
+      });
 
-      return successResponse('Dosya başarılı bir şekilde yüklendi', { documentUrl: signedUrl });
+      return successResponse('Dosya başarılı bir şekilde yüklendi', { 
+        documentUrl: signedUrl,  // Return signed URL for immediate use
+        documentPath: path       // Also return path for reference
+      });
     } catch (err: any) {
       console.error('Upload error:', err);
       throw new AppValidationError('Dosya yüklenirken bir hata oluştu');

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Newspaper, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import type { News } from '@/types/news';
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
@@ -129,7 +130,7 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
             <div className="mb-6">
               <div
                 className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: news.content || '' }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(news.content || '') }}
               />
             </div>
 
