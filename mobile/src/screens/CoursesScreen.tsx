@@ -44,6 +44,24 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Accordion / lessons state per training
+  const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
+  const [lessonsMap, setLessonsMap] = useState<Record<string, any[]>>({});
+  const [loadingLessons, setLoadingLessons] = useState<string | null>(null);
+
+  const loadLessons = async (trainingId: string) => {
+    if (lessonsMap[trainingId]) return; // already loaded
+    try {
+      setLoadingLessons(trainingId);
+      const lessons = await ApiService.getLessons(trainingId);
+      setLessonsMap(prev => ({ ...prev, [trainingId]: lessons }));
+    } catch (err) {
+      console.error('Error loading lessons:', err);
+    } finally {
+      setLoadingLessons(null);
+    }
+  };
+
   useEffect(() => {
     if (canAccessTrainings) {
       fetchTrainings();
@@ -123,49 +141,90 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
 
   const renderTrainingItem = ({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
-    
+    const isExpanded = expandedTrainingId === item.id;
+    const lessons = lessonsMap[item.id] || [];
+    const isLoadingThisLessons = loadingLessons === item.id;
+
     return (
-      <TouchableOpacity
-        style={styles.trainingCard}
-        onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id })}
-        activeOpacity={0.9}
-      >
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
-        ) : (
-          <LinearGradient
-            colors={palette.colors as [string, string]}
-            style={[styles.trainingImage, styles.placeholderImage]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Feather name="book-open" size={48} color="rgba(255,255,255,0.9)" />
-          </LinearGradient>
-        )}
-        <View style={styles.trainingContent}>
-          <View style={[styles.trainingBadge, { backgroundColor: palette.light }]}>
-            <Text style={[styles.trainingBadgeText, { color: palette.colors[0] }]}>
-              {item.lessonsCount || 0} Ders
+      <View style={styles.trainingCard}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+          onPress={() => {
+            if (isExpanded) {
+              setExpandedTrainingId(null);
+            } else {
+              setExpandedTrainingId(item.id);
+              loadLessons(item.id);
+            }
+          }}
+          activeOpacity={0.9}
+        >
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
+          ) : (
+            <LinearGradient
+              colors={palette.colors as [string, string]}
+              style={[styles.trainingImage, styles.placeholderImage]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Feather name="book-open" size={48} color="rgba(255,255,255,0.9)" />
+            </LinearGradient>
+          )}
+          <View style={styles.trainingContent}>
+            <View style={[styles.trainingBadge, { backgroundColor: palette.light }]}>
+              <Text style={[styles.trainingBadgeText, { color: palette.colors[0] }]}>
+                {item.lessonsCount || 0} Ders
+              </Text>
+            </View>
+            <Text style={styles.trainingTitle} numberOfLines={2}>
+              {item.title}
             </Text>
-          </View>
-          <Text style={styles.trainingTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.trainingDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-          <View style={styles.trainingMeta}>
-            <View style={styles.metaItem}>
-              <Feather name="clock" size={14} color="#64748b" />
-              <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Feather name="users" size={14} color="#64748b" />
-              <Text style={styles.metaText}>{(item as any).enrolledCount || 0} Katılımcı</Text>
+            <Text style={styles.trainingDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+            <View style={styles.trainingMeta}>
+              <View style={styles.metaItem}>
+                <Feather name="clock" size={14} color="#64748b" />
+                <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Feather name="users" size={14} color="#64748b" />
+                <Text style={styles.metaText}>{(item as any).enrolledCount || 0} Katılımcı</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+          <View style={{ paddingHorizontal: 12 }}>
+            <Feather name="chevron-down" size={20} color="#64748b" style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }} />
+          </View>
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={[{ backgroundColor: palette.light, borderTopWidth: 1, borderTopColor: '#e6edf7' }]}>
+            <View style={{ padding: 12 }}>
+              {isLoadingThisLessons ? (
+                <View style={{ justifyContent: 'center', alignItems: 'center', padding: 12 }}>
+                  <ActivityIndicator size="small" color="#4338ca" />
+                </View>
+              ) : lessons.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#64748b' }}>Bu eğitimde henüz ders bulunmuyor.</Text>
+              ) : (
+                lessons.map((lesson) => (
+                  <TouchableOpacity
+                    key={lesson.id}
+                    onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id, lessonId: lesson.id })}
+                    style={{ backgroundColor: '#ffffff', padding: 12, borderRadius: 10, marginBottom: 8 }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ fontWeight: '600', color: '#0f172a' }}>{lesson.title}</Text>
+                    {lesson.description ? <Text style={{ color: '#64748b', marginTop: 6 }}>{lesson.description}</Text> : null}
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </View>
+        )}
+      </View>
     );
   };
 

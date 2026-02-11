@@ -13,6 +13,8 @@ interface AuthContextType {
   role: UserRole | null;
   isPendingDetails: boolean;
   isActive: boolean;
+  isAdmin: boolean;
+  isBranchManager: boolean;
   canAccessTrainings: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -40,6 +42,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           const userData = await apiService.getCurrentUser();
           setUser(userData);
+
+          // DEBUG: ID token ve kullanıcı status/role bilgilerini yazdır (geçici)
+          try {
+            const token = await auth.currentUser?.getIdToken();
+            const freshToken = await auth.currentUser?.getIdToken(true);
+            console.log('Auth debug - ID token (cached):', token);
+            console.log('Auth debug - ID token (fresh):', freshToken);
+          } catch (tokenErr) {
+            console.warn('Auth debug - token fetch failed:', tokenErr);
+          }
+
+          console.log('Auth debug - User status/role:', userData?.status, userData?.role);
+
         } catch (error) {
           console.error('Failed to get user data:', error);
           setUser(null);
@@ -89,6 +104,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const isAdmin = user?.role === 'admin';
+  const isBranchManager = user?.role === 'branch_manager';
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -97,7 +115,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role: user?.role || null,
     isPendingDetails: user?.status === 'pending_details',
     isActive: user?.status === 'active',
-    canAccessTrainings: user?.status === 'active',
+    isAdmin,
+    isBranchManager,
+    // Follow backend doc: only admins bypass status check. Branch managers/users must be 'active' to access trainings.
+    canAccessTrainings: user?.status === 'active' || isAdmin,
     login,
     logout,
     registerBasic,

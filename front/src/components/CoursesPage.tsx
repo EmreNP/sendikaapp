@@ -208,7 +208,7 @@ export function CoursesPage({ onBack, onCourseSelect }: CoursesPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
-        <div className="flex items-center gap-4 px-4 py-4">
+        <div className="flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-4">
           <button
             onClick={onBack}
             className="p-2 hover:bg-white/10 rounded-lg transition-all active:scale-95"
@@ -243,7 +243,7 @@ export function CoursesPage({ onBack, onCourseSelect }: CoursesPageProps) {
               {/* Training Header */}
               <button
                 onClick={() => handleCategoryToggle(training.id)}
-                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors"
+                className="w-full p-4 sm:p-5 flex items-center gap-3 hover:bg-slate-50 transition-colors"
               >
                 <div className={`p-3 bg-gradient-to-br ${colors.gradient} rounded-xl shadow-lg`}>
                   <BookOpen className="w-7 h-7 text-white" strokeWidth={2} />
@@ -272,7 +272,7 @@ export function CoursesPage({ onBack, onCourseSelect }: CoursesPageProps) {
               {/* Lessons */}
               {isExpanded && (
                 <div className={`${colors.light} border-t ${colors.border}`}>
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 sm:p-4 space-y-3">
                     {isLoadingThisLessons ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
@@ -287,7 +287,7 @@ export function CoursesPage({ onBack, onCourseSelect }: CoursesPageProps) {
                         <button
                           key={lesson.id}
                           onClick={() => onCourseSelect(training.id, lesson.id)}
-                          className="w-full bg-white rounded-xl p-4 shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all group"
+                          className="w-full bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all group"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">

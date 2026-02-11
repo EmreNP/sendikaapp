@@ -28,6 +28,18 @@ export const API_ENDPOINTS = {
     LESSONS: (trainingId: string) => `/api/trainings/${trainingId}/lessons`,
     LESSON_BY_ID: (trainingId: string, lessonId: string) => `/api/trainings/${trainingId}/lessons/${lessonId}`,
   },
+  // Lessons (contents, videos, documents, tests)
+  LESSONS: {
+    BY_ID: (id: string) => `/api/lessons/${id}`,
+    CONTENTS: (id: string) => `/api/lessons/${id}/contents`,
+    VIDEOS: (id: string) => `/api/lessons/${id}/videos`,
+    DOCUMENTS: (id: string) => `/api/lessons/${id}/documents`,
+    TESTS: (id: string) => `/api/lessons/${id}/tests`,
+  },
+  // Tests
+  TESTS: {
+    BY_ID: (id: string) => `/api/tests/${id}`,
+  },
   // Branches
   BRANCHES: {
     BASE: '/api/branches',

@@ -19,3 +19,6 @@ export { MuktesepScreen } from './MuktesepScreen';
 export { DistrictRepresentativeScreen } from './DistrictRepresentativeScreen';
 export { PartnerInstitutionsScreen } from './PartnerInstitutionsScreen';
 export { PartnerDetailScreen } from './PartnerDetailScreen';
+export { TestScreen } from './TestScreen';
+export { PDFViewerScreen } from './PDFViewerScreen';
+export { DocumentScreen } from './DocumentScreen';

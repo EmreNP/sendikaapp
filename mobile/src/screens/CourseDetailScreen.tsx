@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,9 +34,23 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
 
+  // Content/tab state
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [contents, setContents] = useState<any[]>([]);
+  const [loadingContents, setLoadingContents] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all'|'videos'|'documents'|'tests'>('all');
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     fetchCourseDetails();
   }, [courseId]);
+
+  useEffect(() => {
+    // When course + lesson selection changes, load contents for the selected lesson
+    if (selectedLesson) {
+      loadContents(selectedLesson.id, activeTab);
+    }
+  }, [selectedLesson, activeTab]);
 
   const fetchCourseDetails = async () => {
     try {
@@ -46,6 +61,12 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       const foundTraining = trainingsData.find((t: Training) => t.id === courseId);
       setTraining(foundTraining || null);
       setLessons(lessonsData || []);
+
+      // Set selected lesson: prefer route param, otherwise first lesson
+      const initialLesson = route.params.lessonId
+        ? lessonsData.find((l: Lesson) => l.id === route.params.lessonId)
+        : lessonsData[0];
+      setSelectedLesson(initialLesson || null);
     } catch (error) {
       console.error('Error fetching course details:', error);
       Alert.alert('Hata', 'Eğitim detayları yüklenemedi');
@@ -56,6 +77,34 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
 
   const toggleLesson = (lessonId: string) => {
     setExpandedLesson(expandedLesson === lessonId ? null : lessonId);
+  };
+
+  const loadContents = async (lessonId: string, tab: 'all'|'videos'|'documents'|'tests') => {
+    try {
+      setLoadingContents(true);
+      if (tab === 'all') {
+        const data = await ApiService.getLessonContents(lessonId);
+        setContents(data || []);
+      } else {
+        const type = tab === 'videos' ? 'video' : tab === 'documents' ? 'document' : 'test';
+        const data = await ApiService.getLessonContents(lessonId, type as any);
+        setContents(data || []);
+      }
+    } catch (err) {
+      console.error('Error loading contents:', err);
+      setContents([]);
+    } finally {
+      setLoadingContents(false);
+    }
+  };
+
+  const toggleComplete = (id: string) => {
+    setCompletedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
   };
 
   if (loading) {
@@ -157,54 +206,133 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
             <Text style={styles.description}>{training.description}</Text>
           </View>
 
-          {/* Lessons */}
+          {/* Lessons selector + Contents (tabs) */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ders İçeriği</Text>
-            {lessons.length > 0 ? (
-              lessons.map((lesson, index) => (
-                <TouchableOpacity
-                  key={lesson.id}
-                  style={[
-                    styles.lessonCard,
-                    expandedLesson === lesson.id ? styles.lessonCardExpanded : undefined
-                  ]}
-                  onPress={() => toggleLesson(lesson.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.lessonHeader}>
-                    <LinearGradient
-                      colors={['#4338ca', '#1e40af']}
-                      style={styles.lessonNumber}
-                    >
-                      <Text style={styles.lessonNumberText}>{index + 1}</Text>
-                    </LinearGradient>
-                    <View style={styles.lessonInfo}>
-                      <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                      <View style={styles.lessonMeta}>
-                        <Feather name="clock" size={12} color="#94a3b8" />
-                        <Text style={styles.lessonDuration}>
-                          {lesson.duration || 15} dakika
-                        </Text>
-                      </View>
-                    </View>
-                    <Feather 
-                      name={expandedLesson === lesson.id ? 'chevron-up' : 'chevron-down'} 
-                      size={20} 
-                      color="#94a3b8" 
-                    />
-                  </View>
-                  {expandedLesson === lesson.id && lesson.content && (
-                    <View style={styles.lessonContent}>
-                      <Text style={styles.lessonContentText}>{lesson.content}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))
-            ) : (
+
+            {lessons.length === 0 ? (
               <View style={styles.emptyLessons}>
                 <Feather name="inbox" size={32} color="#94a3b8" />
                 <Text style={styles.emptyText}>Henüz ders eklenmemiş</Text>
               </View>
+            ) : (
+              <>
+                {/* Horizontal lesson selector */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ paddingHorizontal: 2 }}>
+                  {lessons.map((lesson, idx) => (
+                    <TouchableOpacity
+                      key={lesson.id}
+                      onPress={() => { setSelectedLesson(lesson); setActiveTab('all'); }}
+                      style={[styles.lessonSelector, selectedLesson?.id === lesson.id ? styles.lessonSelectorActive : {}]}
+                    >
+                      <Text style={[{ fontWeight: 600 }, selectedLesson?.id === lesson.id ? { color: '#312e81' } : { color: '#0f172a' }]}>{lesson.title}</Text>
+                      <Text style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{lesson.duration || 0} dk</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Progress bar for selected lesson */}
+                <View style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontWeight: '600', color: '#0f172a' }}>İçerik</Text>
+                    <Text style={{ color: '#64748b', fontWeight: '700' }}>{contents.length > 0 ? `${Math.round((Array.from(completedItems).length / contents.length) * 100)}%` : '0%'}</Text>
+                  </View>
+                  <View style={{ height: 8, backgroundColor: '#eef2ff', borderRadius: 8, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', backgroundColor: '#4338ca', width: `${contents.length ? Math.round((Array.from(completedItems).length / contents.length) * 100) : 0}%` }} />
+                  </View>
+                </View>
+
+                {/* Tabs */}
+                <View style={styles.tabsRow}>
+                  <TouchableOpacity onPress={() => setActiveTab('all')} style={[styles.tabButton, activeTab === 'all' ? styles.tabButtonActive : {}]}>
+                    <Text style={activeTab === 'all' ? styles.tabTextActive : styles.tabText}>Tümü</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setActiveTab('videos')} style={[styles.tabButton, activeTab === 'videos' ? styles.tabButtonActive : {}]}>
+                    <Text style={activeTab === 'videos' ? styles.tabTextActive : styles.tabText}>Videolar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setActiveTab('documents')} style={[styles.tabButton, activeTab === 'documents' ? styles.tabButtonActive : {}]}>
+                    <Text style={activeTab === 'documents' ? styles.tabTextActive : styles.tabText}>Dokümanlar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setActiveTab('tests')} style={[styles.tabButton, activeTab === 'tests' ? styles.tabButtonActive : {}]}>
+                    <Text style={activeTab === 'tests' ? styles.tabTextActive : styles.tabText}>Testler</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Contents list */}
+                {loadingContents ? (
+                  <View style={{ padding: 12, alignItems: 'center' }}>
+                    <ActivityIndicator color="#4338ca" />
+                  </View>
+                ) : contents.length === 0 ? (
+                  <View style={{ padding: 12 }}>
+                    <Text style={{ color: '#64748b' }}>Bu derste henüz içerik bulunmuyor.</Text>
+                  </View>
+                ) : (
+                  contents.map((c) => (
+                    <TouchableOpacity key={c.id} onPress={async () => {
+                      try {
+                        if (c.type === 'test') {
+                          // navigate to Test screen
+                          navigation.navigate('Test' as any, { testId: c.id });
+                          return;
+                        }
+
+                        if (c.type === 'document' && c.url) {
+                          // open document using native PDF viewer screen
+                          navigation.navigate('PDFViewer' as any, { url: c.url, title: c.title });
+                          return;
+                        }
+
+                        if (c.url) {
+                          await Linking.openURL(c.url);
+                          // mark as completed when opened
+                          toggleComplete(c.id);
+                        } else {
+                          toggleComplete(c.id);
+                        }
+                      } catch (err) {
+                        console.error('Failed to open url:', err);
+                        toggleComplete(c.id);
+                      }
+                    }} style={styles.contentItem} activeOpacity={0.8}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' }}>
+                          <Feather name={c.type === 'video' ? 'play' : c.type === 'document' ? 'file-text' : 'clipboard'} size={18} color="#4338ca" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: '600', color: '#0f172a' }}>{c.title}</Text>
+                          {c.description ? <Text style={{ color: '#64748b', marginTop: 6 }}>{c.description}</Text> : null}
+                        </View>
+                        <View style={{ marginLeft: 12 }}>
+                          {completedItems.has(c.id) ? <Feather name="check-circle" size={20} color="#16a34a" /> : <Feather name="circle" size={20} color="#94a3b8" />}
+                        </View>
+                      </View>
+
+                      {/* Action row */}
+                      {c.type === 'video' && c.url && (
+                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 12, color: '#64748b' }}>Video dersi başlat</Text>
+                          <Feather name="play" size={16} color="#4338ca" />
+                        </View>
+                      )}
+
+                      {c.type === 'document' && c.url && (
+                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 12, color: '#64748b' }}>Dokümanı görüntüle</Text>
+                          <Feather name="download" size={16} color="#059669" />
+                        </View>
+                      )}
+
+                      {c.type === 'test' && (
+                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 12, color: '#64748b' }}>Testi başlat</Text>
+                          <Feather name="arrow-right" size={16} color="#b45309" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </>
             )}
           </View>
         </View>
@@ -361,6 +489,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     lineHeight: 22,
+  },
+  /* New styles */
+  lessonSelector: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginRight: 8,
+    minWidth: 120,
+  },
+  lessonSelectorActive: {
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tabButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#eef2ff',
+  },
+  tabButtonActive: {
+    backgroundColor: '#4338ca',
+    borderColor: '#4338ca',
+  },
+  tabText: {
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  contentItem: {
+    backgroundColor: '#ffffff',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
   },
   lessonCard: {
     backgroundColor: '#ffffff',

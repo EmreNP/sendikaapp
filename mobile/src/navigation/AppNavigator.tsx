@@ -16,6 +16,7 @@ import {
   HomeScreen,
   CoursesScreen,
   CourseDetailScreen,
+  TestScreen,
   BranchesScreen,
   BranchDetailScreen,
   AllNewsScreen,
@@ -93,7 +94,7 @@ const LoadingScreen = () => (
 
 // Main App Navigator
 export const AppNavigator = () => {
-  const { isAuthenticated, isLoading, status } = useAuth();
+  const { isAuthenticated, isLoading, status, isAdmin } = useAuth();
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -109,17 +110,18 @@ export const AppNavigator = () => {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
-        ) : (status === 'pending_details' || status === 'pending_branch_review' || status === 'pending_admin_approval') ? (
-          // Pending Approval
-          <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
         ) : status === 'rejected' ? (
           // Rejected
           <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : (
+          // Main App Stack (everyone except rejected can access; training access is handled within CoursesScreen)
           // Main App Stack
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
             <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+            <Stack.Screen name="Test" component={TestScreen} />
+            <Stack.Screen name="PDFViewer" component={PDFViewerScreen} />
+            <Stack.Screen name="Document" component={DocumentScreen} />
             <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
             <Stack.Screen name="AllNews" component={AllNewsScreen} />
             <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />

@@ -186,7 +186,7 @@ export function CourseDetailPage({ trainingId, lessonId, onBack }: CourseDetailP
       <button
         key={content.id}
         onClick={() => toggleComplete(content.id)}
-        className="w-full bg-white rounded-xl p-4 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group"
+        className="w-full bg-white rounded-xl p-3 sm:p-4 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group"
       >
         <div className="flex items-start gap-4">
           <div className={`p-3 ${getTypeColor(content.type)} rounded-lg`}>
@@ -247,7 +247,7 @@ export function CourseDetailPage({ trainingId, lessonId, onBack }: CourseDetailP
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
-        <div className="px-4 py-4">
+        <div className="px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center gap-4 mb-4">
             <button
               onClick={onBack}
@@ -257,7 +257,7 @@ export function CourseDetailPage({ trainingId, lessonId, onBack }: CourseDetailP
               <ChevronLeft className="w-6 h-6 text-white" strokeWidth={2.5} />
             </button>
             <div className="flex-1">
-              <Badge variant="secondary" className="mb-2 text-xs bg-white/20 text-white border-0">
+              <Badge variant="secondary" className="mb-2 text-[10px] sm:text-xs bg-white/20 text-white border-0">
                 {training.title}
               </Badge>
               <h1 className="text-white tracking-tight leading-tight" style={{ fontWeight: 700, fontSize: "clamp(1.125rem, 4.5vw, 1.375rem)" }}>
@@ -272,7 +272,7 @@ export function CourseDetailPage({ trainingId, lessonId, onBack }: CourseDetailP
           </div>
 
           {/* Progress Bar */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-white text-sm" style={{ fontWeight: 600 }}>
                 İlerleme Durumu
@@ -305,17 +305,17 @@ export function CourseDetailPage({ trainingId, lessonId, onBack }: CourseDetailP
           </div>
         ) : (
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6 bg-white shadow-sm">
-            <TabsTrigger value="all" className="text-xs sm:text-sm">
+          <TabsList className="flex w-full gap-2 mb-6 bg-white shadow-sm overflow-x-auto no-scrollbar">
+            <TabsTrigger value="all" className="min-w-[90px] flex-none text-xs sm:text-sm">
               Tümü ({contents.length})
             </TabsTrigger>
-            <TabsTrigger value="videos" className="text-xs sm:text-sm">
+            <TabsTrigger value="videos" className="min-w-[90px] flex-none text-xs sm:text-sm">
               Videolar ({videos.length})
             </TabsTrigger>
-            <TabsTrigger value="documents" className="text-xs sm:text-sm">
+            <TabsTrigger value="documents" className="min-w-[90px] flex-none text-xs sm:text-sm">
               Dokümanlar ({documents.length})
             </TabsTrigger>
-            <TabsTrigger value="tests" className="text-xs sm:text-sm">
+            <TabsTrigger value="tests" className="min-w-[90px] flex-none text-xs sm:text-sm">
               Testler ({tests.length})
             </TabsTrigger>
           </TabsList>
