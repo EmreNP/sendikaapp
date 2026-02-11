@@ -3,6 +3,7 @@ import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalL
 import { useNavigate } from 'react-router-dom';
 import { lessonService } from '@/services/api/lessonService';
 import type { Lesson } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface LessonDetailModalProps {
   lesson: Lesson | null;
@@ -36,7 +37,7 @@ export default function LessonDetailModal({
           const response = await lessonService.getLesson(lesson.id);
           setLessonData(response.lesson);
         } catch (err) {
-          console.error('Load lesson error:', err);
+          logger.error('Load lesson error:', err);
         }
       };
       loadLesson();

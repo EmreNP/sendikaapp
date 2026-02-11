@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, MapPin } from 'lucide-react';
 import { GoogleMap, useLoadScript, Marker, Autocomplete } from '@react-google-maps/api';
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -74,7 +75,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
     try {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
-        console.warn('Google Maps API key not found');
+        logger.warn('Google Maps API key not found');
         return '';
       }
 
@@ -89,13 +90,13 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       }
       return '';
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      logger.error('Reverse geocoding error:', error);
       return '';
     }
   };
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  
+
   // useLoadScript hook'u - script'i sadece bir kez yükler
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: googleMapsApiKey,
@@ -125,7 +126,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       }));
       setSearchAddress(address);
     } catch (error) {
-      console.error('Error getting address:', error);
+      logger.error('Error getting address:', error);
     } finally {
       setLoadingAddress(false);
     }
@@ -240,7 +241,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
 
       onClose();
     } catch (err: any) {
-      console.error('Error saving branch:', err);
+      logger.error('Error saving branch:', err);
       setError(err.message || 'Şube kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

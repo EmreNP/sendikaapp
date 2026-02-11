@@ -5,6 +5,7 @@ import 'react-quill/dist/quill.snow.css';
 import { newsService } from '@/services/api/newsService';
 import type { News, CreateNewsRequest, UpdateNewsRequest } from '@/types/news';
 import ImageCropModal from './ImageCropModal';
+import { logger } from '@/utils/logger';
 
 interface NewsFormModalProps {
   news: News | null;
@@ -169,7 +170,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving news:', err);
+      logger.error('Error saving news:', err);
       setError(err.message || 'Haber kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

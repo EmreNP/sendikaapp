@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+
 /**
  * API Response Types
  * Backend'den dönen standart response formatları
@@ -31,12 +33,12 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const { api } = await import('@/config/api');
   const { authService } = await import('@/services/auth/authService');
-  
+
   // Status update endpoint'leri için detaylı log
   const isStatusUpdate = endpoint.includes('/status') && options?.method === 'PATCH';
   
   if (isStatusUpdate) {
-    console.log('🌐 API Request (Status Update):', {
+    logger.log('🌐 API Request (Status Update):', {
       endpoint,
       method: options?.method,
       hasBody: !!options?.body,
@@ -45,14 +47,14 @@ export async function apiRequest<T = any>(
     if (options?.body) {
       try {
         const bodyObj = JSON.parse(options.body as string);
-        console.log('📦 Request body:', {
+        logger.log('📦 Request body:', {
           status: bodyObj.status,
           hasNote: !!bodyObj.note,
           hasRejectionReason: !!bodyObj.rejectionReason,
           hasDocumentUrl: !!bodyObj.documentUrl,
         });
       } catch (e) {
-        console.log('📦 Request body: (parse error)', e);
+        logger.log('📦 Request body: (parse error)', e);
       }
     }
   }
@@ -72,11 +74,11 @@ export async function apiRequest<T = any>(
     if (authToken) {
       defaultHeaders['Authorization'] = `Bearer ${authToken}`;
       if (isStatusUpdate) {
-        console.log('🔑 Token available for status update request');
+        logger.log('🔑 Token available for status update request');
       }
     } else {
       if (isStatusUpdate) {
-        console.warn('⚠️ No token available for status update request');
+        logger.warn('⚠️ No token available for status update request');
       }
     }
     
@@ -94,12 +96,12 @@ export async function apiRequest<T = any>(
     
     // 401 hatası alındıysa, token'ı force refresh et ve tekrar dene
     if (response.status === 401) {
-      console.log('🔄 Token expired, refreshing and retrying...');
+      logger.log('🔄 Token expired, refreshing and retrying...');
       try {
         token = await authService.getIdToken(true); // Force refresh
         if (!token) {
           // Token alınamadı - oturum sonlandı
-          console.error('❌ Token refresh failed: no token returned. Redirecting to login.');
+          logger.error('❌ Token refresh failed: no token returned. Redirecting to login.');
           await authService.signOut();
           window.location.href = '/login';
           throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
@@ -108,7 +110,7 @@ export async function apiRequest<T = any>(
         
         // Retry sonrası hâlâ 401 ise, hesap devre dışı veya geçersiz
         if (response.status === 401) {
-          console.error('❌ Still 401 after token refresh. Account may be disabled. Redirecting to login.');
+          logger.error('❌ Still 401 after token refresh. Account may be disabled. Redirecting to login.');
           await authService.signOut();
           window.location.href = '/login';
           throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
@@ -118,7 +120,7 @@ export async function apiRequest<T = any>(
         if (refreshError.message?.includes('Oturumunuz sona erdi')) {
           throw refreshError;
         }
-        console.error('❌ Token refresh error:', refreshError);
+        logger.error('❌ Token refresh error:', refreshError);
         await authService.signOut();
         window.location.href = '/login';
         throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
@@ -126,7 +128,7 @@ export async function apiRequest<T = any>(
     }
     
     if (isStatusUpdate) {
-      console.log('📡 Status update response status:', response.status, response.statusText);
+      logger.log('📡 Status update response status:', response.status, response.statusText);
     }
     
     const contentType = response.headers.get('content-type') || '';
@@ -145,7 +147,7 @@ export async function apiRequest<T = any>(
     if (!data.success) {
       // Hata durumu
       if (isStatusUpdate) {
-        console.error('❌ Status update API error:', {
+        logger.error('❌ Status update API error:', {
           message: data.message,
           code: data.code,
           details: data.details,
@@ -160,7 +162,7 @@ export async function apiRequest<T = any>(
     
     // Başarılı durum
     if (isStatusUpdate) {
-      console.log('✅ Status update API success:', {
+      logger.log('✅ Status update API success:', {
         message: data.message,
         code: data.code,
         hasData: !!data.data,
@@ -170,7 +172,7 @@ export async function apiRequest<T = any>(
     return data.data as T;
   } catch (error: any) {
     if (isStatusUpdate) {
-      console.error('❌ Status update API request failed:', {
+      logger.error('❌ Status update API request failed:', {
         message: error.message,
         code: error.code,
         details: error.details,

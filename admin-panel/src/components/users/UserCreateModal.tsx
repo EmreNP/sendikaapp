@@ -4,6 +4,7 @@ import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import { logger } from '@/utils/logger';
 
 interface Props {
   isOpen: boolean;
@@ -81,7 +82,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }>}>("/api/branches");
       setBranches(data.branches || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
     }
   };
 
@@ -101,7 +102,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
         setBranches(prev => [...prev, data.branch]);
       }
     } catch (err: any) {
-      console.error('Error fetching single branch:', err);
+      logger.error('Error fetching single branch:', err);
     }
   };
 
@@ -145,7 +146,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       setCreatedUserId(response.uid);
       setStep('success');
     } catch (err: any) {
-      console.error('Error creating user (basic):', err);
+      logger.error('Error creating user (basic):', err);
       setError(err.message || 'Kullanıcı oluşturulurken hata oluştu');
     } finally {
       setLoading(false);
@@ -194,7 +195,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user details:', err);
+      logger.error('Error updating user details:', err);
       setError(err.message || 'Detaylar kaydedilirken hata oluştu');
     } finally {
       setLoading(false);

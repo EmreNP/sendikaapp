@@ -9,6 +9,7 @@ import { faqService } from '@/services/api/faqService';
 import { batchFetchUserNames } from '@/services/api/userNameService';
 import type { FAQ } from '@/types/faq';
 import type { User as UserType } from '@/types/user';
+import { logger } from '@/utils/logger';
 
 export default function FAQPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -80,7 +81,7 @@ export default function FAQPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching FAQ:', error);
+      logger.error('❌ Error fetching FAQ:', error);
       setError(error.message || 'FAQ\'ler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setFaqs([]);
     } finally {
@@ -154,7 +155,7 @@ export default function FAQPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error deleting FAQ:', error);
+      logger.error('Error deleting FAQ:', error);
       setError(error.message || 'FAQ silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -169,7 +170,7 @@ export default function FAQPage() {
       });
       await fetchFAQ();
     } catch (error: any) {
-      console.error('Error toggling published:', error);
+      logger.error('Error toggling published:', error);
       setError(error.message || 'FAQ durumu güncellenirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -194,7 +195,7 @@ export default function FAQPage() {
 
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deleting FAQ:', error);
+      logger.error('Error bulk deleting FAQ:', error);
       setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -215,7 +216,7 @@ export default function FAQPage() {
       await fetchFAQ();
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk publishing FAQ:', error);
+      logger.error('Error bulk publishing FAQ:', error);
       setError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -236,7 +237,7 @@ export default function FAQPage() {
       await fetchFAQ();
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk unpublishing FAQ:', error);
+      logger.error('Error bulk unpublishing FAQ:', error);
       setError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);

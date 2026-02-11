@@ -19,7 +19,8 @@ export default function BranchDashboard() {
   const fetchStats = async () => {
     try {
       const { apiRequest } = await import('@/utils/api');
-      
+
+import { logger } from '@/utils/logger';      
       const data = await apiRequest<{ stats: { 
         total: number; 
         byStatus: { 
@@ -37,7 +38,7 @@ export default function BranchDashboard() {
         rejected: data.stats?.byStatus?.rejected || 0,
       });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      logger.error('Error fetching stats:', error);
     }
   };
 

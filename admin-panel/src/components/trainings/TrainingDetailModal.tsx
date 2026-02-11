@@ -3,6 +3,7 @@ import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalL
 import { useNavigate } from 'react-router-dom';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface TrainingDetailModalProps {
   training: Training | null;
@@ -34,7 +35,7 @@ export default function TrainingDetailModal({
           const response = await trainingService.getTraining(training.id);
           setTrainingData(response.training);
         } catch (err) {
-          console.error('Load training error:', err);
+          logger.error('Load training error:', err);
         }
       };
       loadTraining();

@@ -7,6 +7,7 @@ import type { NotificationHistory } from '@/services/api/notificationService';
 import { NOTIFICATION_TYPE } from '@shared/constants/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -54,7 +55,7 @@ export default function NotificationHistoryPage() {
       }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     }
   };
 
@@ -76,7 +77,7 @@ export default function NotificationHistoryPage() {
       setTotal(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 0);
     } catch (error: any) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
       setError(error.message || 'Bildirim geçmişi yüklenirken bir hata oluştu');
       setNotifications([]);
     } finally {
@@ -107,12 +108,12 @@ export default function NotificationHistoryPage() {
       } else if (typeof date === 'number') {
         dateObj = new Date(date);
       } else {
-        console.warn('Unknown date format:', date);
+        logger.warn('Unknown date format:', date);
         return '-';
       }
       
       if (isNaN(dateObj.getTime())) {
-        console.warn('Invalid date:', date);
+        logger.warn('Invalid date:', date);
         return '-';
       }
       
@@ -124,7 +125,7 @@ export default function NotificationHistoryPage() {
         minute: '2-digit',
       }).format(dateObj);
     } catch (error) {
-      console.error('Date formatting error:', error, date);
+      logger.error('Date formatting error:', error, date);
       return '-';
     }
   };

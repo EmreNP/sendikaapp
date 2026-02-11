@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF } from '@/utils/pdfGenerator';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import { logger } from '@/utils/logger';
 
 interface Props {
   userId: string | null;
@@ -125,7 +126,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
           const bdata = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${user.branchId}`);
           if (bdata?.branch?.name) setBranchName(bdata.branch.name);
         } catch (err: any) {
-          console.error('Error fetching branch name:', err);
+          logger.error('Error fetching branch name:', err);
         }
       }
       setTcKimlikNo(user.tcKimlikNo || '');
@@ -142,7 +143,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     } catch (err: any) {
       // Eğer kullanıcı bulunamadı hatası alırsak, eksik kayıt moduna geç
       if (err.response?.status === 404 || err.message?.toLowerCase().includes('bulunamadı') || err.code === 'NOT_FOUND') {
-        console.warn('User doc invalid/missing. Switching to Registration Completion mode.');
+        logger.warn('User doc invalid/missing. Switching to Registration Completion mode.');
         setIsMissingDoc(true);
         // Şube yöneticisi ise şubesini otomatik ata ve şube ismini getir
         if (currentUser?.branchId) {
@@ -151,11 +152,11 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
              const bdata = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${currentUser.branchId}`);
              if (bdata?.branch?.name) setBranchName(bdata.branch.name);
            } catch (err: any) {
-             console.error('Error fetching branch name for branch manager:', err);
+             logger.error('Error fetching branch name for branch manager:', err);
            }
         }
       } else {
-        console.error('Error fetching user:', err);
+        logger.error('Error fetching user:', err);
         setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
       }
     } finally {
@@ -168,7 +169,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>("/api/branches");
       setBranches(data.branches || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
     }
   };
 
@@ -299,7 +300,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user:', err);
+      logger.error('Error updating user:', err);
       setError(err.message || 'Kullanıcı güncellenirken hata oluştu');
     } finally {
       setLoading(false);

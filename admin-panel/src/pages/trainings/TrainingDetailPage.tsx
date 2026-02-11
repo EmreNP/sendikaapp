@@ -8,6 +8,7 @@ import LessonDetailModal from '@/components/trainings/LessonDetailModal';
 import { trainingService } from '@/services/api/trainingService';
 import { lessonService } from '@/services/api/lessonService';
 import type { Training, Lesson } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 export default function TrainingDetailPage() {
   const { trainingId } = useParams<{ trainingId: string }>();
@@ -49,7 +50,7 @@ export default function TrainingDetailPage() {
       const response = await trainingService.getTraining(trainingId);
       setTraining(response.training);
     } catch (err: any) {
-      console.error('Load training error:', err);
+      logger.error('Load training error:', err);
       setError(err.message || 'Eğitim yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -62,7 +63,7 @@ export default function TrainingDetailPage() {
       const response = await lessonService.getLessons(trainingId);
       setLessons(response.lessons);
     } catch (err: any) {
-      console.error('Load lessons error:', err);
+      logger.error('Load lessons error:', err);
     }
   };
 
@@ -71,7 +72,7 @@ export default function TrainingDetailPage() {
       await lessonService.deleteLesson(lessonId);
       await loadLessons();
     } catch (err: any) {
-      console.error('Delete lesson error:', err);
+      logger.error('Delete lesson error:', err);
       alert(err.message || 'Ders silinirken bir hata oluştu');
     }
   };
@@ -83,7 +84,7 @@ export default function TrainingDetailPage() {
       });
       await loadLessons();
     } catch (err: any) {
-      console.error('Toggle lesson active error:', err);
+      logger.error('Toggle lesson active error:', err);
       alert(err.message || 'Ders durumu güncellenirken bir hata oluştu');
     }
   };

@@ -6,6 +6,7 @@ import { NOTIFICATION_TYPE, TARGET_AUDIENCE } from '@shared/constants/notificati
 import type { NotificationType, TargetAudience } from '@shared/constants/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -85,7 +86,7 @@ export default function SendNotificationSimpleModal({
       }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     } finally {
       setLoadingBranches(false);
     }
@@ -168,7 +169,7 @@ export default function SendNotificationSimpleModal({
         setResult(null);
       }, 3000);
     } catch (err: any) {
-      console.error('Error sending notification:', err);
+      logger.error('Error sending notification:', err);
       setError(err.message || 'Bildirim gönderilirken bir hata oluştu');
     } finally {
       setLoading(false);

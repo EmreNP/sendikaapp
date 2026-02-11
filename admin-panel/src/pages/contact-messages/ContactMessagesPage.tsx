@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { contactService } from '@/services/api/contactService';
 import { useAuth } from '@/context/AuthContext';
 import type { ContactMessage, Topic } from '@/types/contact';
+import { logger } from '@/utils/logger';
 
 type TabType = 'messages' | 'topics';
 type FilterType = 'all' | 'read' | 'unread';
@@ -84,7 +85,7 @@ export default function ContactMessagesPage() {
         setSelectedTopicId('all');
       }
     } catch (err) {
-      console.error('Error fetching topics:', err);
+      logger.error('Error fetching topics:', err);
     }
   };
 
@@ -95,7 +96,7 @@ export default function ContactMessagesPage() {
       const data = await contactService.getTopics();
       setTopicsList(data.topics || []);
     } catch (err: any) {
-      console.error('Error fetching topics:', err);
+      logger.error('Error fetching topics:', err);
       setTopicsError(err.message || 'Konular yüklenirken bir hata oluştu');
       setTopicsList([]);
     } finally {
@@ -137,7 +138,7 @@ export default function ContactMessagesPage() {
       setMessages(data.messages || []);
       setTotal(data.total || 0);
     } catch (err: any) {
-      console.error('Error fetching messages:', err);
+      logger.error('Error fetching messages:', err);
       setMessagesError(err.message || 'Mesajlar yüklenirken bir hata oluştu');
       setMessages([]);
     } finally {
@@ -173,7 +174,7 @@ export default function ContactMessagesPage() {
           await fetchTopicsList();
           setConfirmDialog({ ...confirmDialog, isOpen: false });
         } catch (err: any) {
-          console.error('Error deleting topic:', err);
+          logger.error('Error deleting topic:', err);
           setTopicsError(err.message || 'Konu silinirken bir hata oluştu');
         } finally {
           setProcessing(false);

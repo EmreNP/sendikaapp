@@ -3,6 +3,7 @@ import { X, Upload, FileText, ExternalLink } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { DocumentContent, CreateDocumentContentRequest, UpdateDocumentContentRequest } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface DocumentFormModalProps {
   document: DocumentContent | null;
@@ -115,26 +116,17 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           setUploading(true);
           setUploadProgress(0);
 
-          // Simüle edilmiş progress
-          const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-              if (prev >= 90) {
-                clearInterval(progressInterval);
-                return 90;
-              }
-              return prev + 10;
-            });
-          }, 200);
-
-          const uploadResult = await fileUploadService.uploadDocument(selectedFile);
+          // Real progress tracking
+          const uploadResult = await fileUploadService.uploadDocument(
+            selectedFile,
+            (progress) => setUploadProgress(progress)
+          );
           
-          clearInterval(progressInterval);
-          setUploadProgress(100);
           documentPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
           documentUrl = uploadResult.documentUrl;  // Display URL
           setUploading(false);
         } catch (uploadErr: any) {
-          console.error('File upload error:', uploadErr);
+          logger.error('File upload error:', uploadErr);
           setError(uploadErr.message || 'Dosya yüklenirken bir hata oluştu');
           setLoading(false);
           setUploading(false);
@@ -180,7 +172,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save document error:', err);
+      logger.error('Save document error:', err);
       setError(err.message || 'Döküman kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

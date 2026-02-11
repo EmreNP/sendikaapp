@@ -19,7 +19,8 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       const { apiRequest } = await import('@/utils/api');
-      
+
+import { logger } from '@/utils/logger';      
       // Kullanıcı istatistikleri
       const usersData = await apiRequest<{ stats: { total: number; active: number; pending: number } }>('/api/users/stats');
       
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
         }));
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      logger.error('Error fetching stats:', error);
     }
   };
 

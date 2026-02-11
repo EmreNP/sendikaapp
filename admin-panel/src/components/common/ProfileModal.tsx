@@ -6,6 +6,7 @@ import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import type { EducationLevel } from '@shared/types/user';
 import type { User as SharedUser } from '@shared/types/user';
+import { logger } from '@/utils/logger';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -81,10 +82,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               if (!isNaN(d2.getTime())) return d2.toISOString().split('T')[0];
             }
           } catch (err) {
-            console.warn('Error parsing birthDate:', err, raw);
+            logger.warn('Error parsing birthDate:', err, raw);
           }
 
-          console.warn('Invalid birthDate value for user:', raw);
+          logger.warn('Invalid birthDate value for user:', raw);
           return '';
         };
 
@@ -109,7 +110,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         setError(null);
         setSuccess(false);
       } catch (err: any) {
-        console.error('Error loading profile:', err);
+        logger.error('Error loading profile:', err);
         setError('Profil bilgileri yüklenirken bir hata oluştu');
       } finally {
         if (!cancelled) setLoading(false);

@@ -11,6 +11,7 @@ import TestQuestionsModal from '@/components/trainings/TestQuestionsModal';
 import { lessonService } from '@/services/api/lessonService';
 import { contentService } from '@/services/api/contentService';
 import type { Lesson, Content, VideoContent, DocumentContent, TestContent } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 type ContentTab = 'all' | 'video' | 'document' | 'test';
 
@@ -58,7 +59,7 @@ export default function LessonDetailPage() {
       const response = await lessonService.getLesson(lessonId);
       setLesson(response.lesson);
     } catch (err: any) {
-      console.error('Load lesson error:', err);
+      logger.error('Load lesson error:', err);
       setError(err.message || 'Ders yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function LessonDetailPage() {
       const response = await contentService.getContents(lessonId);
       setContents(response.contents);
     } catch (err: any) {
-      console.error('Load contents error:', err);
+      logger.error('Load contents error:', err);
     }
   };
 
@@ -86,7 +87,7 @@ export default function LessonDetailPage() {
       }
       await loadContents();
     } catch (err: any) {
-      console.error('Delete content error:', err);
+      logger.error('Delete content error:', err);
       alert(err.message || 'İçerik silinirken bir hata oluştu');
     }
   };

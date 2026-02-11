@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, User as UserIcon, Building2 } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -56,7 +57,7 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
       }>('/api/branches');
       setBranches(data.branches.filter(b => b.isActive) || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
       setError('Şubeler yüklenirken bir hata oluştu');
     } finally {
       setBranchesLoading(false);
@@ -89,7 +90,7 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user role:', err);
+      logger.error('Error updating user role:', err);
       setError(err.message || 'Rol güncellenirken bir hata oluştu');
     } finally {
       setLoading(false);

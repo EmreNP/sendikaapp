@@ -4,6 +4,7 @@ import { contactService } from '@/services/api/contactService';
 import { apiRequest } from '@/utils/api';
 import type { ContactMessage } from '@/types/contact';
 import { formatDate, formatRelativeDate } from '@/utils/dateFormatter';
+import { logger } from '@/utils/logger';
 
 interface ContactMessageDetailModalProps {
   message: ContactMessage;
@@ -105,11 +106,11 @@ export default function ContactMessageDetailModal({
       // Mesajı güncelle ve sayfayı yenile
       onUpdate();
     } catch (err: any) {
-      console.error('Error marking message as read:', err);
+      logger.error('Error marking message as read:', err);
       // Rate limiting hatası ise ref'i sıfırlama, diğer hatalar için sıfırla
       if (err.message && err.message.includes('Çok fazla istek')) {
         // Rate limiting - bir sonraki açılışta tekrar dene
-        console.warn('Rate limit reached, will retry on next open');
+        logger.warn('Rate limit reached, will retry on next open');
       } else {
         hasMarkedAsReadRef.current = null; // Reset on other errors
       }
@@ -136,7 +137,7 @@ export default function ContactMessageDetailModal({
         } catch (err: any) {
           // 500 hatası veya rate limiting hatası ise sessizce devam et
           if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
-            console.error('Error fetching user:', err);
+            logger.error('Error fetching user:', err);
           }
           // Hata durumunda sessizce devam et
         }
@@ -154,7 +155,7 @@ export default function ContactMessageDetailModal({
         } catch (err: any) {
           // 500 hatası veya rate limiting hatası ise sessizce devam et
           if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
-            console.error('Error fetching branch:', err);
+            logger.error('Error fetching branch:', err);
           }
           // Hata durumunda sessizce devam et
         }
@@ -178,13 +179,13 @@ export default function ContactMessageDetailModal({
               });
             }
           } catch (err: any) {
-            console.error('Error fetching topic:', err);
+            logger.error('Error fetching topic:', err);
             // Hata durumunda sessizce devam et
           }
         }
       }
     } catch (err: any) {
-      console.error('Error fetching related data:', err);
+      logger.error('Error fetching related data:', err);
       // Hata durumunda sessizce devam et, kullanıcıya gösterme
     } finally {
       setLoading(false);
@@ -198,7 +199,7 @@ export default function ContactMessageDetailModal({
       await contactService.markMessageAsRead(message.id, isRead);
       onUpdate();
     } catch (err: any) {
-      console.error('Error updating message:', err);
+      logger.error('Error updating message:', err);
       setError(err.message || 'Mesaj güncellenirken bir hata oluştu');
     } finally {
       setUpdating(false);

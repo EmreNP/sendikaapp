@@ -6,6 +6,7 @@ import ActionButton from '@/components/common/ActionButton';
 import BranchFormModal from '@/components/branches/BranchFormModal';
 import BranchDetailModal from '@/components/branches/BranchDetailModal';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -86,7 +87,7 @@ export default function BranchesPage() {
         params.append('search', debouncedSearch);
       }
 
-      console.log('📡 Fetching branches from:', `/api/branches?${params.toString()}`);
+      logger.log('📡 Fetching branches from:', `/api/branches?${params.toString()}`);
 
       const data = await apiRequest<{ 
         branches: Branch[];
@@ -96,12 +97,12 @@ export default function BranchesPage() {
         hasMore: boolean;
       }>(`/api/branches?${params.toString()}`);
       
-      console.log('✅ Branches data received:', data);
+      logger.log('✅ Branches data received:', data);
       setBranches(data.branches || []);
       setTotalBranches(data.total || 0);
       setTotalPages(Math.ceil((data.total || 0) / 25));
     } catch (error: any) {
-      console.error('❌ Error fetching branches:', error);
+      logger.error('❌ Error fetching branches:', error);
       setError(error.message || 'Şubeler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setBranches([]);
     } finally {
@@ -118,7 +119,7 @@ export default function BranchesPage() {
       // State'den direkt kaldır
       setBranches(prev => prev.filter(b => b.id !== branchId));
     } catch (error: any) {
-      console.error('Error deleting branch:', error);
+      logger.error('Error deleting branch:', error);
       setError(error.message || 'Şube silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -129,6 +130,7 @@ export default function BranchesPage() {
     try {
       setProcessing(true);
       const { apiRequest } = await import('@/utils/api');
+
       await apiRequest(`/api/branches/${branchId}`, {
         method: 'PUT',
         body: JSON.stringify({ isActive: !currentActive }),
@@ -137,7 +139,7 @@ export default function BranchesPage() {
       // State'deki ilgili şubenin isActive değerini güncelle
       setBranches(prev => prev.map(b => b.id === branchId ? { ...b, isActive: !currentActive } : b));
     } catch (error: any) {
-      console.error('Error toggling branch active status:', error);
+      logger.error('Error toggling branch active status:', error);
       setError(error.message || 'Şube durumu değiştirilirken bir hata oluştu');
     } finally {
       setProcessing(false);

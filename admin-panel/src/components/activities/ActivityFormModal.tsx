@@ -3,6 +3,7 @@ import { X, Calendar, Upload, Trash2 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
+import { logger } from '@/utils/logger';
 
 interface BranchOption {
   id: string;
@@ -66,7 +67,7 @@ export default function ActivityFormModal({
       // Fall back to fetching single branch from API
       try {
         const { apiRequest } = await import('@/utils/api');
-        const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchIdToLookup}`);
+
         setBranchName(data.branch?.name || branchIdToLookup);
       } catch (e) {
         setBranchName(branchIdToLookup);
@@ -166,7 +167,7 @@ export default function ActivityFormModal({
 
       await onSubmit(submitData);
     } catch (error) {
-      console.error('Form submission error:', error);
+      logger.error('Form submission error:', error);
     }
   };
 

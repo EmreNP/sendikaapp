@@ -8,6 +8,7 @@ import TrainingFormModal from '@/components/trainings/TrainingFormModal';
 import TrainingDetailModal from '@/components/trainings/TrainingDetailModal';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 export default function TrainingsPage() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function TrainingsPage() {
       setTrainings(response.trainings);
       setTotal(response.total);
     } catch (err: any) {
-      console.error('Load trainings error:', err);
+      logger.error('Load trainings error:', err);
       setError(err.message || 'Eğitimler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -66,7 +67,7 @@ export default function TrainingsPage() {
       await trainingService.deleteTraining(id);
       await loadTrainings();
     } catch (err: any) {
-      console.error('Delete training error:', err);
+      logger.error('Delete training error:', err);
       alert(err.message || 'Eğitim silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -81,7 +82,7 @@ export default function TrainingsPage() {
       });
       await loadTrainings();
     } catch (err: any) {
-      console.error('Toggle active error:', err);
+      logger.error('Toggle active error:', err);
       alert(err.message || 'Eğitim durumu güncellenirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -108,7 +109,7 @@ export default function TrainingsPage() {
         await loadTrainings();
       }
     } catch (err: any) {
-      console.error('Bulk action error:', err);
+      logger.error('Bulk action error:', err);
       alert(err.message || 'Toplu işlem sırasında bir hata oluştu');
     } finally {
       setProcessing(false);

@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, Ch
 import { useAuth } from '@/context/AuthContext';
 import ProfileModal from '@/components/common/ProfileModal';
 import { contactService } from '@/services/api/contactService';
+import { logger } from '@/utils/logger';
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -90,7 +91,7 @@ export default function Sidebar() {
           });
           setUnreadCount(data.total || 0);
         } catch (err) {
-          console.error('Error fetching unread messages count:', err);
+          logger.error('Error fetching unread messages count:', err);
         }
       };
 
@@ -230,7 +231,7 @@ export default function Sidebar() {
                 try {
                   await signOut();
                 } catch (err) {
-                  console.error('Sign out failed', err);
+                  logger.error('Sign out failed', err);
                 }
                 setShowProfileOptions(false);
                 navigate('/login');

@@ -4,6 +4,7 @@
  * toplu olarak çeken ve cache'leyen servis.
  */
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface UserName {
   firstName: string;
@@ -61,7 +62,7 @@ export async function batchFetchUserNames(
         }
       }
     } catch (error) {
-      console.error('Error batch fetching user names:', error);
+      logger.error('Error batch fetching user names:', error);
       // Hata durumunda ID'leri döndür (graceful degradation)
     }
   }

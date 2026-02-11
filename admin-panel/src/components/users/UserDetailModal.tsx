@@ -7,6 +7,7 @@ import { batchFetchUserNames } from '@/services/api/userNameService';
 import UserStatusModal from './UserStatusModal';
 import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
 import { formatDate } from '@/utils/dateFormatter';
+import { logger } from '@/utils/logger';
 
 interface UserDetail {
   uid: string;
@@ -119,7 +120,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         await fetchBranchById(data.user.branchId);
       }
     } catch (err: any) {
-      console.error('❌ Error fetching user details:', err);
+      logger.error('❌ Error fetching user details:', err);
       setError(err.message || 'Kullanıcı bilgileri yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -131,7 +132,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
     } catch (err: any) {
-      console.error('❌ Error fetching branches:', err);
+      logger.error('❌ Error fetching branches:', err);
     }
   };
 
@@ -146,7 +147,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         setBranches(prev => [...prev, data.branch]);
       }
     } catch (err: any) {
-      console.error('❌ Error fetching branch by id:', err);
+      logger.error('❌ Error fetching branch by id:', err);
     }
   };
 
@@ -155,7 +156,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       const names = await batchFetchUserNames(userIds);
       setUserNames((prev) => ({ ...prev, ...names }));
     } catch (err: any) {
-      console.error('❌ Error batch fetching user names:', err);
+      logger.error('❌ Error batch fetching user names:', err);
     }
   };
 
@@ -175,7 +176,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         await fetchUserNames(userIds);
       }
     } catch (err: any) {
-      console.error('Error fetching logs:', err);
+      logger.error('Error fetching logs:', err);
       setError(err.message || 'Loglar yüklenirken bir hata oluştu');
       setLogs([]);
     } finally {
@@ -482,7 +483,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         onUserDeleted();
       }
     } catch (err: any) {
-      console.error('❌ Error deleting user:', err);
+      logger.error('❌ Error deleting user:', err);
       setError(err.message || 'Kullanıcı silinirken bir hata oluştu');
     } finally {
       setDeletingUser(false);

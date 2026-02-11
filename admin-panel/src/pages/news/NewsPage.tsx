@@ -16,6 +16,7 @@ import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
 import type { NotificationType } from '@shared/constants/notifications';
+import { logger } from '@/utils/logger';
 
 type TabType = 'news' | 'announcements';
 
@@ -123,7 +124,7 @@ export default function NewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -139,7 +140,7 @@ export default function NewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching news:', error);
+      logger.error('❌ Error fetching news:', error);
       setError(error.message || 'Haberler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setNews([]);
     } finally {
@@ -236,7 +237,7 @@ export default function NewsPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error deleting news:', error);
+      logger.error('Error deleting news:', error);
       setError(error.message || 'Haber silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -251,7 +252,7 @@ export default function NewsPage() {
       });
       await fetchNews();
     } catch (error: any) {
-      console.error('Error toggling published:', error);
+      logger.error('Error toggling published:', error);
       setError(error.message || 'Haber durumu güncellenirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -276,7 +277,7 @@ export default function NewsPage() {
 
       setSelectedNewsIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deleting news:', error);
+      logger.error('Error bulk deleting news:', error);
       setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -297,7 +298,7 @@ export default function NewsPage() {
       await fetchNews();
       setSelectedNewsIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk publishing news:', error);
+      logger.error('Error bulk publishing news:', error);
       setError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -318,7 +319,7 @@ export default function NewsPage() {
       await fetchNews();
       setSelectedNewsIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk unpublishing news:', error);
+      logger.error('Error bulk unpublishing news:', error);
       setError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -358,7 +359,7 @@ export default function NewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -374,7 +375,7 @@ export default function NewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching announcements:', error);
+      logger.error('❌ Error fetching announcements:', error);
       setAnnouncementsError(error.message || 'Duyurular yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setAnnouncements([]);
     } finally {
@@ -411,7 +412,7 @@ export default function NewsPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error deleting announcement:', error);
+      logger.error('Error deleting announcement:', error);
       setAnnouncementsError(error.message || 'Duyuru silinirken bir hata oluştu');
     } finally {
       setAnnouncementsProcessing(false);
@@ -426,7 +427,7 @@ export default function NewsPage() {
       });
       await fetchAnnouncements();
     } catch (error: any) {
-      console.error('Error toggling announcement published:', error);
+      logger.error('Error toggling announcement published:', error);
       setAnnouncementsError(error.message || 'Duyuru durumu güncellenirken bir hata oluştu');
     } finally {
       setAnnouncementsProcessing(false);
@@ -450,7 +451,7 @@ export default function NewsPage() {
 
       setSelectedAnnouncementIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deleting announcements:', error);
+      logger.error('Error bulk deleting announcements:', error);
       setAnnouncementsError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
     } finally {
       setAnnouncementsProcessing(false);
@@ -471,7 +472,7 @@ export default function NewsPage() {
       await fetchAnnouncements();
       setSelectedAnnouncementIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk publishing announcements:', error);
+      logger.error('Error bulk publishing announcements:', error);
       setAnnouncementsError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
     } finally {
       setAnnouncementsProcessing(false);
@@ -492,7 +493,7 @@ export default function NewsPage() {
       await fetchAnnouncements();
       setSelectedAnnouncementIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk unpublishing announcements:', error);
+      logger.error('Error bulk unpublishing announcements:', error);
       setAnnouncementsError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
     } finally {
       setAnnouncementsProcessing(false);

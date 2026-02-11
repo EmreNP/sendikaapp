@@ -13,6 +13,7 @@ import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
 import type { NotificationType } from '@shared/constants/notifications';
+import { logger } from '@/utils/logger';
 
 type TabType = 'news' | 'announcements';
 
@@ -84,7 +85,7 @@ export default function BranchNewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -100,7 +101,7 @@ export default function BranchNewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching news:', error);
+      logger.error('❌ Error fetching news:', error);
       setError(error.message || 'Haberler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setNews([]);
     } finally {
@@ -137,7 +138,7 @@ export default function BranchNewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -153,7 +154,7 @@ export default function BranchNewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching announcements:', error);
+      logger.error('❌ Error fetching announcements:', error);
       setAnnouncementsError(error.message || 'Duyurular yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setAnnouncements([]);
     } finally {

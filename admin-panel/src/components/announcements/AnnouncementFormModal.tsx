@@ -6,6 +6,7 @@ import { announcementService } from '@/services/api/announcementService';
 import type { Announcement, CreateAnnouncementRequest, UpdateAnnouncementRequest } from '@/types/announcement';
 import ImageCropModal from '../news/ImageCropModal';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 
 interface AnnouncementFormModalProps {
@@ -196,7 +197,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving announcement:', err);
+      logger.error('Error saving announcement:', err);
       setError(err.message || 'Duyuru kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

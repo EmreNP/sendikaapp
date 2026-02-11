@@ -3,6 +3,7 @@ import { X, Upload, FileText } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import { logger } from '@/utils/logger';
 
 interface Props {
   userId: string | null;
@@ -58,7 +59,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
     }
   };
 
@@ -74,7 +75,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
         if (data.branch.name) setBranchName(data.branch.name);
       }
     } catch (err: any) {
-      console.error('❌ Error fetching branch by id:', err);
+      logger.error('❌ Error fetching branch by id:', err);
     }
   };
 
@@ -125,7 +126,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
         setPdfUrl(data.user.documentUrl);
       }
     } catch (err: any) {
-      console.error('Error fetching user data:', err);
+      logger.error('Error fetching user data:', err);
       setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
     } finally {
       setLoading(false);
@@ -144,7 +145,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       // Backend API'ye yükle
       const { api } = await import('@/config/api');
       const { authService } = await import('@/services/auth/authService');
-      
+
       const token = await authService.getIdToken();
       const url = api.url('/api/files/user-documents/upload');
       
@@ -171,7 +172,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       setPdfUrl(documentUrl);
       return documentUrl;
     } catch (err: any) {
-      console.error('❌ Error uploading PDF:', err);
+      logger.error('❌ Error uploading PDF:', err);
       throw new Error('PDF yüklenirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setUploadingPdf(false);
@@ -231,7 +232,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       // Success
       onSuccess();
     } catch (err: any) {
-      console.error('Error completing user details:', err);
+      logger.error('Error completing user details:', err);
       setError(err.message || 'Detaylar kaydedilirken hata oluştu');
     } finally {
       setLoading(false);

@@ -4,6 +4,7 @@ import { auth } from '@/config/firebase';
 import { authService } from '@/services/auth/authService';
 import { clearUserNameCache } from '@/services/api/userNameService';
 import type { User } from '@/types/user';
+import { logger } from '@/utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await authService.signOut();
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          logger.error('Error fetching user data:', error);
           setUser(null);
         }
       } else {

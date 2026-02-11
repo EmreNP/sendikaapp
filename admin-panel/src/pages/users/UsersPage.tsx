@@ -9,6 +9,7 @@ import UserStatusModal from '@/components/users/UserStatusModal';
 import UserEditModal from '@/components/users/UserEditModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import UserCreateModal from '@/components/users/UserCreateModal';
+import { logger } from '@/utils/logger';
 
 interface User {
   uid: string;
@@ -106,7 +107,7 @@ export default function UsersPage() {
       }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error: any) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     }
   };
 
@@ -135,7 +136,7 @@ export default function UsersPage() {
 
       const { apiRequest } = await import('@/utils/api');
       
-      console.log('📡 Fetching users from:', url);
+      logger.log('📡 Fetching users from:', url);
       
       const data = await apiRequest<{ 
         users: User[];
@@ -146,7 +147,7 @@ export default function UsersPage() {
         nextCursor?: string;
       }>(url);
       
-      console.log('✅ Users data received:', data);
+      logger.log('✅ Users data received:', data);
       setUsers(data.users || []);
       
       const total = data.total || 0;
@@ -191,15 +192,15 @@ export default function UsersPage() {
             return { uid: u.uid, role: u.role, branchId: u.branchId, status: u.status, reasons };
           });
 
-          console.log('🧩 Users filtered out (count):', filteredOut.length, details);
+          logger.log('🧩 Users filtered out (count):', filteredOut.length, details);
         } else {
-          console.log('🧩 No users filtered out by client-side filters');
+          logger.log('🧩 No users filtered out by client-side filters');
         }
       } catch (e) {
-        console.warn('Debug filtering failed:', e);
+        logger.warn('Debug filtering failed:', e);
       }
     } catch (error: any) {
-      console.error('❌ Error fetching users:', error);
+      logger.error('❌ Error fetching users:', error);
       setError(error.message || 'Kullanıcılar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setUsers([]);
     } finally {
@@ -258,7 +259,7 @@ export default function UsersPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error deactivating user:', error);
+      logger.error('Error deactivating user:', error);
       setError(error.message || 'Kullanıcı deaktif edilirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -279,7 +280,7 @@ export default function UsersPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error activating user:', error);
+      logger.error('Error activating user:', error);
       setError(error.message || 'Kullanıcı aktif edilirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -321,7 +322,7 @@ export default function UsersPage() {
 
       setSelectedUserIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deleting users:', error);
+      logger.error('Error bulk deleting users:', error);
       setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -357,7 +358,7 @@ export default function UsersPage() {
 
       setSelectedUserIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deactivating users:', error);
+      logger.error('Error bulk deactivating users:', error);
       setError(error.message || 'Toplu deaktif etme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -393,7 +394,7 @@ export default function UsersPage() {
 
       setSelectedUserIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk activating users:', error);
+      logger.error('Error bulk activating users:', error);
       setError(error.message || 'Toplu aktif etme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -1001,7 +1002,7 @@ export default function UsersPage() {
               const data = await apiRequest<{ user: { uid: string; role: string; branchId?: string } }>(`/api/users/${selectedUserIdForRole}`);
               setUsers(prev => prev.map(u => u.uid === selectedUserIdForRole ? { ...u, role: data.user.role, branchId: data.user.branchId } : u));
             } catch (error) {
-              console.error('Error fetching updated user:', error);
+              logger.error('Error fetching updated user:', error);
               // Hata durumunda tam listeyi çek
               fetchUsers();
             }
@@ -1024,10 +1025,11 @@ export default function UsersPage() {
           if (selectedUserIdForStatus) {
             try {
               const { apiRequest } = await import('@/utils/api');
-              const data = await apiRequest<{ user: { uid: string; status: string } }>(`/api/users/${selectedUserIdForStatus}`);
+
+
               setUsers(prev => prev.map(u => u.uid === selectedUserIdForStatus ? { ...u, status: data.user.status } : u));
             } catch (error) {
-              console.error('Error fetching updated user:', error);
+              logger.error('Error fetching updated user:', error);
               // Hata durumunda tam listeyi çek
               fetchUsers();
             }

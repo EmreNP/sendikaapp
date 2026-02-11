@@ -1,19 +1,32 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
-// Dashboard removed — Users page will be the landing page
-import UsersPage from './pages/users/UsersPage';
-import BranchesPage from './pages/branches/BranchesPage';
-import NewsPage from './pages/news/NewsPage';
-import ActivitiesPage from './pages/activities/ActivitiesPage';
-import TrainingsPage from './pages/trainings/TrainingsPage';
-import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
-import LessonDetailPage from './pages/trainings/LessonDetailPage';
-import ContactMessagesPage from './pages/contact-messages/ContactMessagesPage';
-import FAQPage from './pages/faq/FAQPage';
-import NotificationHistoryPage from './pages/notifications/NotificationHistoryPage';
+
+// Lazy load pages for code splitting
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const UsersPage = lazy(() => import('./pages/users/UsersPage'));
+const BranchesPage = lazy(() => import('./pages/branches/BranchesPage'));
+const NewsPage = lazy(() => import('./pages/news/NewsPage'));
+const ActivitiesPage = lazy(() => import('./pages/activities/ActivitiesPage'));
+const TrainingsPage = lazy(() => import('./pages/trainings/TrainingsPage'));
+const TrainingDetailPage = lazy(() => import('./pages/trainings/TrainingDetailPage'));
+const LessonDetailPage = lazy(() => import('./pages/trainings/LessonDetailPage'));
+const ContactMessagesPage = lazy(() => import('./pages/contact-messages/ContactMessagesPage'));
+const FAQPage = lazy(() => import('./pages/faq/FAQPage'));
+const NotificationHistoryPage = lazy(() => import('./pages/notifications/NotificationHistoryPage'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-4 text-gray-600">Yükleniyor...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -25,8 +38,9 @@ function App() {
         }}
       >
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
             
             {/* Admin Routes */}
             {/* Dashboard removed — redirect legacy routes to Users list */}
@@ -138,8 +152,9 @@ function App() {
             <Route path="/branch/news" element={<Navigate to="/admin/news" replace />} />
             
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
+            <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

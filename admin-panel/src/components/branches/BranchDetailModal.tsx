@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Building2, MapPin, Phone, Mail, Clock, Calendar, Users, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { formatDate } from '@/utils/dateFormatter';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -62,7 +63,7 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
       const data = await apiRequest<{ branch: Branch }>(`/api/branches/${branchId}`);
       setBranch(data.branch);
     } catch (err: any) {
-      console.error('Error fetching branch details:', err);
+      logger.error('Error fetching branch details:', err);
       setError(err.message || 'Şube detayları yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);

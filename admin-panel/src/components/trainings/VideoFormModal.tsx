@@ -3,6 +3,7 @@ import { X, Upload, Video, ExternalLink } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { VideoContent, CreateVideoContentRequest, UpdateVideoContentRequest, VideoSource } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface VideoFormModalProps {
   video: VideoContent | null;
@@ -154,25 +155,17 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
             setUploading(true);
             setUploadProgress(0);
 
-            const progressInterval = setInterval(() => {
-              setUploadProgress((prev) => {
-                if (prev >= 90) {
-                  clearInterval(progressInterval);
-                  return 90;
-                }
-                return prev + 10;
-              });
-            }, 200);
-
-            const uploadResult = await fileUploadService.uploadVideo(selectedVideoFile!);
+            // Real progress tracking
+            const uploadResult = await fileUploadService.uploadVideo(
+              selectedVideoFile!,
+              (progress) => setUploadProgress(progress)
+            );
             
-            clearInterval(progressInterval);
-            setUploadProgress(100);
             videoPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
             videoUrl = uploadResult.documentUrl;  // Display URL
             setUploading(false);
           } catch (uploadErr: any) {
-            console.error('Video upload error:', uploadErr);
+            logger.error('Video upload error:', uploadErr);
             setError(uploadErr.message || 'Video yüklenirken bir hata oluştu');
             setLoading(false);
             setUploading(false);
@@ -196,25 +189,17 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           setUploading(true);
           setUploadProgress(0);
 
-          const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-              if (prev >= 90) {
-                clearInterval(progressInterval);
-                return 90;
-              }
-              return prev + 10;
-            });
-          }, 200);
-
-          const uploadResult = await fileUploadService.uploadThumbnail(selectedThumbnailFile);
+          // Real progress tracking
+          const uploadResult = await fileUploadService.uploadThumbnail(
+            selectedThumbnailFile,
+            (progress) => setUploadProgress(progress)
+          );
           
-          clearInterval(progressInterval);
-          setUploadProgress(100);
           thumbnailPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
           thumbnailUrl = uploadResult.documentUrl;  // Display URL
           setUploading(false);
         } catch (uploadErr: any) {
-          console.error('Thumbnail upload error:', uploadErr);
+          logger.error('Thumbnail upload error:', uploadErr);
           setError(uploadErr.message || 'Thumbnail yüklenirken bir hata oluştu');
           setLoading(false);
           setUploading(false);
@@ -273,7 +258,7 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save video error:', err);
+      logger.error('Save video error:', err);
       setError(err.message || 'Video kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

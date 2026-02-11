@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { faqService } from '@/services/api/faqService';
 import type { FAQ, CreateFAQRequest, UpdateFAQRequest } from '@/types/faq';
+import { logger } from '@/utils/logger';
 
 interface FAQFormModalProps {
   faq: FAQ | null;
@@ -74,7 +75,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving FAQ:', err);
+      logger.error('Error saving FAQ:', err);
       setError(err.message || 'FAQ kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);
