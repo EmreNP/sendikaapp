@@ -10,6 +10,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError } from '@/lib/utils/errors/AppError';
 import { isErrorWithCode } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 interface PasswordResetRequestRequest {
   email: string;
 }
@@ -35,7 +36,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       // Güvenlik için: Kullanıcı yoksa da başarılı mesajı döndür
       // Böylece email enumeration saldırıları önlenir
       if (isErrorWithCode(error) && error.code === 'auth/user-not-found') {
-        console.log(`⚠️ Password reset requested for non-existent email: ${email}`);
+        logger.log(`⚠️ Password reset requested for non-existent email: ${email}`);
         return successResponse(
           'Eğer bu e-posta adresi kayıtlıysa, şifre sıfırlama linki gönderildi',
           undefined,
@@ -50,12 +51,12 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     // Firebase'in kendi email servisini kullanarak email gönder
     try {
       await sendPasswordResetEmail(email);
-      console.log(`✅ Password reset email sent to ${email}`);
+      logger.log(`✅ Password reset email sent to ${email}`);
     } catch (emailError: unknown) {
       // Email gönderilemese bile güvenlik için aynı mesajı döndür
       // Böylece email enumeration saldırıları önlenir
     const errorMessage = emailError instanceof Error ? emailError.message : 'Bilinmeyen hata';
-      console.error('❌ Password reset email error:', errorMessage);
+      logger.error('❌ Password reset email error:', errorMessage);
       // Hata olsa bile devam et (güvenlik için aynı response)
     }
     

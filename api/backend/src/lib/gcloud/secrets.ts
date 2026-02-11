@@ -1,5 +1,6 @@
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Google Cloud Secret Manager'dan secret okur
  * Development'ta process.env'den okur, production'da Secret Manager'dan
@@ -16,7 +17,7 @@ export async function getSecret(secretName: string): Promise<string | undefined>
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
     
     if (!projectId) {
-      console.warn('⚠️ GOOGLE_CLOUD_PROJECT environment variable bulunamadı, .env fallback');
+      logger.warn('⚠️ GOOGLE_CLOUD_PROJECT environment variable bulunamadı, .env fallback');
       return process.env[secretName];
     }
 
@@ -25,11 +26,11 @@ export async function getSecret(secretName: string): Promise<string | undefined>
     const secretValue = version.payload?.data?.toString();
     
     if (secretValue) {
-      console.log(`✅ Secret loaded from GCP Secret Manager: ${secretName}`);
+      logger.log(`✅ Secret loaded from GCP Secret Manager: ${secretName}`);
       return secretValue;
     }
   } catch (error: any) {
-    console.warn(`⚠️ Secret Manager'dan ${secretName} okunamadı, .env fallback:`, error.message);
+    logger.warn(`⚠️ Secret Manager'dan ${secretName} okunamadı, .env fallback:`, error.message);
     return process.env[secretName];
   }
   

@@ -15,6 +15,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppAuthorizationError, AppConflictError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET /api/users/me - Kendi kullanıcı bilgilerini getir
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
@@ -36,7 +37,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         try {
           userWithData.documentUrl = await generateSignedUrl(userData.documentPath);
         } catch (error) {
-          console.error(`Failed to generate signed URL for user ${user.uid}:`, error);
+          logger.error(`Failed to generate signed URL for user ${user.uid}:`, error);
         }
       }
       

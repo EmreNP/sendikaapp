@@ -9,6 +9,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // POST /api/users/[id]/upload-registration-form
 export const POST = asyncHandler(async (
   request: NextRequest,
@@ -87,7 +88,7 @@ export const POST = asyncHandler(async (
         documentPath: path       // Also return path for reference
       });
     } catch (err: any) {
-      console.error('Upload error:', err);
+      logger.error('Upload error:', err);
       throw new AppValidationError('Dosya yüklenirken bir hata oluştu');
     }
   });

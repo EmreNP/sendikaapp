@@ -15,6 +15,7 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { isErrorWithMessage } from '@/lib/utils/response';
 import { parseJsonBody } from '@/lib/utils/request';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET /api/users/[id] - Kullanıcı detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -72,7 +73,7 @@ export const GET = asyncHandler(async (
         try {
           serializedUser.documentUrl = await generateSignedUrl(serializedUser.documentPath);
         } catch (error) {
-          console.error(`Failed to generate signed URL for user ${targetUserId}:`, error);
+          logger.error(`Failed to generate signed URL for user ${targetUserId}:`, error);
         }
       }
       
@@ -136,16 +137,16 @@ export const DELETE = asyncHandler(async (
       // Firebase Auth'dan sil
       try {
         await auth.deleteUser(targetUserId);
-        console.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
+        logger.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
       } catch (authError: unknown) {
         const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-        console.error('⚠️ Firebase Auth delete error:', errorMessage);
+        logger.error('⚠️ Firebase Auth delete error:', errorMessage);
         // Auth'da yoksa devam et
       }
       
       // Firestore'dan sil
       await db.collection('users').doc(targetUserId).delete();
-      console.log(`✅ Firestore user document deleted: ${targetUserId}`);
+      logger.log(`✅ Firestore user document deleted: ${targetUserId}`);
       
       return successResponse(
         'Kullanıcı kalıcı olarak silindi',
@@ -209,7 +210,7 @@ export const PATCH = asyncHandler(async (
           targetUserData = targetUserDoc.data();
         } catch (err: any) {
           // Auth'da kullanıcı yoksa Not Found gönder
-          console.error('Error creating initial user doc:', err);
+          logger.error('Error creating initial user doc:', err);
           throw new AppNotFoundError('Kullanıcı');
         }
       }
@@ -325,7 +326,7 @@ export const PATCH = asyncHandler(async (
       // Firestore'da güncelle
       await db.collection('users').doc(targetUserId).update(updateData);
       
-      console.log(`✅ User ${targetUserId} updated by ${user.uid}. Updated fields: ${updatedFields.join(', ')}`);
+      logger.log(`✅ User ${targetUserId} updated by ${user.uid}. Updated fields: ${updatedFields.join(', ')}`);
       
       // Log oluştur
       let logCreated = false;
@@ -357,7 +358,7 @@ export const PATCH = asyncHandler(async (
         await createRegistrationLog(logData);
         logCreated = true;
       } catch (logErr: any) {
-        console.error('Failed to create user_update log:', logErr?.message || logErr);
+        logger.error('Failed to create user_update log:', logErr?.message || logErr);
       }
       
       return successResponse(

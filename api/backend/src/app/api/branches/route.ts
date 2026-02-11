@@ -15,6 +15,7 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { getBranchDetails } from '@/lib/utils/branchQueries';
 import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
+import { logger } from '../../../lib/utils/logger';
 // Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
 // artık getBranchDetails() utility fonksiyonu kullanılıyor (src/lib/utils/branchQueries.ts)
 
@@ -48,7 +49,7 @@ async function getBranchCountsBatch(branchIds: string[]): Promise<Record<string,
       });
     }
   } catch (error) {
-    console.warn('⚠️  Could not get event counts:', error);
+    logger.warn('⚠️  Could not get event counts:', error);
   }
   
   // Eğitim sayılarını toplu olarak getir
@@ -71,7 +72,7 @@ async function getBranchCountsBatch(branchIds: string[]): Promise<Record<string,
       });
     }
   } catch (error) {
-    console.warn('⚠️  Could not get education counts:', error);
+    logger.warn('⚠️  Could not get education counts:', error);
   }
   
   return result;
@@ -344,7 +345,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       if (phone) {
         const phoneValidation = validateBranchPhone(phone);
         if (!phoneValidation.valid) {
-          console.log('Phone validation failed for:', phone);
+          logger.log('Phone validation failed for:', phone);
           throw new AppValidationError(phoneValidation.error || 'Geçersiz telefon');
         }
       }

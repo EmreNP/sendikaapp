@@ -12,6 +12,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/branch - Kullanıcıya şube ata
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -78,7 +79,7 @@ export const PATCH = asyncHandler(async (
       
       await db.collection('users').doc(targetUserId).update(updateData as any);
       
-      console.log(`✅ User ${targetUserId} branch updated: ${currentBranchId || 'none'} → ${branchId || 'none'}`);
+      logger.log(`✅ User ${targetUserId} branch updated: ${currentBranchId || 'none'} → ${branchId || 'none'}`);
       
       return successResponse(
         branchId ? 'Şube ataması başarıyla güncellendi' : 'Şube ataması kaldırıldı',

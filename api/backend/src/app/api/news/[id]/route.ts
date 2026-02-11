@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek haber detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -195,7 +196,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete - belgeyi tamamen sil
       await db.collection('news').doc(newsId).delete();
       
-      console.log(`✅ News ${newsId} deleted`);
+      logger.log(`✅ News ${newsId} deleted`);
       
       return successResponse(
         'Haber başarıyla silindi',

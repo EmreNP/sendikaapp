@@ -128,11 +128,11 @@ class RedisRateLimitStore implements RateLimitStore {
     });
 
     this.redis.on('error', (err) => {
-      console.error('Redis rate limit store error:', err.message);
+      logger.error('Redis rate limit store error:', err.message);
     });
 
     this.redis.connect().catch((err) => {
-      console.error('Redis connection failed, will fallback on each request:', err.message);
+      logger.error('Redis connection failed, will fallback on each request:', err.message);
     });
   }
 
@@ -242,7 +242,7 @@ class InMemoryRateLimitStore implements RateLimitStore {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🧹 Rate limit cleanup: ${this.store.size} identifiers`);
+      logger.log(`🧹 Rate limit cleanup: ${this.store.size} identifiers`);
     }
   }
   
@@ -268,19 +268,20 @@ async function createRateLimitStore(): Promise<RateLimitStore> {
   if (!redisUrl && process.env.NODE_ENV === 'production') {
     try {
       const { getSecret } = await import('@/lib/gcloud/secrets');
-      redisUrl = await getSecret('REDIS_URL');
+
+import { logger } from '../../lib/utils/logger';      redisUrl = await getSecret('REDIS_URL');
     } catch (error) {
-      console.warn('⚠️ Secret Manager erişilemedi, environment variable kullanılıyor');
+      logger.warn('⚠️ Secret Manager erişilemedi, environment variable kullanılıyor');
     }
   }
 
   if (redisUrl) {
-    console.log('✅ Rate limiter: Redis store aktif (çoklu instance desteği)');
+    logger.log('✅ Rate limiter: Redis store aktif (çoklu instance desteği)');
     return new RedisRateLimitStore(redisUrl);
   }
 
   if (process.env.NODE_ENV === 'production') {
-    console.warn(
+    logger.warn(
       '⚠️ Rate limiter: In-memory store kullanılıyor. ' +
       'Çoklu instance ortamında (Cloud Run vb.) her instance kendi sayacını tutar. ' +
       'Paylaşımlı rate limiting için Google Cloud Memorystore (Redis) kurulumu yapın:\n' +

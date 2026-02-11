@@ -15,6 +15,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { deleteLessonsContentsBatch } from '@/lib/utils/batchQueries';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek eğitim detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -200,7 +201,7 @@ export const DELETE = asyncHandler(async (
       // Training'i sil
       await db.collection('trainings').doc(trainingId).delete();
       
-      console.log(`✅ Training ${trainingId} deleted with cascade`);
+      logger.log(`✅ Training ${trainingId} deleted with cascade`);
       
       return successResponse(
         'Eğitim başarıyla silindi',

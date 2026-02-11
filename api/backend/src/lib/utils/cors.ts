@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * İzin verilen origin'leri döndürür
  * Development ve production modlarına göre farklı origin'ler döner
@@ -27,8 +28,8 @@ function getAllowedOrigins(): string[] {
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   
   if (!allowedOriginsEnv || allowedOriginsEnv.trim() === '') {
-    console.warn('⚠️  WARNING: ALLOWED_ORIGINS environment variable is not set in production mode!');
-    console.warn('   CORS will reject all origins. Please set ALLOWED_ORIGINS in your environment variables.');
+    logger.warn('⚠️  WARNING: ALLOWED_ORIGINS environment variable is not set in production mode!');
+    logger.warn('   CORS will reject all origins. Please set ALLOWED_ORIGINS in your environment variables.');
     return [];
   }
   
@@ -39,7 +40,7 @@ function getAllowedOrigins(): string[] {
     .filter(origin => origin.length > 0);
   
   if (origins.length === 0) {
-    console.warn('⚠️  WARNING: No valid origins found in ALLOWED_ORIGINS!');
+    logger.warn('⚠️  WARNING: No valid origins found in ALLOWED_ORIGINS!');
     return [];
   }
   
@@ -79,8 +80,8 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
   } else if (isDevelopment && origin && !isOriginAllowed(origin, allowedOrigins)) {
     // Development'ta origin var ama izin verilen listede değilse
     // Log at ve izin verme (güvenlik için)
-    console.warn(`⚠️  Origin not in allowed list (development mode): ${origin}`);
-    console.warn('   Add this origin to your allowed origins if needed.');
+    logger.warn(`⚠️  Origin not in allowed list (development mode): ${origin}`);
+    logger.warn('   Add this origin to your allowed origins if needed.');
     
     // Development'ta fallback: İlk allowed origin'i kullan (geliştirme kolaylığı için)
     if (allowedOrigins.length > 0) {
@@ -90,7 +91,7 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
     // Production'da origin izin verilen listede değilse veya yoksa
     // CORS header'ı EKLEME - browser tarafında request reject edilir
     // Bu güvenlik için kritik: bilinmeyen origin'lere asla erişim izni verme
-    console.warn(`🚫 Unauthorized origin blocked in production: ${origin || 'no-origin'}`);
+    logger.warn(`🚫 Unauthorized origin blocked in production: ${origin || 'no-origin'}`);
     // NOT: Access-Control-Allow-Origin header'ı SET ETMİYORUZ
     // Browser bu durumda CORS hatası verecek ve isteği engelleyecek
   }

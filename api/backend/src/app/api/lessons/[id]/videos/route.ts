@@ -15,6 +15,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin videolarını listele
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -64,7 +65,7 @@ export const GET = asyncHandler(async (
             try {
               result.videoUrl = await generateSignedUrl(video.videoPath);
             } catch (error) {
-              console.error(`Failed to generate video signed URL for ${video.videoPath}:`, error);
+              logger.error(`Failed to generate video signed URL for ${video.videoPath}:`, error);
             }
           }
           
@@ -73,7 +74,7 @@ export const GET = asyncHandler(async (
             try {
               result.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
             } catch (error) {
-              console.error(`Failed to generate thumbnail signed URL for ${video.thumbnailPath}:`, error);
+              logger.error(`Failed to generate thumbnail signed URL for ${video.thumbnailPath}:`, error);
             }
           }
           
@@ -197,7 +198,7 @@ export const POST = asyncHandler(async (
         try {
           video.videoUrl = await generateSignedUrl(video.videoPath);
         } catch (error) {
-          console.error('Failed to generate video signed URL:', error);
+          logger.error('Failed to generate video signed URL:', error);
         }
       }
       
@@ -205,7 +206,7 @@ export const POST = asyncHandler(async (
         try {
           video.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
         } catch (error) {
-          console.error('Failed to generate thumbnail signed URL:', error);
+          logger.error('Failed to generate thumbnail signed URL:', error);
         }
       }
       

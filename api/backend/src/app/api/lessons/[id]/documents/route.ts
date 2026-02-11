@@ -15,6 +15,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin dökümanlarını listele
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -62,7 +63,7 @@ export const GET = asyncHandler(async (
               const documentUrl = await generateSignedUrl(doc.documentPath);
               return { ...doc, documentUrl };
             } catch (error) {
-              console.error(`Failed to generate signed URL for ${doc.documentPath}:`, error);
+              logger.error(`Failed to generate signed URL for ${doc.documentPath}:`, error);
               return doc;
             }
           }
@@ -168,7 +169,7 @@ export const POST = asyncHandler(async (
         try {
           document.documentUrl = await generateSignedUrl(document.documentPath);
         } catch (error) {
-          console.error('Failed to generate signed URL:', error);
+          logger.error('Failed to generate signed URL:', error);
         }
       }
       

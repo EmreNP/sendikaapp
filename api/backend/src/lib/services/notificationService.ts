@@ -7,6 +7,7 @@ import {
   type NotificationType 
 } from '@shared/constants/notifications';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Notification Service
  * Bildirim gönderme ve yönetimi için helper fonksiyonlar
@@ -105,7 +106,7 @@ export async function sendMulticastNotification(
       failureCount: response.failureCount,
     };
   } catch (error) {
-    console.error('❌ FCM notification error:', error);
+    logger.error('❌ FCM notification error:', error);
     throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.NOTIFICATION_SEND_ERROR);
   }
 }
@@ -147,9 +148,9 @@ async function cleanupFailedTokens(
               )
             );
             
-            console.log(`⚠️ Geçersiz token pasif yapıldı: ${tokens[idx].substring(0, 20)}...`);
+            logger.log(`⚠️ Geçersiz token pasif yapıldı: ${tokens[idx].substring(0, 20)}...`);
           } catch (error) {
-            console.error('Token temizleme hatası:', error);
+            logger.error('Token temizleme hatası:', error);
           }
         }
       }
@@ -207,9 +208,9 @@ export async function saveNotificationHistory(notification: {
     
     await db.collection('notificationHistory').add(historyData);
     
-    console.log(`✅ Bildirim geçmişi kaydedildi: ${notification.title}`);
+    logger.log(`✅ Bildirim geçmişi kaydedildi: ${notification.title}`);
   } catch (error) {
-    console.error('❌ Bildirim geçmişi kaydetme hatası:', error);
+    logger.error('❌ Bildirim geçmişi kaydetme hatası:', error);
     // Hata olsa bile bildirim gönderilmiş sayılır
     // Sadece log kaydedilemedi
   }

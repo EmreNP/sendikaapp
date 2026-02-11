@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Test detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -178,7 +179,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete
       await db.collection('test_contents').doc(testId).delete();
       
-      console.log(`✅ Test ${testId} deleted`);
+      logger.log(`✅ Test ${testId} deleted`);
       
       return successResponse(
         'Test başarıyla silindi',

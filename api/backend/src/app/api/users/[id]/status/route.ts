@@ -15,6 +15,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/status - Kullanıcı durumunu güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -153,7 +154,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.REJECTED) {
           try {
@@ -174,7 +175,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.PENDING_DETAILS) {
           try {
@@ -196,7 +197,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
           }
         }
       }
@@ -237,7 +238,7 @@ export const PATCH = asyncHandler(async (
           logCreated = true;
         } catch (err: unknown) {
           logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-          console.error('Failed to create admin log:', logError);
+          logger.error('Failed to create admin log:', logError);
         }
       } else {
         // Branch Manager log'ları yukarıda oluşturuldu

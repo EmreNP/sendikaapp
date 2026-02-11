@@ -12,6 +12,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin tüm içeriklerini listele (video, document, test birleştirilmiş)
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -112,14 +113,14 @@ export const GET = asyncHandler(async (
               try {
                 result.videoUrl = await generateSignedUrl(videoContent.videoPath);
               } catch (error) {
-                console.error(`Failed to generate video URL for ${videoContent.id}:`, error);
+                logger.error(`Failed to generate video URL for ${videoContent.id}:`, error);
               }
             }
             if (videoContent.thumbnailPath) {
               try {
                 result.thumbnailUrl = await generateSignedUrl(videoContent.thumbnailPath);
               } catch (error) {
-                console.error(`Failed to generate thumbnail URL for ${videoContent.id}:`, error);
+                logger.error(`Failed to generate thumbnail URL for ${videoContent.id}:`, error);
               }
             }
           }
@@ -131,7 +132,7 @@ export const GET = asyncHandler(async (
               try {
                 result.documentUrl = await generateSignedUrl(docContent.documentPath);
               } catch (error) {
-                console.error(`Failed to generate document URL for ${docContent.id}:`, error);
+                logger.error(`Failed to generate document URL for ${docContent.id}:`, error);
               }
             }
           }

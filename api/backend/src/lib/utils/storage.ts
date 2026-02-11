@@ -1,6 +1,7 @@
 import { storage } from '@/lib/firebase/admin';
 import { AppInternalServerError } from './errors/AppError';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Generate a signed URL for a given storage path
  * @param storagePath - The path to the file in Firebase Storage
@@ -31,7 +32,7 @@ export async function generateSignedUrl(
     
     return signedUrl;
   } catch (error: any) {
-    console.error('Error generating signed URL:', error);
+    logger.error('Error generating signed URL:', error);
     throw new AppInternalServerError(`Failed to generate signed URL: ${error.message}`);
   }
 }

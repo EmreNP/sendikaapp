@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek FAQ detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -191,7 +192,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete - belgeyi tamamen sil
       await db.collection('faqs').doc(faqId).delete();
       
-      console.log(`✅ FAQ ${faqId} deleted`);
+      logger.log(`✅ FAQ ${faqId} deleted`);
       
       return successResponse(
         'FAQ başarıyla silindi',

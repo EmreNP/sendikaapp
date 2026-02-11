@@ -7,6 +7,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 /**
  * GET /api/notifications/history
  * Bildirim geçmişini getir
@@ -184,7 +185,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             };
           }
         } catch (error) {
-          console.error(`Error fetching branch ${id}:`, error);
+          logger.error(`Error fetching branch ${id}:`, error);
         }
       });
       
@@ -208,7 +209,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             };
           }
         } catch (error) {
-          console.error(`Error fetching user ${uid}:`, error);
+          logger.error(`Error fetching user ${uid}:`, error);
         }
       });
       

@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Döküman detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -170,7 +171,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete
       await db.collection('document_contents').doc(documentId).delete();
       
-      console.log(`✅ Document ${documentId} deleted`);
+      logger.log(`✅ Document ${documentId} deleted`);
       
       return successResponse(
         'Döküman başarıyla silindi',

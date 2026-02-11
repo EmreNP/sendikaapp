@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek duyuru detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -210,7 +211,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete - belgeyi tamamen sil
       await db.collection('announcements').doc(announcementId).delete();
       
-      console.log(`✅ Announcement ${announcementId} deleted`);
+      logger.log(`✅ Announcement ${announcementId} deleted`);
       
       return successResponse(
         'Duyuru başarıyla silindi',

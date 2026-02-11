@@ -3,6 +3,7 @@ import { addCorsHeaders, corsOptionsResponse } from './lib/utils/cors';
 import { rateLimitByPath } from './lib/utils/rateLimit';
 import { errorResponse } from './lib/utils/response';
 
+import { logger } from 'lib/utils/logger';
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const method = request.method;
@@ -49,7 +50,7 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     // Rate limit kontrolünde hata olursa, güvenli tarafta kal
     // İsteğe izin ver ama logla
-    console.error('Rate limit check error:', error);
+    logger.error('Rate limit check error:', error);
     const response = NextResponse.next();
     return addCorsHeaders(response, request);
   }

@@ -1,6 +1,7 @@
 import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Training için mevcut en yüksek order'ı bulur ve yeni order döndürür
  */
@@ -18,7 +19,7 @@ export async function getNextTrainingOrder(): Promise<number> {
     const maxOrder = snapshot.docs[0].data().order || 0;
     return maxOrder + 1;
   } catch (error) {
-    console.error('Error getting next training order:', error);
+    logger.error('Error getting next training order:', error);
     return 1;
   }
 }
@@ -41,7 +42,7 @@ export async function getNextLessonOrder(trainingId: string): Promise<number> {
     const maxOrder = snapshot.docs[0].data().order || 0;
     return maxOrder + 1;
   } catch (error) {
-    console.error('Error getting next lesson order:', error);
+    logger.error('Error getting next lesson order:', error);
     return 1;
   }
 }
@@ -79,7 +80,7 @@ export async function getNextContentOrder(lessonId: string, contentType: 'video'
     const maxOrder = snapshot.docs[0].data().order || 0;
     return maxOrder + 1;
   } catch (error) {
-    console.error('Error getting next content order:', error);
+    logger.error('Error getting next content order:', error);
     return 1;
   }
 }
@@ -101,7 +102,7 @@ export async function getNextFAQOrder(): Promise<number> {
     const maxOrder = snapshot.docs[0].data().order || 0;
     return maxOrder + 1;
   } catch (error) {
-    console.error('Error getting next FAQ order:', error);
+    logger.error('Error getting next FAQ order:', error);
     return 1;
   }
 }
@@ -154,7 +155,7 @@ export async function shiftOrdersUp(
     // Firestore batch limit: 500
     if (updateCount > 0 && updateCount <= 500) {
       await batch.commit();
-      console.log(`✅ Shifted ${updateCount} orders up in ${collectionName}`);
+      logger.log(`✅ Shifted ${updateCount} orders up in ${collectionName}`);
     } else if (updateCount > 500) {
       // Eğer 500'den fazla güncelleme varsa, chunk'lar halinde yap
       const chunks: admin.firestore.DocumentSnapshot[][] = [];
@@ -176,10 +177,10 @@ export async function shiftOrdersUp(
         });
         await chunkBatch.commit();
       }
-      console.log(`✅ Shifted ${updateCount} orders up in ${collectionName} (chunked)`);
+      logger.log(`✅ Shifted ${updateCount} orders up in ${collectionName} (chunked)`);
     }
   } catch (error) {
-    console.error(`Error shifting orders up in ${collectionName}:`, error);
+    logger.error(`Error shifting orders up in ${collectionName}:`, error);
     throw error;
   }
 }
@@ -220,7 +221,7 @@ export async function shiftOrdersDown(
     
     if (updateCount > 0 && updateCount <= 500) {
       await batch.commit();
-      console.log(`✅ Shifted ${updateCount} orders down in ${collectionName}`);
+      logger.log(`✅ Shifted ${updateCount} orders down in ${collectionName}`);
     } else if (updateCount > 500) {
       // Chunk'lar halinde yap
       const chunks: admin.firestore.DocumentSnapshot[][] = [];
@@ -239,10 +240,10 @@ export async function shiftOrdersDown(
         });
         await chunkBatch.commit();
       }
-      console.log(`✅ Shifted ${updateCount} orders down in ${collectionName} (chunked)`);
+      logger.log(`✅ Shifted ${updateCount} orders down in ${collectionName} (chunked)`);
     }
   } catch (error) {
-    console.error(`Error shifting orders down in ${collectionName}:`, error);
+    logger.error(`Error shifting orders down in ${collectionName}:`, error);
     throw error;
   }
 }

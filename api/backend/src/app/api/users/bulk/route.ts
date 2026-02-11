@@ -12,6 +12,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../lib/utils/logger';
 // POST - Toplu işlem
 export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
@@ -92,16 +93,16 @@ export const POST = asyncHandler(async (request: NextRequest) => {
               try {
                 // Firebase Auth'dan sil
                 await auth.deleteUser(targetUserId);
-                console.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
+                logger.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
               } catch (authError: unknown) {
                 const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-                console.error('⚠️ Firebase Auth delete error:', errorMessage);
+                logger.error('⚠️ Firebase Auth delete error:', errorMessage);
                 // Auth'da yoksa devam et
               }
 
               // Firestore'dan sil
               await db.collection('users').doc(targetUserId).delete();
-              console.log(`✅ Firestore user document deleted: ${targetUserId}`);
+              logger.log(`✅ Firestore user document deleted: ${targetUserId}`);
               return {
                 userId: targetUserId,
                 success: true,
@@ -122,10 +123,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 await auth.updateUser(targetUserId, {
                   disabled: false,
                 });
-                console.log(`✅ Firebase Auth user enabled: ${targetUserId}`);
+                logger.log(`✅ Firebase Auth user enabled: ${targetUserId}`);
               } catch (authError: unknown) {
                 const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-                console.error('⚠️ Firebase Auth enable error:', errorMessage);
+                logger.error('⚠️ Firebase Auth enable error:', errorMessage);
                 // Auth'da yoksa devam et
               }
 
@@ -134,7 +135,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 isActive: true,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
               });
-              console.log(`✅ User ${targetUserId} activated`);
+              logger.log(`✅ User ${targetUserId} activated`);
               return {
                 userId: targetUserId,
                 success: true,
@@ -155,10 +156,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 await auth.updateUser(targetUserId, {
                   disabled: true,
                 });
-                console.log(`✅ Firebase Auth user disabled: ${targetUserId}`);
+                logger.log(`✅ Firebase Auth user disabled: ${targetUserId}`);
               } catch (authError: unknown) {
                 const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-                console.error('⚠️ Firebase Auth disable error:', errorMessage);
+                logger.error('⚠️ Firebase Auth disable error:', errorMessage);
                 // Auth'da yoksa devam et
               }
 
@@ -167,7 +168,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 isActive: false,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
               });
-              console.log(`✅ User ${targetUserId} deactivated`);
+              logger.log(`✅ User ${targetUserId} deactivated`);
               return {
                 userId: targetUserId,
                 success: true,

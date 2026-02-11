@@ -17,6 +17,7 @@ import { AppValidationError, AppConflictError } from '@/lib/utils/errors/AppErro
 import { isErrorWithMessage } from '@/lib/utils/response';
 import admin from 'firebase-admin';
 
+import { logger } from '../../../../../lib/utils/logger';
 interface RegisterBasicRequest {
   firstName: string;
   lastName: string;
@@ -105,7 +106,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       emailVerified: true,
     });
     
-    console.log(`✅ Auth user created: ${userRecord.uid}`);
+    logger.log(`✅ Auth user created: ${userRecord.uid}`);
     
     // 3️⃣ USER BELGESİNİ OLUŞTUR
     // NOT: Document'in var olup olmadığını kontrol et
@@ -117,9 +118,9 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       // Bu durumda auth user'ı sil ve hata döndür
       try {
         await auth.deleteUser(userRecord.uid);
-        console.warn(`⚠️  User ${userRecord.uid} already exists in Firestore, cleaned up auth user`);
+        logger.warn(`⚠️  User ${userRecord.uid} already exists in Firestore, cleaned up auth user`);
       } catch (cleanupError) {
-        console.error('❌ Failed to cleanup auth user:', cleanupError);
+        logger.error('❌ Failed to cleanup auth user:', cleanupError);
       }
       throw new AppConflictError('Bu kullanıcı daha önce oluşturulmuş. Lütfen giriş yapın.');
     }
@@ -175,7 +176,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     if (branchToAssign) newUserDoc.branchId = branchToAssign;
 
     await userDocRef.set(newUserDoc);
-    console.log(`✅ User document created with basic info`);
+    logger.log(`✅ User document created with basic info`);
     
     // 3.5️⃣ REGISTRATION LOG OLUŞTUR
     const logMetadata: any = {
@@ -201,10 +202,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     let customToken: string | undefined;
     try {
       customToken = await auth.createCustomToken(userRecord.uid);
-      console.log(`✅ Custom token created for user: ${userRecord.uid}`);
+      logger.log(`✅ Custom token created for user: ${userRecord.uid}`);
     } catch (tokenError: unknown) {
       const errorMessage = isErrorWithMessage(tokenError) ? tokenError.message : 'Bilinmeyen hata';
-      console.error('⚠️ Custom token oluşturulamadı:', errorMessage);
+      logger.error('⚠️ Custom token oluşturulamadı:', errorMessage);
       // Token oluşturulamasa bile kayıt başarılı
     }
     

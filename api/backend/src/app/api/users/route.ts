@@ -24,6 +24,7 @@ import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/Ap
 import admin from 'firebase-admin';
 import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
 
+import { logger } from '../../../lib/utils/logger';
 // GET /api/users - Kullanıcı listesi
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
@@ -128,7 +129,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
               const documentUrl = await generateSignedUrl(user.documentPath);
               return { ...user, documentUrl };
             } catch (error) {
-              console.error(`Failed to generate signed URL for user ${user.uid}:`, error);
+              logger.error(`Failed to generate signed URL for user ${user.uid}:`, error);
               return user;
             }
           }
@@ -198,7 +199,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       if (!password) {
         password = DEFAULT_PASSWORD;
         usedDefaultPassword = true;
-        console.warn('Password not provided: using DEFAULT_PASSWORD for new user creation');
+        logger.warn('Password not provided: using DEFAULT_PASSWORD for new user creation');
       }
       
       // Şifre validasyonu - only validate if explicit password provided; default password is allowed even if it would fail validation
@@ -249,7 +250,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         emailVerified: true,
       });
       
-      console.log(`✅ Auth user created: ${userRecord.uid}`);
+      logger.log(`✅ Auth user created: ${userRecord.uid}`);
       
       // Firestore'da kullanıcı belgesi oluştur
       const userData: CreateUserData = {
@@ -279,7 +280,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       await db.collection('users').doc(userRecord.uid).set(userData);
       
-      console.log(`✅ User document created: ${userRecord.uid}`);
+      logger.log(`✅ User document created: ${userRecord.uid}`);
       
       // Email verification is disabled: no verification email sent.
       

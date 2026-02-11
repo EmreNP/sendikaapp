@@ -10,6 +10,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/deactivate - Kullanıcıyı deaktif et
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -60,10 +61,10 @@ export const PATCH = asyncHandler(async (
         await auth.updateUser(targetUserId, {
           disabled: true,
         });
-        console.log(`✅ Firebase Auth user disabled: ${targetUserId}`);
+        logger.log(`✅ Firebase Auth user disabled: ${targetUserId}`);
       } catch (authError: unknown) {
         const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-        console.error('⚠️ Firebase Auth disable error:', errorMessage);
+        logger.error('⚠️ Firebase Auth disable error:', errorMessage);
         // Auth'da yoksa devam et
       }
       
@@ -73,7 +74,7 @@ export const PATCH = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      console.log(`✅ User ${targetUserId} deactivated`);
+      logger.log(`✅ User ${targetUserId} deactivated`);
       
       return successResponse(
         'Kullanıcı başarıyla deaktif edildi',

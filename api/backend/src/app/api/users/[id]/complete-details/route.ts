@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppConflictError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 interface CompleteDetailsRequest {
   tcKimlikNo?: string;
   fatherName?: string;
@@ -173,7 +174,7 @@ export const PATCH = asyncHandler(async (request: NextRequest, { params }: { par
       },
     });
     
-    console.log(`✅ User ${userId} details completed by ${adminUser.role}, status: ${newStatus}`);
+    logger.log(`✅ User ${userId} details completed by ${adminUser.role}, status: ${newStatus}`);
     
     // 5️⃣ BAŞARILI RESPONSE
     return successResponse(

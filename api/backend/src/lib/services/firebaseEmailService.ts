@@ -20,8 +20,8 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 if (!FIREBASE_WEB_API_KEY) {
-  console.warn('⚠️ FIREBASE_WEB_API_KEY not set in environment variables.');
-  console.warn('   Email sending will not work. Please add FIREBASE_WEB_API_KEY to your .env file.');
+  logger.warn('⚠️ FIREBASE_WEB_API_KEY not set in environment variables.');
+  logger.warn('   Email sending will not work. Please add FIREBASE_WEB_API_KEY to your .env file.');
 }
 
 /**
@@ -31,7 +31,7 @@ if (!FIREBASE_WEB_API_KEY) {
  * @param email Kullanıcının email adresi
  */
 export async function sendEmailVerification(email: string): Promise<void> {
-  console.log('Email verification disabled: sendEmailVerification called but no action taken.');
+  logger.log('Email verification disabled: sendEmailVerification called but no action taken.');
   return;
 } 
 
@@ -69,13 +69,13 @@ async function signInWithPassword(email: string, password: string): Promise<{ id
 
 export async function sendEmailVerificationWithIdToken(idToken: string): Promise<void> {
   // Email verification via Firebase is disabled in this project.
-  console.log('Email verification disabled: sendEmailVerificationWithIdToken called but no action taken.');
+  logger.log('Email verification disabled: sendEmailVerificationWithIdToken called but no action taken.');
   return;
 } 
 
 export async function sendEmailVerificationWithEmailPassword(email: string, password: string): Promise<void> {
   // Email verification via Firebase is disabled in this project.
-  console.log(`Email verification disabled: would have sent verification to ${email}, skipping.`);
+  logger.log(`Email verification disabled: would have sent verification to ${email}, skipping.`);
   return;
 }
 
@@ -111,11 +111,11 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
     }
 
     const data = await response.json();
-    console.log(`✅ Password reset email sent to ${email}`);
+    logger.log(`✅ Password reset email sent to ${email}`);
     return data;
   } catch (error: unknown) {
     const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-    console.error(`❌ Failed to send password reset email to ${email}:`, errorMessage);
+    logger.error(`❌ Failed to send password reset email to ${email}:`, errorMessage);
     throw error;
   }
 }
