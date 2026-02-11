@@ -15,7 +15,6 @@ import {
   authenticationError,
   validationError,
   serverError,
-  notFoundError
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';

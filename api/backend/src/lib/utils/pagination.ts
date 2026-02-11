@@ -302,3 +302,86 @@ export async function paginateHybrid<T>(
     nextCursor,
   };
 }
+
+/**
+ * Batch-based search with in-memory filtering
+ * 
+ * Instead of fetching 500 docs at once, fetches in smaller batches (e.g., 50)
+ * using Firestore cursors and applies the filter function. Stops when we have
+ * enough results for the requested page, or we've exhausted all documents.
+ * 
+ * Benefits over fetching 500 docs at once:
+ * - Lower memory usage
+ * - Faster response for common searches (matches found in early batches)
+ * - Still handles rare searches by fetching more batches
+ * - Respects Firestore read costs
+ * 
+ * @param baseQuery - Base Firestore query with filters and orderBy
+ * @param params - Pagination parameters (page, limit)
+ * @param mapper - Function to transform document snapshot to desired type
+ * @param filterFn - In-memory filter function for search
+ * @param batchSize - Number of docs to fetch per batch (default: 100)
+ * @param maxDocs - Maximum total docs to scan (default: 500)
+ * @returns Paginated response with search results
+ */
+export async function searchInBatches<T>(
+  baseQuery: Query,
+  params: { page: number; limit: number },
+  mapper: (doc: QueryDocumentSnapshot) => T,
+  filterFn: (item: T) => boolean,
+  batchSize: number = 100,
+  maxDocs: number = 500
+): Promise<PaginatedResponse<T>> {
+  const page = Math.max(1, params.page);
+  const limit = Math.min(100, params.limit);
+  const neededResults = page * limit; // Total results needed up to current page
+  
+  const matchedItems: T[] = [];
+  let lastDoc: QueryDocumentSnapshot | null = null;
+  let totalScanned = 0;
+  let exhausted = false;
+  
+  // Fetch in batches until we have enough results or hit max
+  while (matchedItems.length < neededResults + 1 && totalScanned < maxDocs && !exhausted) {
+    let batchQuery = baseQuery;
+    
+    if (lastDoc) {
+      batchQuery = batchQuery.startAfter(lastDoc);
+    }
+    
+    const snapshot = await batchQuery.limit(batchSize).get();
+    
+    if (snapshot.empty || snapshot.docs.length === 0) {
+      exhausted = true;
+      break;
+    }
+    
+    for (const doc of snapshot.docs) {
+      const item = mapper(doc);
+      if (filterFn(item)) {
+        matchedItems.push(item);
+      }
+    }
+    
+    lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    totalScanned += snapshot.docs.length;
+    
+    // If we got fewer docs than batch size, we've exhausted the collection
+    if (snapshot.docs.length < batchSize) {
+      exhausted = true;
+    }
+  }
+  
+  const total = exhausted ? matchedItems.length : matchedItems.length; // approximate
+  const startIndex = (page - 1) * limit;
+  const items = matchedItems.slice(startIndex, startIndex + limit);
+  const hasMore = startIndex + limit < matchedItems.length;
+  
+  return {
+    items,
+    total,
+    page,
+    limit,
+    hasMore,
+  };
+}

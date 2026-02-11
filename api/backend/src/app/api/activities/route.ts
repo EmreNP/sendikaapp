@@ -15,11 +15,10 @@ import {
   authenticationError,
   validationError,
   serverError,
-  notFoundError
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET /api/activities - List activities (filtered by role)
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -54,34 +53,24 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     }
 
     if (search) {
-      const snapshot = await query.limit(500).get();
-      const allDocs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data
-        };
-      });
-
       const searchLower = search.toLowerCase();
-      const filteredActivities = allDocs.filter((a: any) => 
-        (a.name || '').toLowerCase().includes(searchLower) ||
-        (a.description || '').toLowerCase().includes(searchLower)
+      
+      const result = await searchInBatches<any>(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }),
+        (a) => (a.name || '').toLowerCase().includes(searchLower) ||
+               (a.description || '').toLowerCase().includes(searchLower)
       );
 
-      const total = filteredActivities.length;
-      const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-      const endIndex = startIndex + paginationParams.limit;
-      const paginatedActivities = filteredActivities.slice(startIndex, endIndex);
-
-      const serializedActivities = paginatedActivities.map(serializeActivityTimestamps);
+      const serializedActivities = result.items.map(serializeActivityTimestamps);
 
       return successResponse('Aktiviteler başarıyla getirildi', {
         activities: serializedActivities,
-        total,
-        page: paginationParams.page,
-        limit: paginationParams.limit,
-        totalPages: Math.ceil(total / paginationParams.limit)
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil((result.total || 0) / result.limit)
       });
     }
 

@@ -8,7 +8,6 @@ import type { UserStatus, UserStatusUpdateData, UserRegistrationLog } from '@sha
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';

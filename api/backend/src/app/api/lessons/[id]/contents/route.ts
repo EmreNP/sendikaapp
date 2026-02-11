@@ -4,7 +4,7 @@ import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import type { Content, ContentType, VideoContent, DocumentContent } from '@shared/types/training';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeContentTimestamps
@@ -101,45 +101,31 @@ export const GET = asyncHandler(async (
       // Order'a göre sırala (tüm tipler birleştirildikten sonra)
       contents.sort((a, b) => a.order - b.order);
       
-      // Generate signed URLs for all contents
-      const contentsWithUrls = await Promise.all(
-        contents.map(async (content) => {
-          const result: Record<string, any> = { ...content };
-          
-          // Handle video content
-          if (content.type === 'video') {
-            const videoContent = content as VideoContent;
-            if (videoContent.videoSource === 'uploaded' && videoContent.videoPath) {
-              try {
-                result.videoUrl = await generateSignedUrl(videoContent.videoPath);
-              } catch (error) {
-                logger.error(`Failed to generate video URL for ${videoContent.id}:`, error);
-              }
-            }
-            if (videoContent.thumbnailPath) {
-              try {
-                result.thumbnailUrl = await generateSignedUrl(videoContent.thumbnailPath);
-              } catch (error) {
-                logger.error(`Failed to generate thumbnail URL for ${videoContent.id}:`, error);
-              }
-            }
+      // Generate public URLs for all contents (files are already public via makePublic)
+      const contentsWithUrls = contents.map((content) => {
+        const result: Record<string, any> = { ...content };
+        
+        // Handle video content
+        if (content.type === 'video') {
+          const videoContent = content as VideoContent;
+          if (videoContent.videoSource === 'uploaded' && videoContent.videoPath) {
+            result.videoUrl = generatePublicUrl(videoContent.videoPath);
           }
-          
-          // Handle document content
-          if (content.type === 'document') {
-            const docContent = content as DocumentContent;
-            if (docContent.documentPath) {
-              try {
-                result.documentUrl = await generateSignedUrl(docContent.documentPath);
-              } catch (error) {
-                logger.error(`Failed to generate document URL for ${docContent.id}:`, error);
-              }
-            }
+          if (videoContent.thumbnailPath) {
+            result.thumbnailUrl = generatePublicUrl(videoContent.thumbnailPath);
           }
-          
-          return result;
-        })
-      );
+        }
+        
+        // Handle document content
+        if (content.type === 'document') {
+          const docContent = content as DocumentContent;
+          if (docContent.documentPath) {
+            result.documentUrl = generatePublicUrl(docContent.documentPath);
+          }
+        }
+        
+        return result;
+      });
       
       const serializedContents = contentsWithUrls.map(c => serializeContentTimestamps(c));
       

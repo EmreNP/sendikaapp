@@ -88,7 +88,7 @@ export const PUT = asyncHandler(async (
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
+      if (!userData || (userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -177,7 +177,7 @@ export const DELETE = asyncHandler(async (
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
+      if (!userData || (userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

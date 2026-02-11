@@ -10,6 +10,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Mesajları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -164,29 +165,22 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     }
 
     if (search) {
-      // Search logic - fetch more, filter in memory
-      const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
-      const allMessages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as ContactMessage[];
-
       const searchLower = search.toLowerCase();
-      const filteredMessages = allMessages.filter(msg => 
-        (msg.message || '').toLowerCase().includes(searchLower)
+      const orderedQuery = query.orderBy('createdAt', 'desc');
+      
+      const result = await searchInBatches<ContactMessage>(
+        orderedQuery,
+        { page, limit },
+        (doc) => ({ id: doc.id, ...doc.data() }) as ContactMessage,
+        (msg) => (msg.message || '').toLowerCase().includes(searchLower)
       );
 
-      const total = filteredMessages.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
-
       return successResponse('Mesajlar getirildi', {
-        messages: paginatedMessages,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        messages: result.items,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil((result.total || 0) / result.limit)
       });
     }
 

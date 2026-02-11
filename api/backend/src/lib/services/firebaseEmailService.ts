@@ -3,6 +3,8 @@
  * Firebase Auth REST API kullanır - harici servis gerektirmez
  */
 
+import { logger } from '../utils/logger';
+
 /**
  * Error type guard
  */
@@ -20,8 +22,8 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 if (!FIREBASE_WEB_API_KEY) {
-  logger.warn('⚠️ FIREBASE_WEB_API_KEY not set in environment variables.');
-  logger.warn('   Email sending will not work. Please add FIREBASE_WEB_API_KEY to your .env file.');
+  console.warn('⚠️ FIREBASE_WEB_API_KEY not set in environment variables.');
+  console.warn('   Email sending will not work. Please add FIREBASE_WEB_API_KEY to your .env file.');
 }
 
 /**

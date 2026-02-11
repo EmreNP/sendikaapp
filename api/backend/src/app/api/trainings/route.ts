@@ -14,7 +14,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm eğitimleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -42,27 +42,26 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         }
       }
 
-      // ⚠️ IMPORTANT: Search filter handled client-side
+      // Search with batch-based pagination
       if (search) {
-        const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').limit(500).get();
         const searchLower = search.toLowerCase();
-        const allDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Training[];
-        let trainings = allDocs.filter((t: Training) => (t.title || '').toLowerCase().includes(searchLower));
+        const orderedQuery = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
         
-        const total = trainings.length;
-        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-        const endIndex = startIndex + paginationParams.limit;
-        const paginatedTrainings = trainings.slice(startIndex, endIndex);
-        const hasMore = endIndex < total;
+        const result = await searchInBatches<Training>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as Training,
+          (t) => (t.title || '').toLowerCase().includes(searchLower)
+        );
         
-        const serializedTrainings = paginatedTrainings.map(t => serializeTrainingTimestamps(t));
+        const serializedTrainings = result.items.map(t => serializeTrainingTimestamps(t));
         
         return successResponse('Eğitimler başarıyla getirildi', {
           trainings: serializedTrainings,
-          total,
-          page: paginationParams.page,
-          limit: paginationParams.limit,
-          hasMore,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       

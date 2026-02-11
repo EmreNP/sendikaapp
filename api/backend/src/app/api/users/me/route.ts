@@ -5,10 +5,9 @@ import { validateName, validateAge, validateUserPhone, validateTCKimlikNo } from
 import { EDUCATION_LEVEL } from '@shared/constants/education';
 import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
@@ -32,13 +31,9 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         ...userData,
       };
       
-      // Generate signed URL for document if path exists
+      // Generate public URL for document if path exists
       if (userData?.documentPath) {
-        try {
-          userWithData.documentUrl = await generateSignedUrl(userData.documentPath);
-        } catch (error) {
-          logger.error(`Failed to generate signed URL for user ${user.uid}:`, error);
-        }
+        userWithData.documentUrl = generatePublicUrl(userData.documentPath);
       }
       
       return successResponse(

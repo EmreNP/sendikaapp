@@ -13,7 +13,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm haberleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -54,25 +54,24 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
       // ⚠️ IMPORTANT: Search filter handled client-side (see announcements endpoint for details)
       if (search) {
-        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
         const searchLower = search.toLowerCase();
-        const allDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as News[];
-        let news = allDocs.filter((n: News) => (n.title || '').toLowerCase().includes(searchLower));
+        const orderedQuery = query.orderBy('createdAt', 'desc');
         
-        const total = news.length;
-        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-        const endIndex = startIndex + paginationParams.limit;
-        const paginatedNews = news.slice(startIndex, endIndex);
-        const hasMore = endIndex < total;
+        const result = await searchInBatches<News>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as News,
+          (n) => (n.title || '').toLowerCase().includes(searchLower)
+        );
         
-        const serializedNews = paginatedNews.map(n => serializeNewsTimestamps(n));
+        const serializedNews = result.items.map(n => serializeNewsTimestamps(n));
         
         return successResponse('Haberler başarıyla getirildi', {
           news: serializedNews,
-          total,
-          page: paginationParams.page,
-          limit: paginationParams.limit,
-          hasMore,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       

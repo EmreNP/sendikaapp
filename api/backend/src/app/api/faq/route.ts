@@ -14,7 +14,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm FAQ'leri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -42,31 +42,30 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         }
       }
 
-      // ⚠️ IMPORTANT: Search filter for question/answer handled client-side
+      // Search with batch-based pagination
       if (search) {
-        const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').limit(500).get();
         const searchLower = search.toLowerCase();
-        const allDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as FAQ[];
-        let faqs = allDocs.filter((f: FAQ) => {
+        const orderedQuery = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
+        
+        const result = await searchInBatches<FAQ>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as FAQ,
+          (f) => {
             const question = (f.question || '').toLowerCase();
             const answer = (f.answer || '').replace(/<[^>]*>/g, '').toLowerCase();
             return question.includes(searchLower) || answer.includes(searchLower);
-          });
+          }
+        );
         
-        const total = faqs.length;
-        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-        const endIndex = startIndex + paginationParams.limit;
-        const paginatedFaqs = faqs.slice(startIndex, endIndex);
-        const hasMore = endIndex < total;
-        
-        const serializedFaqs = paginatedFaqs.map(f => serializeFAQTimestamps(f));
+        const serializedFaqs = result.items.map(f => serializeFAQTimestamps(f));
         
         return successResponse('FAQ\'ler başarıyla getirildi', {
           faqs: serializedFaqs,
-          total,
-          page: paginationParams.page,
-          limit: paginationParams.limit,
-          hasMore,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       

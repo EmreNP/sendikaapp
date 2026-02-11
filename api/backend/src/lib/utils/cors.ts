@@ -82,11 +82,8 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
     // Log at ve izin verme (güvenlik için)
     logger.warn(`⚠️  Origin not in allowed list (development mode): ${origin}`);
     logger.warn('   Add this origin to your allowed origins if needed.');
-    
-    // Development'ta fallback: İlk allowed origin'i kullan (geliştirme kolaylığı için)
-    if (allowedOrigins.length > 0) {
-      response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0]);
-    }
+    // NOT: Access-Control-Allow-Origin header'ı SET ETMİYORUZ
+    // Bilinmeyen origin'lere development'ta bile izin vermiyoruz
   } else {
     // Production'da origin izin verilen listede değilse veya yoksa
     // CORS header'ı EKLEME - browser tarafında request reject edilir
@@ -99,8 +96,8 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
   // CORS method'ları
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   
-  // CORS header'ları
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // CORS header'ları — X-Requested-With CSRF koruması için kullanılır
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   // Preflight cache süresi (24 saat)
   response.headers.set('Access-Control-Max-Age', '86400');

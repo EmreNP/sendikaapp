@@ -4,7 +4,7 @@ import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import { USER_STATUS } from '@shared/constants/status';
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import admin from 'firebase-admin';
 import { 
   successResponse, 
@@ -68,13 +68,12 @@ export const GET = asyncHandler(async (
       };
       const serializedUser = serializeUserTimestamps(userData);
       
-      // Generate signed URL for document if path exists
+      // Generate public URL for document if path exists
       if (serializedUser.documentPath) {
-        try {
-          serializedUser.documentUrl = await generateSignedUrl(serializedUser.documentPath);
-        } catch (error) {
-          logger.error(`Failed to generate signed URL for user ${targetUserId}:`, error);
-        }
+        serializedUser.documentUrl = generatePublicUrl(serializedUser.documentPath);
+      } else if (serializedUser.documentUrl && !serializedUser.documentUrl.startsWith('http')) {
+        // Eski kayıtlarda documentUrl aslında path olabilir
+        serializedUser.documentUrl = generatePublicUrl(serializedUser.documentUrl);
       }
       
       return successResponse(

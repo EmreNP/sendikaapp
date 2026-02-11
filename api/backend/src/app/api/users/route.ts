@@ -7,11 +7,10 @@ import { USER_STATUS } from '@shared/constants/status';
 import type { CreateUserData, User } from '@shared/types/user';
 import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   unauthorizedError,
-  notFoundError,
   isErrorWithMessage,
 } from '@/lib/utils/response';
 
@@ -22,7 +21,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 import { logger } from '../../../lib/utils/logger';
 // GET /api/users - Kullanıcı listesi
@@ -85,26 +84,23 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       let hasMore = false;
 
       if (search) {
-        // For search, fetch recent 500 users matching the filters
-        // Using limit(500) prevents fetching entire collection
-        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
-        
-        const allUsers = snapshot.docs.map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        })) as User[];
-        
         const searchLower = search.toLowerCase();
-        const filtered = allUsers.filter((u: User) => {
-          const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-          const email = (u.email || '').toLowerCase();
-          return fullName.includes(searchLower) || email.includes(searchLower);
-        });
+        const orderedQuery = query.orderBy('createdAt', 'desc');
         
-        total = filtered.length;
-        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-        items = filtered.slice(startIndex, startIndex + paginationParams.limit);
-        hasMore = startIndex + paginationParams.limit < total;
+        const result = await searchInBatches<User>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ uid: doc.id, ...doc.data() }) as User,
+          (u) => {
+            const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            return fullName.includes(searchLower) || email.includes(searchLower);
+          }
+        );
+        
+        total = result.total || 0;
+        items = result.items;
+        hasMore = result.hasMore;
       } else {
         // Standard server-side pagination
         query = query.orderBy('createdAt', 'desc');
@@ -121,21 +117,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
       const paginatedUsers = items;
       
-      // Generate signed URLs for documents
-      const usersWithUrls = await Promise.all(
-        paginatedUsers.map(async (user) => {
-          if (user.documentPath) {
-            try {
-              const documentUrl = await generateSignedUrl(user.documentPath);
-              return { ...user, documentUrl };
-            } catch (error) {
-              logger.error(`Failed to generate signed URL for user ${user.uid}:`, error);
-              return user;
-            }
-          }
-          return user;
-        })
-      );
+      // Generate public URLs for documents (files are already public via makePublic)
+      const usersWithUrls = paginatedUsers.map((user) => {
+        if (user.documentPath) {
+          return { ...user, documentUrl: generatePublicUrl(user.documentPath) };
+        }
+        return user;
+      });
       
       return successResponse(
         'Kullanıcılar başarıyla getirildi',

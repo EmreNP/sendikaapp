@@ -3,7 +3,7 @@ import { addCorsHeaders, corsOptionsResponse } from './lib/utils/cors';
 import { rateLimitByPath } from './lib/utils/rateLimit';
 import { errorResponse } from './lib/utils/response';
 
-import { logger } from 'lib/utils/logger';
+import { logger } from './lib/utils/logger';
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const method = request.method;
@@ -11,6 +11,25 @@ export async function middleware(request: NextRequest) {
   // OPTIONS request için CORS response
   if (method === 'OPTIONS') {
     return corsOptionsResponse(request);
+  }
+
+  // CSRF koruması: State-changing isteklerde X-Requested-With header'ı kontrol et
+  // Tarayıcılar custom header'ları sadece CORS preflight onaylı isteklerden gönderir,
+  // bu sayede cross-origin POST/PUT/DELETE saldırıları engellenmiş olur.
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const xRequestedWith = request.headers.get('x-requested-with');
+    if (!xRequestedWith) {
+      // Development modda sadece uyarı logla, production'da reject et
+      const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+      if (!isDev) {
+        const response = errorResponse(
+          'Geçersiz istek: X-Requested-With header eksik.',
+          403,
+          'CSRF_VALIDATION_FAILED'
+        );
+        return addCorsHeaders(response, request);
+      }
+    }
   }
 
   // Rate limiting

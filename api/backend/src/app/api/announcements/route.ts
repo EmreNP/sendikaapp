@@ -13,7 +13,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm duyuruları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -73,38 +73,26 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // This is acceptable for small result sets, but should be replaced with proper search service
       
       if (search) {
-        // If search is active, we need to fetch more results to filter
-        // This is a compromise - still better than fetching ALL documents
-        // Consider implementing proper search service for production
-        const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
-        
         const searchLower = search.toLowerCase();
-        const allDocs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Announcement[];
-        let announcements = allDocs.filter((a: Announcement) => {
-            const title = (a.title || '').toLowerCase();
-            return title.includes(searchLower);
-          });
+        const orderedQuery = query.orderBy('createdAt', 'desc');
         
-        // Manual pagination after filtering
-        const total = announcements.length;
-        const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-        const endIndex = startIndex + paginationParams.limit;
-        const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
-        const hasMore = endIndex < total;
+        const result = await searchInBatches<Announcement>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as Announcement,
+          (a) => (a.title || '').toLowerCase().includes(searchLower)
+        );
         
-        const serializedAnnouncements = paginatedAnnouncements.map(a => serializeAnnouncementTimestamps(a));
+        const serializedAnnouncements = result.items.map(a => serializeAnnouncementTimestamps(a));
         
         return successResponse(
           'Duyurular başarıyla getirildi',
           {
             announcements: serializedAnnouncements,
-            total,
-            page: paginationParams.page,
-            limit: paginationParams.limit,
-            hasMore,
+            total: result.total,
+            page: result.page,
+            limit: result.limit,
+            hasMore: result.hasMore,
           }
         );
       }

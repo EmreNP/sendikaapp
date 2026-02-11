@@ -6,7 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { DocumentContent, CreateDocumentContentRequest } from '@shared/types/training';
 import { validateCreateDocumentContent } from '@/lib/utils/validation/documentContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeDocumentContentTimestamps
@@ -55,21 +55,13 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as DocumentContent[];
       
-      // Generate signed URLs for all documents
-      const documentsWithUrls = await Promise.all(
-        documents.map(async (doc) => {
-          if (doc.documentPath) {
-            try {
-              const documentUrl = await generateSignedUrl(doc.documentPath);
-              return { ...doc, documentUrl };
-            } catch (error) {
-              logger.error(`Failed to generate signed URL for ${doc.documentPath}:`, error);
-              return doc;
-            }
-          }
-          return doc;
-        })
-      );
+      // Generate public URLs (files are already public via makePublic)
+      const documentsWithUrls = documents.map((doc) => {
+        if (doc.documentPath) {
+          return { ...doc, documentUrl: generatePublicUrl(doc.documentPath) };
+        }
+        return doc;
+      });
       
       const serializedDocuments = documentsWithUrls.map(d => serializeDocumentContentTimestamps(d));
       
@@ -164,13 +156,9 @@ export const POST = asyncHandler(async (
         ...docData,
       } as DocumentContent;
       
-      // Generate signed URL for response
+      // Generate public URL for response
       if (document.documentPath) {
-        try {
-          document.documentUrl = await generateSignedUrl(document.documentPath);
-        } catch (error) {
-          logger.error('Failed to generate signed URL:', error);
-        }
+        document.documentUrl = generatePublicUrl(document.documentPath);
       }
       
       const serializedDocument = serializeDocumentContentTimestamps(document);

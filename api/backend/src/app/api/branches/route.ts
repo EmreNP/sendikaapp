@@ -7,13 +7,12 @@ import type { Branch,  BranchWithManagers, CreateBranchRequest } from '@shared/t
 import { validateBranchName, validateBranchEmail, validateBranchPhone } from '@/lib/utils/validation/branchValidation';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { getBranchDetails } from '@/lib/utils/branchQueries';
-import { paginateHybrid, parsePaginationParams } from '@/lib/utils/pagination';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 import { logger } from '../../../lib/utils/logger';
 // Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
@@ -203,27 +202,20 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
         if (search) {
           const searchLower = search.toLowerCase();
-          // Fetch larger set for searching (limit 500)
-          const snapshot = await db.collection('branches')
-            .orderBy('createdAt', 'desc')
-            .limit(500)
-            .get();
-
-          const allItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-          // Filter by name, code, or city
-          const filtered = allItems.filter((item: any) => 
-            (item.name?.toLowerCase().includes(searchLower)) ||
-            (item.code?.toLowerCase().includes(searchLower)) ||
-            (item.city?.toLowerCase().includes(searchLower))
+          const baseQuery = db.collection('branches').orderBy('createdAt', 'desc');
+          
+          const result = await searchInBatches<any>(
+            baseQuery,
+            paginationParams,
+            (doc) => ({ id: doc.id, ...doc.data() }),
+            (item) => (item.name?.toLowerCase().includes(searchLower)) ||
+                      (item.code?.toLowerCase().includes(searchLower)) ||
+                      (item.city?.toLowerCase().includes(searchLower))
           );
 
-          total = filtered.length;
-
-          // Slice for pagination
-          const startIndex = (paginationParams.page - 1) * paginationParams.limit;
-          items = filtered.slice(startIndex, startIndex + paginationParams.limit);
-          hasMore = startIndex + paginationParams.limit < total;
+          total = result.total || 0;
+          items = result.items;
+          hasMore = result.hasMore;
         } else {
           // Server-side pagination for branches without search
           const query = db.collection('branches');
@@ -322,7 +314,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
+      if (!userData || (userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

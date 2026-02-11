@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
-import Redis from 'ioredis';
+import { logger } from './logger';
+
+// NOT: ioredis Edge Runtime'da çalışmaz (redis-errors modülü Node.js native API'leri gerektirir).
+// Next.js middleware Edge Runtime'da çalıştığı için, rate limiting in-memory store kullanır.
+// Production'da çoklu instance desteği gerekiyorsa, rate limiting'i API route handler'larına taşıyın.
 
 // Rate limit konfigürasyon interface'i
 export interface RateLimitConfig {
@@ -114,82 +118,6 @@ export const rateLimitConfigs = {
   },
 } as const;
 
-// ==================== Redis Rate Limit Store ====================
-// Çoklu instance'da (Cloud Run vb.) paylaşımlı sayaç — sliding window log algoritması
-class RedisRateLimitStore implements RateLimitStore {
-  private redis: Redis;
-
-  constructor(redisUrl: string) {
-    this.redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 1,
-      connectTimeout: 3000,
-      lazyConnect: true,
-      enableReadyCheck: false,
-    });
-
-    this.redis.on('error', (err) => {
-      logger.error('Redis rate limit store error:', err.message);
-    });
-
-    this.redis.connect().catch((err) => {
-      logger.error('Redis connection failed, will fallback on each request:', err.message);
-    });
-  }
-
-  async check(identifier: string, config: RateLimitConfig): Promise<RateLimitResult> {
-    const key = `rl:${identifier}`;
-    const now = Date.now();
-    const windowStart = now - config.windowMs;
-    const windowSec = Math.ceil(config.windowMs / 1000);
-
-    // Atomik sliding window: eski kayıtları sil, yeniyi ekle, say
-    const pipeline = this.redis.pipeline();
-    pipeline.zremrangebyscore(key, 0, windowStart);      // Pencere dışındakileri sil
-    pipeline.zcard(key);                                   // Mevcut istek sayısı
-    pipeline.zadd(key, now.toString(), `${now}:${Math.random()}`); // Yeni istek ekle
-    pipeline.expire(key, windowSec + 1);                   // TTL ayarla
-
-    const results = await pipeline.exec();
-    // results[1] = [null, count] — zcard sonucu
-    const currentCount = (results?.[1]?.[1] as number) || 0;
-    const isAllowed = currentCount < config.maxRequests;
-
-    if (!isAllowed) {
-      // İzin verilmediyse eklenen son kaydı geri al
-      const lastMembers = await this.redis.zrange(key, -1, -1);
-      if (lastMembers.length > 0) {
-        await this.redis.zrem(key, lastMembers[0]);
-      }
-    }
-
-    // İlk isteğin zamanını al — reset time hesabı için
-    const firstMembers = await this.redis.zrange(key, 0, 0, 'WITHSCORES');
-    const resetTime = firstMembers.length >= 2
-      ? parseInt(firstMembers[1], 10) + config.windowMs
-      : now + config.windowMs;
-
-    return {
-      allowed: isAllowed,
-      limit: config.maxRequests,
-      remaining: Math.max(0, config.maxRequests - (isAllowed ? currentCount + 1 : currentCount)),
-      reset: resetTime,
-    };
-  }
-
-  async clear(identifier: string): Promise<void> {
-    await this.redis.del(`rl:${identifier}`);
-  }
-
-  async getStats(): Promise<{ totalIdentifiers: number; totalRequests: number }> {
-    const keys = await this.redis.keys('rl:*');
-    let totalRequests = 0;
-    for (const key of keys) {
-      totalRequests += await this.redis.zcard(key);
-    }
-    return { totalIdentifiers: keys.length, totalRequests };
-  }
-}
-
 // ==================== In-Memory Rate Limit Store ====================
 // Tek instance'da çalışır — geliştirme ortamı veya Redis yoksa fallback
 class InMemoryRateLimitStore implements RateLimitStore {
@@ -260,44 +188,22 @@ class InMemoryRateLimitStore implements RateLimitStore {
 }
 
 // ==================== Store seçimi ====================
-// REDIS_URL ayarlandığında Redis kullan, yoksa in-memory (tek instance) fallback
-async function createRateLimitStore(): Promise<RateLimitStore> {
-  // Google Cloud Secret Manager'dan REDIS_URL okumayı dene
-  let redisUrl = process.env.REDIS_URL;
-  
-  if (!redisUrl && process.env.NODE_ENV === 'production') {
-    try {
-      const { getSecret } = await import('@/lib/gcloud/secrets');
-
-import { logger } from '../../lib/utils/logger';      redisUrl = await getSecret('REDIS_URL');
-    } catch (error) {
-      logger.warn('⚠️ Secret Manager erişilemedi, environment variable kullanılıyor');
-    }
-  }
-
-  if (redisUrl) {
-    logger.log('✅ Rate limiter: Redis store aktif (çoklu instance desteği)');
-    return new RedisRateLimitStore(redisUrl);
-  }
-
+// Edge Runtime kısıtlaması nedeniyle sadece in-memory store kullanılır
+function createRateLimitStore(): RateLimitStore {
   if (process.env.NODE_ENV === 'production') {
     logger.warn(
       '⚠️ Rate limiter: In-memory store kullanılıyor. ' +
-      'Çoklu instance ortamında (Cloud Run vb.) her instance kendi sayacını tutar. ' +
-      'Paylaşımlı rate limiting için Google Cloud Memorystore (Redis) kurulumu yapın:\n' +
-      '1. gcloud redis instances create sendika-redis --size=1 --region=us-central1\n' +
-      '2. VPC Connector oluşturun\n' +
-      '3. Secret Manager\'a REDIS_URL ekleyin'
+      'Çoklu instance ortamında (Cloud Run vb.) her instance kendi sayacını tutar.'
     );
   }
   return new InMemoryRateLimitStore();
 }
 
-// Store'u lazy initialize et (async olduğu için)
+// Store'u lazy initialize et
 let rateLimitStoreInstance: RateLimitStore | null = null;
-async function getRateLimitStore(): Promise<RateLimitStore> {
+function getRateLimitStore(): RateLimitStore {
   if (!rateLimitStoreInstance) {
-    rateLimitStoreInstance = await createRateLimitStore();
+    rateLimitStoreInstance = createRateLimitStore();
   }
   return rateLimitStoreInstance;
 }
@@ -331,7 +237,7 @@ export async function checkRateLimit(
   reset: number;
 }> {
   const identifier = config.identifier || getClientId(request);
-  const store = await getRateLimitStore();
+  const store = getRateLimitStore();
   return store.check(identifier, config);
 }
 

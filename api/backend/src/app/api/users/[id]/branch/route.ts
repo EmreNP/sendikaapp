@@ -5,7 +5,6 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { UserBranchUpdateData } from '@shared/types/user';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';

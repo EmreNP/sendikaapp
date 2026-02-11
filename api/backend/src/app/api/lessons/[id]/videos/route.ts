@@ -6,7 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { VideoContent, CreateVideoContentRequest } from '@shared/types/training';
 import { validateCreateVideoContent } from '@/lib/utils/validation/videoContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
-import { generateSignedUrl } from '@/lib/utils/storage';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeVideoContentTimestamps
@@ -55,32 +55,17 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as VideoContent[];
       
-      // Generate signed URLs for uploaded videos and thumbnails
-      const videosWithUrls = await Promise.all(
-        videos.map(async (video) => {
-          const result = { ...video };
-          
-          // Generate signed URL for uploaded videos
-          if (video.videoSource === 'uploaded' && video.videoPath) {
-            try {
-              result.videoUrl = await generateSignedUrl(video.videoPath);
-            } catch (error) {
-              logger.error(`Failed to generate video signed URL for ${video.videoPath}:`, error);
-            }
-          }
-          
-          // Generate signed URL for thumbnails
-          if (video.thumbnailPath) {
-            try {
-              result.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
-            } catch (error) {
-              logger.error(`Failed to generate thumbnail signed URL for ${video.thumbnailPath}:`, error);
-            }
-          }
-          
-          return result;
-        })
-      );
+      // Generate public URLs (files are already public via makePublic)
+      const videosWithUrls = videos.map((video) => {
+        const result = { ...video };
+        if (video.videoSource === 'uploaded' && video.videoPath) {
+          result.videoUrl = generatePublicUrl(video.videoPath);
+        }
+        if (video.thumbnailPath) {
+          result.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
+        }
+        return result;
+      });
       
       const serializedVideos = videosWithUrls.map(v => serializeVideoContentTimestamps(v));
       
@@ -193,21 +178,13 @@ export const POST = asyncHandler(async (
         ...docData,
       } as VideoContent;
       
-      // Generate signed URLs for response
+      // Generate public URLs for response
       if (video.videoSource === 'uploaded' && video.videoPath) {
-        try {
-          video.videoUrl = await generateSignedUrl(video.videoPath);
-        } catch (error) {
-          logger.error('Failed to generate video signed URL:', error);
-        }
+        video.videoUrl = generatePublicUrl(video.videoPath);
       }
       
       if (video.thumbnailPath) {
-        try {
-          video.thumbnailUrl = await generateSignedUrl(video.thumbnailPath);
-        } catch (error) {
-          logger.error('Failed to generate thumbnail signed URL:', error);
-        }
+        video.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
       }
       
       const serializedVideo = serializeVideoContentTimestamps(video);
