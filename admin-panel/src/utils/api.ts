@@ -20,9 +20,35 @@ export interface ApiErrorResponse {
 
 export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
+// ==================== Request Configuration ====================
+const REQUEST_TIMEOUT_MS = 30_000; // 30 saniye timeout
+const MAX_RETRIES = 2; // Network hatası veya 5xx için max retry
+const RETRY_DELAY_MS = 1_000; // İlk retry bekleme süresi (exponential backoff)
+
+/** Retry yapılabilir hata mı kontrol et */
+function isRetryableError(error: unknown): boolean {
+  // Network hataları (fetch reject)
+  if (error instanceof TypeError && error.message.includes('fetch')) return true;
+  if (error instanceof DOMException && error.name === 'AbortError') return false; // Timeout — retry etme
+  return false;
+}
+
+/** Retry yapılabilir HTTP status mı kontrol et */
+function isRetryableStatus(status: number): boolean {
+  // 500, 502, 503, 504 — sunucu hataları
+  return status >= 500 && status <= 504;
+}
+
+/** Exponential backoff ile bekleme */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * API çağrısı yapar ve response'u işler
- * 401 hatası alındığında token'ı refresh eder ve otomatik retry yapar
+ * - 30 saniye timeout (AbortController)
+ * - Network hatası ve 5xx için otomatik retry (max 2 kez, exponential backoff)
+ * - 401 hatası alındığında token'ı refresh eder ve otomatik retry yapar
  * @param endpoint API endpoint
  * @param options Fetch options
  * @returns Parsed data veya error throw eder
@@ -71,6 +97,10 @@ export async function apiRequest<T = any>(
       defaultHeaders['Content-Type'] = 'application/json';
     }
     
+    // CSRF koruması: Custom header ekle — tarayıcılar custom header'ları
+    // sadece CORS preflight onaylı same-origin isteklerden gönderir
+    defaultHeaders['X-Requested-With'] = 'XMLHttpRequest';
+    
     if (authToken) {
       defaultHeaders['Authorization'] = `Bearer ${authToken}`;
       if (isStatusUpdate) {
@@ -82,17 +112,65 @@ export async function apiRequest<T = any>(
       }
     }
     
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options?.headers,
-      },
-    });
+    // AbortController ile timeout uygula
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options?.headers,
+        },
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+  
+  /** Retry mekanizması ile request yap */
+  const makeRequestWithRetry = async (authToken: string | null): Promise<Response> => {
+    let lastError: unknown;
+    
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await makeRequest(authToken);
+        
+        // 5xx hata ve retry hakkı varsa tekrar dene
+        if (isRetryableStatus(response.status) && attempt < MAX_RETRIES) {
+          logger.warn(`⚠️ Server error (${response.status}), retrying... (${attempt + 1}/${MAX_RETRIES})`);
+          await sleep(RETRY_DELAY_MS * Math.pow(2, attempt)); // Exponential backoff
+          continue;
+        }
+        
+        return response;
+      } catch (error) {
+        lastError = error;
+        
+        // Timeout hataları retry edilmez
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          throw new Error(`İstek zaman aşımına uğradı (${REQUEST_TIMEOUT_MS / 1000}s). Lütfen internet bağlantınızı kontrol edin.`);
+        }
+        
+        // Network hatası ve retry hakkı varsa tekrar dene
+        if (isRetryableError(error) && attempt < MAX_RETRIES) {
+          logger.warn(`⚠️ Network error, retrying... (${attempt + 1}/${MAX_RETRIES})`);
+          await sleep(RETRY_DELAY_MS * Math.pow(2, attempt));
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+    
+    throw lastError;
   };
   
   try {
-    let response = await makeRequest(token);
+    let response = await makeRequestWithRetry(token);
     
     // 401 hatası alındıysa, token'ı force refresh et ve tekrar dene
     if (response.status === 401) {
@@ -106,7 +184,7 @@ export async function apiRequest<T = any>(
           window.location.href = '/login';
           throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
         }
-        response = await makeRequest(token); // Retry request
+        response = await makeRequestWithRetry(token); // Retry request
         
         // Retry sonrası hâlâ 401 ise, hesap devre dışı veya geçersiz
         if (response.status === 401) {

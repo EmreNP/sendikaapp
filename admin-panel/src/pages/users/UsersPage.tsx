@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Users as UsersIcon, Search, XCircle, CheckCircle, UserCog, RefreshCw, Edit } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import UserDetailModal from '@/components/users/UserDetailModal';
 import UserRoleModal from '@/components/users/UserRoleModal';
 import UserStatusModal from '@/components/users/UserStatusModal';
@@ -54,8 +55,8 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [managersTotal, setManagersTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [_totalPages, setTotalPages] = useState(0);
+  const [_hasMore, setHasMore] = useState(false);
   const pageSize = 25;
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -776,100 +777,14 @@ export default function UsersPage() {
                 </table>
               </div>
               {/* Total Count & Pagination */}
-              <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 gap-3">
-                <div className="text-sm text-gray-600">
-                  {userTypeFilter === 'users' ? (
-                    <>Toplam üye sayısı: <span className="font-medium text-gray-900">{totalUsers}</span></>
-                  ) : (
-                    <>Toplam yönetici sayısı: <span className="font-medium text-gray-900">{managersTotal}</span></>
-                  )}
-                </div>
-                
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Önceki
-                    </button>
-                    
-                    <div className="flex items-center gap-1">
-                      {/* İlk sayfa */}
-                      {currentPage > 3 && (
-                        <>
-                          <button
-                            onClick={() => setCurrentPage(1)}
-                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                          >
-                            1
-                          </button>
-                          {currentPage > 4 && (
-                            <span className="px-2 text-gray-500">...</span>
-                          )}
-                        </>
-                      )}
-                      
-                      {/* Ortadaki sayfalar */}
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                        if (pageNum < 1 || pageNum > totalPages) return null;
-                        if (currentPage > 3 && pageNum === 1) return null;
-                        if (currentPage < totalPages - 2 && pageNum === totalPages) return null;
-                        
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-slate-700 text-white'
-                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                      
-                      {/* Son sayfa */}
-                      {currentPage < totalPages - 2 && (
-                        <>
-                          {currentPage < totalPages - 3 && (
-                            <span className="px-2 text-gray-500">...</span>
-                          )}
-                          <button
-                            onClick={() => setCurrentPage(totalPages)}
-                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                          >
-                            {totalPages}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Sonraki
-                    </button>
-                  </div>
-                )}
-              </div>
+              <Pagination
+                currentPage={currentPage}
+                total={userTypeFilter === 'users' ? totalUsers : managersTotal}
+                limit={pageSize}
+                onPageChange={setCurrentPage}
+                totalLabel={userTypeFilter === 'users' ? `Toplam üye sayısı: ${totalUsers}` : `Toplam yönetici sayısı: ${managersTotal}`}
+                showPageNumbers={true}
+              />
             </>
           )}
         </div>

@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { faqService } from '@/services/api/faqService';
 import type { FAQ, CreateFAQRequest, UpdateFAQRequest } from '@/types/faq';
 import { logger } from '@/utils/logger';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 interface FAQFormModalProps {
   faq: FAQ | null;
@@ -19,6 +20,14 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onClose);
+
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  };
 
   const isEditMode = !!faq;
 
@@ -40,6 +49,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
         });
       }
       setError(null);
+      setHasChanges(false);
     }
   }, [isOpen, faq]);
 
@@ -89,7 +99,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Modal */}
@@ -101,7 +111,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
               {isEditMode ? 'FAQ Düzenle' : 'Yeni FAQ Ekle'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
             >
               <X className="w-4 h-4" />
@@ -125,7 +135,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
                 <input
                   type="text"
                   value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  onChange={(e) => updateFormData({ question: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   required
                   placeholder="Sık sorulan soru"
@@ -140,7 +150,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
                 </label>
                 <textarea
                   value={formData.answer}
-                  onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+                  onChange={(e) => updateFormData({ answer: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-y"
                   rows={6}
                   required
@@ -154,7 +164,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
                   <input
                     type="checkbox"
                     checked={formData.isPublished}
-                    onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                    onChange={(e) => updateFormData({ isPublished: e.target.checked })}
                     className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                   />
                   <span className="text-sm font-medium text-gray-700">Hemen yayınla</span>
@@ -169,7 +179,7 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={loading}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -186,6 +196,20 @@ export default function FAQFormModal({ faq, isOpen, onClose, onSuccess }: FAQFor
           </form>
         </div>
       </div>
+
+      {/* Unsaved Changes Confirmation */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+            <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
+              <button onClick={handleConfirmClose} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Çık</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

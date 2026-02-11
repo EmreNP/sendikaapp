@@ -65,6 +65,9 @@ export const api = {
       defaultHeaders['Content-Type'] = 'application/json';
     }
     
+    // CSRF koruması: Custom header ekle
+    defaultHeaders['X-Requested-With'] = 'XMLHttpRequest';
+    
     // Token varsa ekle
     const { authService } = await import('@/services/auth/authService');
     const token = await authService.getIdToken();

@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import NewsFormModal from '@/components/news/NewsFormModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import AnnouncementFormModal from '@/components/announcements/AnnouncementFormModal';
@@ -13,6 +14,7 @@ import { announcementService } from '@/services/api/announcementService';
 import { authService } from '@/services/auth/authService';
 import { useAuth } from '@/context/AuthContext';
 import type { News } from '@/types/news';
+import { formatDate } from '@/utils/dateFormatter';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
 import type { NotificationType } from '@shared/constants/notifications';
@@ -157,11 +159,19 @@ export default function NewsPage() {
     return 'Yükleniyor...';
   };
 
-  // HTML içeriğinden düz metin çıkar ve kısalt
+  // HTML içeriğinden düz metin çıkar ve kısalt (XSS-safe: innerHTML kullanmaz)
   const extractPlainText = (html: string, maxLength: number = 200): string => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const text = div.textContent || div.innerText || '';
+    // HTML tag'lerini regex ile kaldır (innerHTML kullanmak XSS riski taşır)
+    const text = html
+      .replace(/<[^>]*>/g, '') // HTML tag'lerini kaldır
+      .replace(/&nbsp;/gi, ' ') // &nbsp; → boşluk
+      .replace(/&amp;/gi, '&')  // &amp; → &
+      .replace(/&lt;/gi, '<')   // &lt; → <
+      .replace(/&gt;/gi, '>')   // &gt; → >
+      .replace(/&quot;/gi, '"') // &quot; → "
+      .replace(/&#39;/gi, "'")  // &#39; → '
+      .replace(/\s+/g, ' ')     // Çoklu boşlukları tek boşluğa dönüştür
+      .trim();
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
@@ -178,34 +188,6 @@ export default function NewsPage() {
       imageUrl: item.imageUrl,
     });
     setIsNotificationModalOpen(true);
-  };
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + ((date.nanoseconds || 0) / 1000000));
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -751,7 +733,7 @@ export default function NewsPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {formatDate(item.createdAt)}
+                            {formatDate(item.createdAt, true, 'short')}
                           </div>
                         </td>
                         <td 
@@ -762,7 +744,7 @@ export default function NewsPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                            {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                           </div>
                         </td>
                         <td 
@@ -857,32 +839,13 @@ export default function NewsPage() {
                 </table>
               </div>
               {/* Pagination */}
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Toplam {total} haberden {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
-                </div>
-                {Math.ceil(total / limit) > 1 && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      Önceki
-                    </button>
-                    <span className="px-4 py-2 text-sm text-gray-700">
-                      Sayfa {page} / {Math.ceil(total / limit)}
-                    </span>
-                    <button
-                      onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
-                      disabled={page === Math.ceil(total / limit)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      Sonraki
-                    </button>
-                  </div>
-                )}
-              </div>
+              <Pagination
+                currentPage={page}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
           </div>
@@ -988,7 +951,7 @@ export default function NewsPage() {
                             }}
                           >
                             <div className="text-sm text-gray-600">
-                              {formatDate(item.createdAt)}
+                              {formatDate(item.createdAt, true, 'short')}
                             </div>
                           </td>
                           <td 
@@ -999,7 +962,7 @@ export default function NewsPage() {
                             }}
                           >
                             <div className="text-sm text-gray-600">
-                              {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                              {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                             </div>
                           </td>
                           <td 
@@ -1094,32 +1057,13 @@ export default function NewsPage() {
                   </table>
                 </div>
                 {/* Pagination */}
-                <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
-                    Toplam {announcementsTotal} duyurudan {((announcementsPage - 1) * announcementsLimit) + 1}-{Math.min(announcementsPage * announcementsLimit, announcementsTotal)} arası gösteriliyor
-                  </div>
-                  {Math.ceil(announcementsTotal / announcementsLimit) > 1 && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setAnnouncementsPage((p) => Math.max(1, p - 1))}
-                        disabled={announcementsPage === 1}
-                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                      >
-                        Önceki
-                      </button>
-                      <span className="px-4 py-2 text-sm text-gray-700">
-                        Sayfa {announcementsPage} / {Math.ceil(announcementsTotal / announcementsLimit)}
-                      </span>
-                      <button
-                        onClick={() => setAnnouncementsPage((p) => Math.min(Math.ceil(announcementsTotal / announcementsLimit), p + 1))}
-                        disabled={announcementsPage === Math.ceil(announcementsTotal / announcementsLimit)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                      >
-                        Sonraki
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <Pagination
+                  currentPage={announcementsPage}
+                  total={announcementsTotal}
+                  limit={announcementsLimit}
+                  onPageChange={setAnnouncementsPage}
+                  showPageNumbers={false}
+                />
               </>
             )}
           </div>

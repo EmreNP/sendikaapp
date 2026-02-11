@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MessageSquare, Tag, Plus, Edit, Trash2, Search, Eye, EyeOff, Clock, CheckCircle, Calendar } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import ContactMessageDetailModal from '@/components/contact-messages/ContactMessageDetailModal';
 import TopicFormModal from '@/components/topics/TopicFormModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -432,32 +433,13 @@ export default function ContactMessagesPage() {
                   </div>
 
                   {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        Toplam {total} mesajdan {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          disabled={page === 1}
-                          className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                        >
-                          Önceki
-                        </button>
-                        <span className="px-4 py-2 text-sm text-gray-700">
-                          Sayfa {page} / {totalPages}
-                        </span>
-                        <button
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={page === totalPages}
-                          className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                        >
-                          Sonraki
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <Pagination
+                    currentPage={page}
+                    total={total}
+                    limit={limit}
+                    onPageChange={setPage}
+                    showPageNumbers={false}
+                  />
                 </>
               )}
             </div>

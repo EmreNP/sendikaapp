@@ -4,6 +4,7 @@ import Button from '@/components/common/Button';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
 import { logger } from '@/utils/logger';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 interface BranchOption {
   id: string;
@@ -45,8 +46,16 @@ export default function ActivityFormModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasChanges, setHasChanges] = useState(false);
   // Branch name for display (branch_manager sees name instead of raw id)
   const [branchName, setBranchName] = useState('');
+
+  const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onCancel);
+
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  };
 
   // Keep branchName in sync when activity, current user branch or branches list changes
   useEffect(() => {
@@ -90,6 +99,7 @@ export default function ActivityFormModal({
         documents: activity.documents || [],
 
       });
+      setHasChanges(false);
     } else {
       // Reset form for new activity
       setFormData({
@@ -103,6 +113,7 @@ export default function ActivityFormModal({
         documents: [],
 
       });
+      setHasChanges(false);
     }
   }, [activity]);
 
@@ -212,6 +223,7 @@ export default function ActivityFormModal({
       
       const newImageUrls = results.map(result => result.documentUrl);
       setFormData(prev => ({ ...prev, images: [...prev.images, ...newImageUrls] }));
+      setHasChanges(true);
       
       // Reset file input
       if (fileInputRef.current) {
@@ -229,6 +241,7 @@ export default function ActivityFormModal({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+    setHasChanges(true);
   };
 
   return (
@@ -240,7 +253,7 @@ export default function ActivityFormModal({
             {activity ? 'Aktivite Düzenle' : 'Yeni Aktivite'}
           </h2>
           <button
-            onClick={onCancel}
+            onClick={handleClose}
             disabled={disabled}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
@@ -261,7 +274,7 @@ export default function ActivityFormModal({
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => updateFormData({ name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Aktivite adını girin"
                 disabled={disabled}
@@ -277,7 +290,7 @@ export default function ActivityFormModal({
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => updateFormData({ description: e.target.value })}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Aktivite açıklamasını girin"
@@ -295,7 +308,7 @@ export default function ActivityFormModal({
                 </label>
                 <select
                   value={formData.categoryId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+                  onChange={(e) => updateFormData({ categoryId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={disabled}
                 >
@@ -319,7 +332,7 @@ export default function ActivityFormModal({
                 {(currentUserRole === 'admin' || currentUserRole === 'superadmin') ? (
                   <select
                     value={formData.branchId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))}
+                    onChange={(e) => updateFormData({ branchId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={disabled}
                   >
@@ -361,7 +374,7 @@ export default function ActivityFormModal({
                   <input
                     type="date"
                     value={formData.activityDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, activityDate: e.target.value }))}
+                    onChange={(e) => updateFormData({ activityDate: e.target.value })}
                     className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
                     disabled={disabled}
                   />
@@ -439,7 +452,7 @@ export default function ActivityFormModal({
             <Button
               type="button"
               variant="secondary"
-              onClick={onCancel}
+              onClick={handleClose}
               disabled={disabled}
             >
               İptal
@@ -453,6 +466,19 @@ export default function ActivityFormModal({
           </div>
         </form>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+            <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
+              <button onClick={handleConfirmClose} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Çık</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

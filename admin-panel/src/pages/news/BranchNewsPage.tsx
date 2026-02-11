@@ -13,6 +13,7 @@ import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
 import type { NotificationType } from '@shared/constants/notifications';
+import { formatDate } from '@/utils/dateFormatter';
 import { logger } from '@/utils/logger';
 
 type TabType = 'news' | 'announcements';
@@ -171,11 +172,19 @@ export default function BranchNewsPage() {
     return 'Yükleniyor...';
   };
 
-  // HTML içeriğinden düz metin çıkar ve kısalt
+  // HTML içeriğinden düz metin çıkar ve kısalt (XSS-safe: innerHTML kullanmaz)
   const extractPlainText = (html: string, maxLength: number = 200): string => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const text = div.textContent || div.innerText || '';
+    // HTML tag'lerini regex ile kaldır (innerHTML kullanmak XSS riski taşır)
+    const text = html
+      .replace(/<[^>]*>/g, '') // HTML tag'lerini kaldır
+      .replace(/&nbsp;/gi, ' ') // &nbsp; → boşluk
+      .replace(/&amp;/gi, '&')  // &amp; → &
+      .replace(/&lt;/gi, '<')   // &lt; → <
+      .replace(/&gt;/gi, '>')   // &gt; → >
+      .replace(/&quot;/gi, '"') // &quot; → "
+      .replace(/&#39;/gi, "'")  // &#39; → '
+      .replace(/\s+/g, ' ')     // Çoklu boşlukları tek boşluğa dönüştür
+      .trim();
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
@@ -192,34 +201,6 @@ export default function BranchNewsPage() {
       imageUrl: item.imageUrl,
     });
     setIsNotificationModalOpen(true);
-  };
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + ((date.nanoseconds || 0) / 1000000));
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const filteredNews = news.filter((item) => {
@@ -394,7 +375,7 @@ export default function BranchNewsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="text-sm text-gray-600">
-                            {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                            {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -487,7 +468,7 @@ export default function BranchNewsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="text-sm text-gray-600">
-                            {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                            {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                           </div>
                         </td>
                         <td className="px-4 py-3">

@@ -3,6 +3,7 @@ import { HelpCircle, Plus, Search, Trash2, Edit, User, XCircle, CheckCircle } fr
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import FAQFormModal from '@/components/faq/FAQFormModal';
 import FAQPreviewModal from '@/components/faq/FAQPreviewModal';
 import { faqService } from '@/services/api/faqService';
@@ -10,6 +11,7 @@ import { batchFetchUserNames } from '@/services/api/userNameService';
 import type { FAQ } from '@/types/faq';
 import type { User as UserType } from '@/types/user';
 import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormatter';
 
 export default function FAQPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -96,34 +98,6 @@ export default function FAQPage() {
       return `${user.firstName} ${user.lastName}`;
     }
     return 'Yükleniyor...';
-  };
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + ((date.nanoseconds || 0) / 1000000));
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -399,7 +373,7 @@ export default function FAQPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {formatDate(item.createdAt)}
+                            {formatDate(item.createdAt, true, 'short')}
                           </div>
                         </td>
                         <td 
@@ -410,7 +384,7 @@ export default function FAQPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {formatDate(item.updatedAt)}
+                            {formatDate(item.updatedAt, true, 'short')}
                           </div>
                         </td>
                         <td 
@@ -483,32 +457,13 @@ export default function FAQPage() {
                 </table>
               </div>
               {/* Pagination */}
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Toplam {total} FAQ'dan {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
-                </div>
-                {Math.ceil(total / limit) > 1 && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      Önceki
-                    </button>
-                    <span className="px-4 py-2 text-sm text-gray-700">
-                      Sayfa {page} / {Math.ceil(total / limit)}
-                    </span>
-                    <button
-                      onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
-                      disabled={page === Math.ceil(total / limit)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      Sonraki
-                    </button>
-                  </div>
-                )}
-              </div>
+              <Pagination
+                currentPage={page}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
         </div>

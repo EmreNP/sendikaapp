@@ -3,6 +3,7 @@ import { Building2, Search, Trash2, XCircle, CheckCircle, Edit, Plus } from 'luc
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import BranchFormModal from '@/components/branches/BranchFormModal';
 import BranchDetailModal from '@/components/branches/BranchDetailModal';
 import { useAuth } from '@/context/AuthContext';
@@ -383,52 +384,13 @@ export default function BranchesPage() {
                 </table>
               </div>
               {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Önceki
-                  </button>
-                  <button
-                    onClick={() => setPage(p => p + 1)}
-                    disabled={page >= totalPages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Sonraki
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Toplam <span className="font-medium">{totalBranches}</span> sonuçtan <span className="font-medium">{(page - 1) * 25 + 1}</span> - <span className="font-medium">{Math.min(page * 25, totalBranches)}</span> arası gösteriliyor
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <button
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Önceki
-                      </button>
-                      <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                        Sayfa {page} / {totalPages}
-                      </span>
-                      <button
-                        onClick={() => setPage(p => p + 1)}
-                        disabled={page >= totalPages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Sonraki
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
+              <Pagination
+                currentPage={page}
+                total={totalBranches}
+                limit={25}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
         </div>

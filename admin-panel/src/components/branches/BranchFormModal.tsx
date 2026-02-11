@@ -3,6 +3,7 @@ import { X, MapPin } from 'lucide-react';
 import { GoogleMap, useLoadScript, Marker, Autocomplete } from '@react-google-maps/api';
 import { apiRequest } from '@/utils/api';
 import { logger } from '@/utils/logger';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 interface Branch {
   id: string;
@@ -65,6 +66,14 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onClose);
+
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  };
   const mapRef = useRef<google.maps.Map | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
@@ -115,6 +124,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       ...prev,
       location: { latitude: lat, longitude: lng },
     }));
+    setHasChanges(true);
     
     // Reverse geocoding ile adres al
     setLoadingAddress(true);
@@ -186,6 +196,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
         setSearchAddress('');
       }
       setError(null);
+      setHasChanges(false);
     }
   }, [isOpen, branch]);
 
@@ -255,7 +266,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Modal */}
@@ -267,7 +278,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
               {isEditMode ? 'Şube Düzenle' : 'Yeni Şube Ekle'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
             >
               <X className="w-4 h-4" />
@@ -291,7 +302,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => updateFormData({ name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                   placeholder="Örn: Kadıköy Şubesi"
@@ -305,7 +316,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                 </label>
                 <textarea
                   value={formData.desc}
-                  onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
+                  onChange={(e) => updateFormData({ desc: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3}
                   placeholder="Şube hakkında açıklama"
@@ -433,7 +444,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => updateFormData({ phone: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Örn: 0216 123 45 67"
                   />
@@ -446,7 +457,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => updateFormData({ email: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Örn: kadikoy@sendika.com"
                   />
@@ -466,8 +477,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                     <input
                       type="text"
                       value={formData.workingHours.weekday}
-                      onChange={(e) => setFormData({
-                        ...formData,
+                      onChange={(e) => updateFormData({
                         workingHours: { ...formData.workingHours, weekday: e.target.value }
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -481,8 +491,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                     <input
                       type="text"
                       value={formData.workingHours.saturday}
-                      onChange={(e) => setFormData({
-                        ...formData,
+                      onChange={(e) => updateFormData({
                         workingHours: { ...formData.workingHours, saturday: e.target.value }
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -496,8 +505,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                     <input
                       type="text"
                       value={formData.workingHours.sunday}
-                      onChange={(e) => setFormData({
-                        ...formData,
+                      onChange={(e) => updateFormData({
                         workingHours: { ...formData.workingHours, sunday: e.target.value }
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -514,7 +522,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
                     <input
                       type="checkbox"
                       checked={formData.isActive}
-                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      onChange={(e) => updateFormData({ isActive: e.target.checked })}
                       className="w-4 h-4 text-slate-700 border-gray-300 rounded focus:ring-slate-500"
                     />
                     <span className="text-sm font-medium text-gray-700">Aktif</span>
@@ -527,7 +535,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
             <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 İptal
@@ -543,6 +551,19 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
           </form>
         </div>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+            <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
+              <button onClick={handleConfirmClose} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Çık</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

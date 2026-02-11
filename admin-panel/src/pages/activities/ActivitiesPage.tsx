@@ -3,12 +3,14 @@ import { Plus, Search, Clock, Edit, Trash2, Calendar, X, Tag } from 'lucide-reac
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import ActivityFormModal from '@/components/activities/ActivityFormModal';
 import ActivityDetailModal from '@/components/activities/ActivityDetailModal';
 import CategoryFormModal from '@/components/activities/CategoryFormModal';
 import { activityService } from '@/services/api/activityService';
 import { useAuth } from '@/context/AuthContext';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface BranchOption {
   id: string;
@@ -215,17 +217,6 @@ export default function ActivitiesPage() {
     return category?.name || 'Bilinmeyen Kategori';
   };
 
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   return (
     <AdminLayout>
       <div className="p-6">
@@ -369,7 +360,7 @@ export default function ActivitiesPage() {
                               <div className="flex items-center gap-2 text-sm text-gray-700">
                                 <Clock className="w-4 h-4 text-gray-400" />
                                 <div>
-                                  <div>{formatDate(activity.activityDate)}</div>
+                                  <div>{formatDate(activity.activityDate, true, '2-digit')}</div>
                                 </div>
                               </div>
                             </td>
@@ -398,32 +389,13 @@ export default function ActivitiesPage() {
                   </table>
                 </div>
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
-                    Toplam {total} aktiviteden {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
-                  </div>
-                  {Math.ceil(total / limit) > 1 && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                      >
-                        Önceki
-                      </button>
-                      <span className="px-4 py-2 text-sm text-gray-700">
-                        Sayfa {page} / {Math.ceil(total / limit)}
-                      </span>
-                      <button
-                        onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
-                        disabled={page === Math.ceil(total / limit)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                      >
-                        Sonraki
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <Pagination
+                  currentPage={page}
+                  total={total}
+                  limit={limit}
+                  onPageChange={setPage}
+                  showPageNumbers={false}
+                />
                 </>
               )}
             </div>
