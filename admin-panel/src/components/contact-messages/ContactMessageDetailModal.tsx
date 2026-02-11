@@ -3,6 +3,7 @@ import { X, User, Tag, Building2, Calendar, CheckCircle, Clock } from 'lucide-re
 import { contactService } from '@/services/api/contactService';
 import { apiRequest } from '@/utils/api';
 import type { ContactMessage } from '@/types/contact';
+import { formatDate, formatRelativeDate } from '@/utils/dateFormatter';
 
 interface ContactMessageDetailModalProps {
   message: ContactMessage;
@@ -202,70 +203,6 @@ export default function ContactMessageDetailModal({
     } finally {
       setUpdating(false);
     }
-  };
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore Timestamp formatını kontrol et ({ seconds, nanoseconds } veya { _seconds, _nanoseconds })
-    if (typeof date === 'object' && ('seconds' in date || '_seconds' in date)) {
-      const seconds = (date as any).seconds || (date as any)._seconds || 0;
-      d = new Date(seconds * 1000);
-    } else if (typeof date === 'string') {
-      d = new Date(date);
-    } else if (date instanceof Date) {
-      d = date;
-    } else {
-      return '-';
-    }
-    
-    // Geçerli bir tarih olup olmadığını kontrol et
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return new Intl.DateTimeFormat('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(d);
-  };
-
-  const formatRelativeDate = (date: string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore Timestamp formatını kontrol et ({ seconds, nanoseconds } veya { _seconds, _nanoseconds })
-    if (typeof date === 'object' && ('seconds' in date || '_seconds' in date)) {
-      const seconds = (date as any).seconds || (date as any)._seconds || 0;
-      d = new Date(seconds * 1000);
-    } else if (typeof date === 'string') {
-      d = new Date(date);
-    } else if (date instanceof Date) {
-      d = date;
-    } else {
-      return '-';
-    }
-    
-    // Geçerli bir tarih olup olmadığını kontrol et
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'Az önce';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} dakika önce`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} saat önce`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} gün önce`;
-    
-    return formatDate(date);
   };
 
   if (!isOpen) return null;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Calendar, Tag, Building2, FileText, User, Clock } from 'lucide-react';
 import type { Activity, ActivityCategory } from '@/types/activity';
 import { batchFetchUserNames, formatUserName } from '@/services/api/userNameService';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface ActivityDetailModalProps {
   activity: Activity;
@@ -64,17 +65,6 @@ export default function ActivityDetailModal({ activity, categories, branches, on
     
     fetchNames();
   }, [activity.createdBy, activity.updatedBy]);
-
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const images = activity.images || [];
   const documents = activity.documents || [];

@@ -3,6 +3,7 @@ import { X, HelpCircle, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-r
 import type { FAQ } from '@/types/faq';
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface FAQPreviewModalProps {
   faq: FAQ | null;
@@ -22,34 +23,6 @@ export default function FAQPreviewModal({ faq, isOpen, onClose }: FAQPreviewModa
   }, [faq?.createdBy]);
 
   if (!isOpen || !faq) return null;
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + (date.nanoseconds || 0) / 1000000);
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

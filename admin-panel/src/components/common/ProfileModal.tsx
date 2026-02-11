@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { userService, UpdateProfileRequest } from '@/services/api/userService';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
-import type { EducationLevel } from '@shared/constants/education';
-import type { User as SharedUser } from '../../../../shared/types/user';
+import type { EducationLevel } from '@shared/types/user';
+import type { User as SharedUser } from '@shared/types/user';
 
 interface ProfileModalProps {
   isOpen: boolean;

@@ -74,11 +74,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         query = query.where('topicId', '==', topicId);
       } else {
         // Firestore 'in' operatörü maksimum 10 eleman kabul eder
+        // 10'dan fazla topic varsa, birden fazla query yapıp sonuçları birleştir
         if (branchTopicIds.length <= 10) {
           query = query.where('topicId', 'in', branchTopicIds);
         } else {
-          // 10'dan fazla topic varsa, ilk 10'unu al
-          query = query.where('topicId', 'in', branchTopicIds.slice(0, 10));
+          // Multiple queries için bayrak set et - query'yi sonra oluşturacağız
+          // Bu durumda aşağıdaki branch ve isRead filtrelerini eklemeden önce
+          // query'yi bölmeliyiz
         }
       }
 
@@ -88,6 +90,65 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // Okundu filtresi
       if (isRead !== null) {
         query = query.where('isRead', '==', isRead === 'true');
+      }
+      
+      // 10'dan fazla topic varsa, birden fazla query yap ve sonuçları birleştir
+      if (!topicId && branchTopicIds.length > 10) {
+        const allMessages: ContactMessage[] = [];
+        
+        // Topic ID'lerini 10'luk gruplara böl
+        const chunks: string[][] = [];
+        for (let i = 0; i < branchTopicIds.length; i += 10) {
+          chunks.push(branchTopicIds.slice(i, i + 10));
+        }
+        
+        // Her chunk için ayrı query yap
+        for (const chunk of chunks) {
+          let chunkQuery = db.collection('contact_messages')
+            .where('topicId', 'in', chunk)
+            .where('branchId', '==', currentUserData!.branchId);
+          
+          if (isRead !== null) {
+            chunkQuery = chunkQuery.where('isRead', '==', isRead === 'true');
+          }
+          
+          const chunkSnapshot = await chunkQuery.get();
+          const chunkMessages = chunkSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as ContactMessage[];
+          
+          allMessages.push(...chunkMessages);
+        }
+        
+        // Mesajları tarihe göre sırala (desc)
+        allMessages.sort((a, b) => {
+          const aTime = a.createdAt?._seconds || a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?._seconds || b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
+        
+        // Search filtresi varsa uygula
+        let filteredMessages = allMessages;
+        if (search) {
+          const searchLower = search.toLowerCase();
+          filteredMessages = allMessages.filter(msg => 
+            (msg.message || '').toLowerCase().includes(searchLower)
+          );
+        }
+        
+        // Pagination uygula
+        const total = filteredMessages.length;
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
+        
+        return successResponse('Mesajlar getirildi', { 
+          messages: paginatedMessages, 
+          total, 
+          page, 
+          limit 
+        });
       }
     }
     else {

@@ -82,20 +82,17 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
     console.warn(`⚠️  Origin not in allowed list (development mode): ${origin}`);
     console.warn('   Add this origin to your allowed origins if needed.');
     
-    // Fallback: İlk allowed origin'i kullan (browser yine de engeller)
+    // Development'ta fallback: İlk allowed origin'i kullan (geliştirme kolaylığı için)
     if (allowedOrigins.length > 0) {
       response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0]);
     }
   } else {
-    // Production'da origin izin verilen listede değilse
-    // CORS header'ı ekleme (browser tarafında request reject edilir)
-    // İlk allowed origin'i kullanarak fallback yapabiliriz ama güvenli değil
-    // Bu durumda response gönderilir ama browser request'i engeller
-    if (allowedOrigins.length > 0) {
-      // Güvenlik için sadece ilk origin'i kullan (yine de browser engeller)
-      response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0]);
-    }
-    // Eğer hiç allowed origin yoksa, header eklenmez
+    // Production'da origin izin verilen listede değilse veya yoksa
+    // CORS header'ı EKLEME - browser tarafında request reject edilir
+    // Bu güvenlik için kritik: bilinmeyen origin'lere asla erişim izni verme
+    console.warn(`🚫 Unauthorized origin blocked in production: ${origin || 'no-origin'}`);
+    // NOT: Access-Control-Allow-Origin header'ı SET ETMİYORUZ
+    // Browser bu durumda CORS hatası verecek ve isteği engelleyecek
   }
 
   // CORS method'ları

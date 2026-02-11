@@ -6,6 +6,7 @@ import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { batchFetchUserNames } from '@/services/api/userNameService';
 import UserStatusModal from './UserStatusModal';
 import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface UserDetail {
   uid: string;
@@ -179,53 +180,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       setLogs([]);
     } finally {
       setLoadingLogs(false);
-    }
-  };
-
-  const formatDate = (date: any, includeTime: boolean = true): string => {
-    if (!date) return '-';
-    
-    try {
-      // Firebase Timestamp veya Date objesi olabilir
-      let dateObj: Date;
-      
-      if (date.toDate) {
-        // Firebase Timestamp (client SDK)
-        dateObj = date.toDate();
-      } else if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'string') {
-        dateObj = new Date(date);
-      } else if (date.seconds !== undefined) {
-        // Firestore Timestamp (server SDK - { seconds: number, nanoseconds?: number })
-        dateObj = new Date(date.seconds * 1000 + (date.nanoseconds || 0) / 1000000);
-      } else if (typeof date === 'number') {
-        // Unix timestamp (milliseconds)
-        dateObj = new Date(date);
-      } else {
-        return '-';
-      }
-      
-      // Geçersiz tarih kontrolü
-      if (isNaN(dateObj.getTime())) {
-        return '-';
-      }
-      
-      const options: Intl.DateTimeFormatOptions = {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      };
-      
-      if (includeTime) {
-        options.hour = '2-digit';
-        options.minute = '2-digit';
-      }
-      
-      return new Intl.DateTimeFormat('tr-TR', options).format(dateObj);
-    } catch (error) {
-      console.error('Date formatting error:', error, date);
-      return '-';
     }
   };
 
