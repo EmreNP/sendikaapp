@@ -25,6 +25,7 @@ class ApiService {
     const headers: HeadersInit = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
       ...options.headers,
     };
 
@@ -260,9 +261,15 @@ class ApiService {
   }
 
   // News
-  async getNews(): Promise<News[]> {
+  async getNews(params?: { isFeatured?: boolean; isPublished?: boolean; limit?: number }): Promise<News[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.isFeatured !== undefined) queryParams.append('isFeatured', String(params.isFeatured));
+    if (params?.isPublished !== undefined) queryParams.append('isPublished', String(params.isPublished));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    
+    const url = `${API_ENDPOINTS.NEWS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const response = await this.request<{ success: boolean; data: { news: News[]; total?: number } }>(
-      API_ENDPOINTS.NEWS.BASE,
+      url,
       {},
       true
     );
@@ -299,15 +306,86 @@ class ApiService {
   }
 
   // Contact
-  async sendContactMessage(data: ContactMessage): Promise<void> {
+  async getTopics(): Promise<any[]> {
+    const response = await this.request<{ success: boolean; topics: any[] }>(
+      API_ENDPOINTS.TOPICS.BASE,
+      {},
+      true
+    );
+    return response.topics || [];
+  }
+
+  async sendContactMessage(data: { 
+    name?: string; 
+    email?: string; 
+    phone?: string; 
+    subject?: string; 
+    message: string; 
+  }): Promise<void> {
+    // Backend format: { topicId: string, message: string }
+    // Frontend format: { name, email, phone, subject, message }
+    
+    // "Genel İletişim" topic'ini bulmaya çalış, bulamazsan ilk topic'i kullan
+    const topics = await this.getTopics();
+    let topicId = topics.find((t: any) => 
+      t.name.toLowerCase().includes('genel') || 
+      t.name.toLowerCase().includes('iletişim') ||
+      t.name.toLowerCase().includes('destek')
+    )?.id;
+    
+    // Eğer hiç uygun topic yoksa, ilk topic'i kullan
+    if (!topicId && topics.length > 0) {
+      topicId = topics[0].id;
+    }
+    
+    if (!topicId) {
+      throw new Error('Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+    }
+    
+    // Mesajı formatıyla gönder
+    let formattedMessage = '';
+    if (data.name) formattedMessage += `Ad Soyad: ${data.name}\n`;
+    if (data.email) formattedMessage += `E-posta: ${data.email}\n`;
+    if (data.phone) formattedMessage += `Telefon: ${data.phone}\n`;
+    if (data.subject) formattedMessage += `Konu: ${data.subject}\n`;
+    formattedMessage += `\nMesaj:\n${data.message}`;
+    
     await this.request(
       API_ENDPOINTS.CONTACT.BASE,
       {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ 
+          topicId, 
+          message: formattedMessage 
+        }),
       },
       true
     );
+  }
+
+  // Notifications
+  async getNotifications(params?: { page?: number; limit?: number; type?: string }): Promise<{
+    notifications: any[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.type) queryParams.append('type', params.type);
+    
+    const endpoint = `${API_ENDPOINTS.NOTIFICATIONS.HISTORY}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await this.request<{ 
+      success: boolean; 
+      data: { 
+        notifications: any[]; 
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+      } 
+    }>(
+      endpoint,
+      {},
+      true
+    );
+    return response.data;
   }
 }
 

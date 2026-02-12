@@ -67,4 +67,14 @@ export const API_ENDPOINTS = {
   CONTACT: {
     BASE: '/api/contact-messages',
   },
+  // Topics
+  TOPICS: {
+    BASE: '/api/topics',
+    BY_ID: (id: string) => `/api/topics/${id}`,
+  },
+  // Notifications
+  NOTIFICATIONS: {
+    HISTORY: '/api/notifications/history',
+    TOKEN: '/api/notifications/token',
+  },
 };

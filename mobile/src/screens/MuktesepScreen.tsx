@@ -77,8 +77,19 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
     );
   };
 
-  // Front'tan birebir - handleCalculate
+  // Eski uygulamadaki formüle göre güncellendi
   const handleCalculate = () => {
+    // MBSTS validation (0-100 range)
+    const mbsts = parseFloat(mbstsScore) || 0;
+    if (mbsts < 0 || mbsts > 100) {
+      Alert.alert(
+        'Geçersiz MBSTS Puanı',
+        'MBSTS puanı 0 ile 100 arasında olmalıdır.',
+        [{ text: 'Tamam' }]
+      );
+      return;
+    }
+
     // 1. Education Points
     const educationPoints = selectedEducation.reduce((total, id) => {
       const option = educationOptions.find((opt) => opt.id === id);
@@ -91,7 +102,7 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
       return total + (option?.points || 0);
     }, 0);
 
-    // 3. Service Points - Front formülü
+    // 3. Service Points
     const years = parseInt(serviceYears) || 0;
     let servicePoints = 0;
     if (years <= 10) {
@@ -100,17 +111,57 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
       servicePoints = (10 * 3) + ((years - 10) * 1);
     }
 
-    // 4. MBSTS Points - %40
-    const mbsts = parseFloat(mbstsScore) || 0;
-    const mbstsPoints = mbsts * 0.40;
+    // 4. Calculate Müktesep base (education + certificate + service)
+    const muktesepBase = educationPoints + certificatePoints + servicePoints;
+    
+    // 5. Apply 20% weight to Müktesep
+    const muktesepScore = muktesepBase * 0.2;
+    
+    // 6. Apply 40% weight to MBSTS
+    const mbsts40Percent = mbsts * 0.4;
+    
+    // 7. Calculate current total
+    const currentTotal = muktesepScore + mbsts40Percent;
+    
+    // 8. Calculate required oral score (70 is minimum passing score)
+    const requiredOralScore = Math.max(0, 70 - currentTotal);
+    
+    // 9. Calculate required oral percentage (oral is 40% of final score)
+    const sozluYuzde = (requiredOralScore / 0.4);
 
-    const total = educationPoints + certificatePoints + servicePoints + mbstsPoints;
-    setCalculatedScore(total);
+    // Show warnings based on required oral score
+    let warningMessage = '';
+    if (requiredOralScore >= 40) {
+      warningMessage = '\n\n⚠️ Dikkat: Sözlü puanı %100\'den fazla olamaz. Bu tercih için uygun olmayabilirsiniz.';
+    } else if (sozluYuzde >= 90) {
+      warningMessage = '\n\n⚠️ Dikkat: Çok yüksek sözlü puanı gerekiyor. Başka tercihlere de bakmanızı öneririz.';
+    }
+
+    // Display result with breakdown
+    const resultMessage = `
+📊 Hesaplama Detayları:
+
+🎓 Müktesep Puanı: ${muktesepScore.toFixed(2)}
+   (Toplam: ${muktesepBase} × %20)
+
+📝 MBSTS Puanı: ${mbsts40Percent.toFixed(2)}
+   (${mbsts} × %40)
+
+📊 Mevcut Toplam: ${currentTotal.toFixed(2)}
+
+🎤 Gerekli Sözlü Puanı: ${requiredOralScore.toFixed(2)}
+   (Yüzde: %${sozluYuzde.toFixed(0)})
+
+🎯 Toplam (70 üzeri): ${(currentTotal + requiredOralScore).toFixed(2)}${warningMessage}
+    `;
+
+    Alert.alert('Hesaplama Sonucu', resultMessage.trim(), [{ text: 'Tamam' }]);
+
+    setCalculatedScore(currentTotal);
     setShowResult(true);
 
     // Scroll to top
     scrollRef.current?.scrollTo({ y: 0, animated: true });
-    Alert.alert('Başarılı', 'Hesaplama tamamlandı!');
   };
 
   return (

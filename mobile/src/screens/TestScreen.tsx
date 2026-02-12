@@ -6,13 +6,13 @@ import type { TestContentDetail, TestQuestion } from '../types';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
 type RouteParams = {
-  params: { testId: string };
+  params: { testId: string; contentId?: string; onComplete?: () => void };
 };
 
 export const TestScreen: React.FC = () => {
   const route = useRoute() as RouteParams;
   const navigation = useNavigation();
-  const { testId } = route.params;
+  const { testId, contentId, onComplete } = route.params;
 
   const [test, setTest] = useState<TestContentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +55,11 @@ export const TestScreen: React.FC = () => {
         if (opt && opt.isCorrect) correct += 1;
       });
       setResult({ correct, total: questions.length });
+      
+      // Mark test as completed when submitted
+      if (onComplete) {
+        onComplete();
+      }
     } finally {
       setSubmitting(false);
     }

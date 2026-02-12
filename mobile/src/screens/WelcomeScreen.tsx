@@ -327,7 +327,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                   <Image
                     source={require('../../assets/logo.png')}
                     style={styles.logoImage}
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 </View>
               </LinearGradient>
@@ -354,7 +354,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             <Text style={styles.subtitle}>Konya Şubesi</Text>
 
             <View style={styles.taglineContainer}>
-              <Text style={styles.tagline}>Birlikte Daha Güçlü</Text>
+              <Text style={styles.tagline}>İlkeli Cesur ve Kararlı Sendikacılık</Text>
             </View>
           </Animated.View>
 
@@ -372,6 +372,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               {[
                 { icon: 'book-open', label: 'Eğitimler' },
                 { icon: 'map-pin', label: 'Şubeler' },
+                { icon: 'book', label: 'Haberler' },
+                { icon: 'calendar', label: 'Etkinlikler' },
                 { icon: 'users', label: 'Topluluk' },
                 { icon: 'shield', label: 'Haklarınız' },
               ].map((feature, index) => (
@@ -510,19 +512,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(59, 130, 246, 0.3)',
+    overflow: 'hidden',
   },
   logoInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    padding: 8,
+    overflow: 'hidden',
   },  logoImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },  logoIconContainer: {
     width: 70,
     height: 70,
@@ -598,7 +601,7 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     alignItems: 'center',
-    width: (width - 96) / 4,
+    width: (width - 96) / 3, // 3 sütun (6 öğe = 3x2)
   },
   featureIconWrapper: {
     marginBottom: 8,

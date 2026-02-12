@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -43,6 +44,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
 
   useEffect(() => {
     fetchCourseDetails();
+    loadCompletedItems();
   }, [courseId]);
 
   useEffect(() => {
@@ -51,6 +53,14 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       loadContents(selectedLesson.id, activeTab);
     }
   }, [selectedLesson, activeTab]);
+
+  // Navigation focus event - reload completed items when returning from Document/Test
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadCompletedItems();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchCourseDetails = async () => {
     try {
@@ -98,13 +108,42 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
     }
   };
 
-  const toggleComplete = (id: string) => {
-    setCompletedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      return newSet;
-    });
+  const loadCompletedItems = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('completedContent');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setCompletedItems(new Set(parsed));
+      }
+    } catch (err) {
+      console.error('Error loading completed items:', err);
+    }
+  };
+
+  const markAsCompleted = async (id: string) => {
+    try {
+      const newSet = new Set(completedItems);
+      newSet.add(id);
+      setCompletedItems(newSet);
+      await AsyncStorage.setItem('completedContent', JSON.stringify(Array.from(newSet)));
+    } catch (err) {
+      console.error('Error marking as completed:', err);
+    }
+  };
+
+  const toggleComplete = async (id: string) => {
+    try {
+      const newSet = new Set(completedItems);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      setCompletedItems(newSet);
+      await AsyncStorage.setItem('completedContent', JSON.stringify(Array.from(newSet)));
+    } catch (err) {
+      console.error('Error toggling complete:', err);
+    }
   };
 
   if (loading) {
@@ -272,27 +311,36 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
                     <TouchableOpacity key={c.id} onPress={async () => {
                       try {
                         if (c.type === 'test') {
-                          // navigate to Test screen
-                          navigation.navigate('Test' as any, { testId: c.id });
+                          // navigate to Test screen with completion callback
+                          navigation.navigate('Test' as any, { 
+                            testId: c.id,
+                            contentId: c.id,
+                            onComplete: () => markAsCompleted(c.id)
+                          });
                           return;
                         }
 
                         if (c.type === 'document' && c.url) {
-                          // open document using WebView-based Document screen (more stable)
-                          navigation.navigate('Document' as any, { url: c.url, title: c.title });
+                          // Mark document as completed when opened
+                          await markAsCompleted(c.id);
+                          // open document using WebView-based Document screen
+                          navigation.navigate('Document' as any, { 
+                            url: c.url, 
+                            title: c.title,
+                            contentId: c.id
+                          });
                           return;
                         }
 
                         if (c.url) {
                           await Linking.openURL(c.url);
                           // mark as completed when opened
-                          toggleComplete(c.id);
+                          await markAsCompleted(c.id);
                         } else {
-                          toggleComplete(c.id);
+                          await toggleComplete(c.id);
                         }
                       } catch (err) {
                         console.error('Failed to open url:', err);
-                        toggleComplete(c.id);
                       }
                     }} style={styles.contentItem} activeOpacity={0.8}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
