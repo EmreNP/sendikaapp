@@ -1,5 +1,10 @@
 'use client'
-import { RedocStandalone } from 'redoc'
+import dynamic from 'next/dynamic'
+
+const RedocStandalone = dynamic(
+  () => import('redoc').then((mod) => mod.RedocStandalone),
+  { ssr: false }
+)
 
 export default function ApiDocs() {
   return (
@@ -14,6 +19,10 @@ export default function ApiDocs() {
               },
             },
           },
+          nativeScrollbars: true,
+          disableSearch: false,
+          expandResponses: '200,201',
+          hideDownloadButton: false,
         }}
       />
     </div>

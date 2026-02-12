@@ -339,7 +339,26 @@ export const components = {
       },
 
       PerformanceSummaryResponse: {
-        allOf: [ { $ref: '#/components/schemas/SuccessResponse' }, { type: 'object', properties: { data: { type: 'object', properties: { overview: { type: 'object', properties: { totalBranches: { type: 'integer' }, activeBranches: { type: 'integer' }, totalManagers: { type: 'integer' }, totalActivities: { type: 'integer' }, totalMembers: { type: 'integer' }, activeMembersCount: { type: 'integer' } } }, topBranches: { type: 'array', items: { $ref: '#/components/schemas/TopBranchItem' } }, topManagers: { type: 'array', items: { $ref: '#/components/schemas/TopManagerItem' } }, activityTrend: { type: 'array', items: { $ref: '#/components/schemas/PerformanceTrendItem' } }, branchComparison: { type: 'array', items: { $ref: '#/components/schemas/BranchComparisonItem' } }, timeGranularity: { type: 'string' } } } } ] },
+        allOf: [ 
+          { $ref: '#/components/schemas/SuccessResponse' }, 
+          { 
+            type: 'object', 
+            properties: { 
+              data: { 
+                type: 'object', 
+                properties: { 
+                  overview: { type: 'object', properties: { totalBranches: { type: 'integer' }, activeBranches: { type: 'integer' }, totalManagers: { type: 'integer' }, totalActivities: { type: 'integer' }, totalMembers: { type: 'integer' }, activeMembersCount: { type: 'integer' } } }, 
+                  topBranches: { type: 'array', items: { $ref: '#/components/schemas/TopBranchItem' } }, 
+                  topManagers: { type: 'array', items: { $ref: '#/components/schemas/TopManagerItem' } }, 
+                  activityTrend: { type: 'array', items: { $ref: '#/components/schemas/PerformanceTrendItem' } }, 
+                  branchComparison: { type: 'array', items: { $ref: '#/components/schemas/BranchComparisonItem' } }, 
+                  timeGranularity: { type: 'string' } 
+                } 
+              } 
+            } 
+          } 
+        ]
+      },
 
       BranchesPerformanceResponse: { allOf: [ { $ref: '#/components/schemas/SuccessResponse' }, { type: 'object', properties: { data: { type: 'object', properties: { branches: { type: 'array', items: { type: 'object' } }, summary: { type: 'object' }, timeGranularity: { type: 'string' } } } } } ] },
 

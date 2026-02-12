@@ -16,6 +16,34 @@
     "predeploy": ["npm --prefix admin-panel run build"],
     "rewrites": [
       {
+        "source": "/api-docs",
+        "run": {
+          "serviceId": "sendika-backend",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api-docs/**",
+        "run": {
+          "serviceId": "sendika-backend",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/_next/static/**",
+        "run": {
+          "serviceId": "sendika-backend",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/_next/image/**",
+        "run": {
+          "serviceId": "sendika-backend",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "/api/**",
         "run": {
           "serviceId": "sendika-backend",
