@@ -1,5 +1,6 @@
 import { X, Calendar, Users, Building2, CheckCircle, XCircle, Bell, FileText } from 'lucide-react';
 import type { NotificationHistory } from '@/services/api/notificationService';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface NotificationDetailModalProps {
   notification: NotificationHistory | null;
@@ -13,39 +14,6 @@ export default function NotificationDetailModal({
   onClose,
 }: NotificationDetailModalProps) {
   if (!isOpen || !notification) return null;
-
-  const formatDate = (date: any): string => {
-    if (!date) return '-';
-    
-    try {
-      let dateObj: Date;
-      
-      if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'object' && date.seconds) {
-        dateObj = new Date(date.seconds * 1000);
-      } else if (typeof date === 'string') {
-        dateObj = new Date(date);
-      } else {
-        return '-';
-      }
-      
-      if (isNaN(dateObj.getTime())) {
-        return '-';
-      }
-      
-      return new Intl.DateTimeFormat('tr-TR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(dateObj);
-    } catch (error) {
-      console.error('Date formatting error:', error);
-      return '-';
-    }
-  };
 
   const getTargetAudienceLabel = (audience: string): string => {
     switch (audience) {

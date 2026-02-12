@@ -10,6 +10,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 interface PasswordChangeRequest {
   currentPassword: string;
   newPassword: string;
@@ -45,7 +46,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       const firebaseWebApiKey = process.env.FIREBASE_WEB_API_KEY;
       
       if (!firebaseWebApiKey) {
-        console.error('❌ FIREBASE_WEB_API_KEY not configured');
+        logger.error('❌ FIREBASE_WEB_API_KEY not configured');
         throw new AppInternalServerError('Sunucu yapılandırma hatası');
       }
       
@@ -74,11 +75,11 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           }
           
           // Diğer hatalar için
-          console.error('❌ Password verification error:', errorMessage);
+          logger.error('❌ Password verification error:', errorMessage);
           throw new AppValidationError('Mevcut şifre doğrulanamadı');
         }
         
-        console.log(`✅ Current password verified for user: ${user.uid}`);
+        logger.log(`✅ Current password verified for user: ${user.uid}`);
       } catch (verifyError: unknown) {
         // Eğer zaten AppError ise, re-throw et
         if (verifyError instanceof AppValidationError) {
@@ -86,7 +87,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         }
         // Diğer hatalar için
         const errorMessage = isErrorWithMessage(verifyError) ? verifyError.message : 'Bilinmeyen hata';
-        console.error('❌ Password verification error:', errorMessage);
+        logger.error('❌ Password verification error:', errorMessage);
         throw new AppInternalServerError('Mevcut şifre doğrulanırken bir hata oluştu');
       }
       
@@ -95,7 +96,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         password: newPassword
       });
       
-      console.log(`✅ Password changed for user: ${user.uid}`);
+      logger.log(`✅ Password changed for user: ${user.uid}`);
       
       // 5️⃣ BAŞARILI RESPONSE
       return successResponse(

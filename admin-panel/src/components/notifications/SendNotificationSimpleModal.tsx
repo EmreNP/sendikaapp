@@ -6,6 +6,7 @@ import { NOTIFICATION_TYPE, TARGET_AUDIENCE } from '@shared/constants/notificati
 import type { NotificationType, TargetAudience } from '@shared/constants/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -48,6 +49,9 @@ export default function SendNotificationSimpleModal({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
 
+  const isBranchManager = user?.role === 'branch_manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   // Admin/superadmin ve branch_manager için branch listesini yükle
   useEffect(() => {
     if (isOpen && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'branch_manager')) {
@@ -72,10 +76,17 @@ export default function SendNotificationSimpleModal({
   const fetchBranches = async () => {
     try {
       setLoadingBranches(true);
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     } finally {
       setLoadingBranches(false);
     }
@@ -158,7 +169,7 @@ export default function SendNotificationSimpleModal({
         setResult(null);
       }, 3000);
     } catch (err: any) {
-      console.error('Error sending notification:', err);
+      logger.error('Error sending notification:', err);
       setError(err.message || 'Bildirim gönderilirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -166,9 +177,6 @@ export default function SendNotificationSimpleModal({
   };
 
   if (!isOpen) return null;
-
-  const isBranchManager = user?.role === 'branch_manager';
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

@@ -104,6 +104,7 @@ export function errorResponse(
 
 /**
  * Validation hatası response'u
+ * @deprecated Use `throw new AppValidationError(message)` with asyncHandler instead.
  */
 export function validationError(
   message: string,
@@ -119,6 +120,7 @@ export function validationError(
 
 /**
  * Authentication hatası response'u (401)
+ * @deprecated Use `throw new AppAuthenticationError(message)` with asyncHandler instead.
  */
 export function authenticationError(
   message: string = 'Kimlik doğrulaması gerekli'
@@ -128,6 +130,7 @@ export function authenticationError(
 
 /**
  * Yetki hatası response'u (403)
+ * @deprecated Use `throw new AppAuthorizationError(message)` with asyncHandler instead.
  */
 export function unauthorizedError(
   message: string = 'Bu işlem için yetkiniz yok'
@@ -137,6 +140,7 @@ export function unauthorizedError(
 
 /**
  * Email doğrulama hatası response'u (403)
+ * @deprecated Use `throw new AppAuthorizationError(message)` with asyncHandler instead.
  */
 export function emailVerificationError(
   message: string = 'Bu işlem için e-posta adresinizi doğrulamanız gerekiyor'
@@ -146,6 +150,7 @@ export function emailVerificationError(
 
 /**
  * Bulunamadı hatası response'u
+ * @deprecated Use `throw new AppNotFoundError(resource)` with asyncHandler instead.
  */
 export function notFoundError(
   resource: string = 'Kaynak'
@@ -155,6 +160,7 @@ export function notFoundError(
 
 /**
  * Sunucu hatası response'u
+ * @deprecated Use `throw new AppInternalServerError(message)` with asyncHandler instead.
  */
 export function serverError(
   message: string = 'Sunucu hatası oluştu',
@@ -304,228 +310,84 @@ export function serializeTimestamp(timestamp: any): any {
 }
 
 /**
- * Kullanıcı objesindeki tüm Timestamp'leri serialize eder
+ * Generic Timestamp Serializer
+ * Verilen objenin belirtilen alanlarındaki Firestore Timestamp'lerini ISO string'e çevirir.
+ *
+ * @param obj - Serialize edilecek obje
+ * @param fields - Timestamp alanlarının isimleri (default: ['createdAt', 'updatedAt'])
  */
+export function serializeObjectTimestamps<T extends Record<string, any>>(
+  obj: T | null | undefined,
+  fields: string[] = ['createdAt', 'updatedAt'],
+): T | null | undefined {
+  if (!obj) return obj;
+
+  const serialized = { ...obj } as any;
+  for (const field of fields) {
+    if (obj[field] !== undefined) {
+      serialized[field] = serializeTimestamp(obj[field]);
+    }
+  }
+  return serialized;
+}
+
+// ==================== Model-Specific Serializers ====================
+// Thin wrappers over the generic function. They keep call-sites readable
+// and ensure the correct fields are always listed in one place.
+
+/** Kullanıcı objesindeki tüm Timestamp'leri serialize eder */
 export function serializeUserTimestamps(user: any): any {
-  if (!user) return user;
-  
-  const serialized = { ...user };
-  
-  if (user.birthDate) {
-    serialized.birthDate = serializeTimestamp(user.birthDate);
-  }
-  
-  if (user.createdAt) {
-    serialized.createdAt = serializeTimestamp(user.createdAt);
-  }
-  
-  if (user.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(user.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(user, ['birthDate', 'createdAt', 'updatedAt']);
 }
 
-/**
- * News objesindeki tüm Timestamp'leri serialize eder
- */
+/** News objesindeki tüm Timestamp'leri serialize eder */
 export function serializeNewsTimestamps(news: any): any {
-  if (!news) return news;
-  
-  const serialized = { ...news };
-  
-  if (news.createdAt) {
-    serialized.createdAt = serializeTimestamp(news.createdAt);
-  }
-  
-  if (news.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(news.updatedAt);
-  }
-  
-  if (news.publishedAt) {
-    serialized.publishedAt = serializeTimestamp(news.publishedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(news, ['createdAt', 'updatedAt', 'publishedAt']);
 }
 
-/**
- * Announcement objesindeki tüm Timestamp'leri serialize eder
- */
+/** Announcement objesindeki tüm Timestamp'leri serialize eder */
 export function serializeAnnouncementTimestamps(announcement: any): any {
-  if (!announcement) return announcement;
-  
-  const serialized = { ...announcement };
-  
-  if (announcement.createdAt) {
-    serialized.createdAt = serializeTimestamp(announcement.createdAt);
-  }
-  
-  if (announcement.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(announcement.updatedAt);
-  }
-  
-  if (announcement.publishedAt) {
-    serialized.publishedAt = serializeTimestamp(announcement.publishedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(announcement, ['createdAt', 'updatedAt', 'publishedAt']);
 }
 
-/**
- * Training objesindeki tüm Timestamp'leri serialize eder
- */
+/** Training objesindeki tüm Timestamp'leri serialize eder */
 export function serializeTrainingTimestamps(training: any): any {
-  if (!training) return training;
-  
-  const serialized = { ...training };
-  
-  if (training.createdAt) {
-    serialized.createdAt = serializeTimestamp(training.createdAt);
-  }
-  
-  if (training.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(training.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(training);
 }
 
-/**
- * FAQ objesindeki tüm Timestamp'leri serialize eder
- */
+/** FAQ objesindeki tüm Timestamp'leri serialize eder */
 export function serializeFAQTimestamps(faq: any): any {
-  if (!faq) return faq;
-  
-  const serialized = { ...faq };
-  
-  if (faq.createdAt) {
-    serialized.createdAt = serializeTimestamp(faq.createdAt);
-  }
-  
-  if (faq.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(faq.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(faq);
 }
 
-/**
- * Lesson objesindeki tüm Timestamp'leri serialize eder
- */
+/** Lesson objesindeki tüm Timestamp'leri serialize eder */
 export function serializeLessonTimestamps(lesson: any): any {
-  if (!lesson) return lesson;
-  
-  const serialized = { ...lesson };
-  
-  if (lesson.createdAt) {
-    serialized.createdAt = serializeTimestamp(lesson.createdAt);
-  }
-  
-  if (lesson.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(lesson.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(lesson);
 }
 
-/**
- * Video Content objesindeki tüm Timestamp'leri serialize eder
- */
+/** Video Content objesindeki tüm Timestamp'leri serialize eder */
 export function serializeVideoContentTimestamps(video: any): any {
-  if (!video) return video;
-  
-  const serialized = { ...video };
-  
-  if (video.createdAt) {
-    serialized.createdAt = serializeTimestamp(video.createdAt);
-  }
-  
-  if (video.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(video.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(video);
 }
 
-/**
- * Document Content objesindeki tüm Timestamp'leri serialize eder
- */
+/** Document Content objesindeki tüm Timestamp'leri serialize eder */
 export function serializeDocumentContentTimestamps(document: any): any {
-  if (!document) return document;
-  
-  const serialized = { ...document };
-  
-  if (document.createdAt) {
-    serialized.createdAt = serializeTimestamp(document.createdAt);
-  }
-  
-  if (document.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(document.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(document);
 }
 
-/**
- * Test Content objesindeki tüm Timestamp'leri serialize eder
- */
+/** Test Content objesindeki tüm Timestamp'leri serialize eder */
 export function serializeTestContentTimestamps(test: any): any {
-  if (!test) return test;
-  
-  const serialized = { ...test };
-  
-  if (test.createdAt) {
-    serialized.createdAt = serializeTimestamp(test.createdAt);
-  }
-  
-  if (test.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(test.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(test);
 }
 
-/**
- * Activity Category objesindeki tüm Timestamp'leri serialize eder
- */
+/** Activity Category objesindeki tüm Timestamp'leri serialize eder */
 export function serializeActivityCategoryTimestamps(category: any): any {
-  if (!category) return category;
-  
-  const serialized = { ...category };
-  
-  if (category.createdAt) {
-    serialized.createdAt = serializeTimestamp(category.createdAt);
-  }
-  
-  if (category.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(category.updatedAt);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(category);
 }
 
-/**
- * Activity objesindeki tüm Timestamp'leri serialize eder
- */
+/** Activity objesindeki tüm Timestamp'leri serialize eder */
 export function serializeActivityTimestamps(activity: any): any {
-  if (!activity) return activity;
-  
-  const serialized = { ...activity };
-  
-  if (activity.createdAt) {
-    serialized.createdAt = serializeTimestamp(activity.createdAt);
-  }
-  
-  if (activity.updatedAt) {
-    serialized.updatedAt = serializeTimestamp(activity.updatedAt);
-  }
-  
-  if (activity.activityDate) {
-    serialized.activityDate = serializeTimestamp(activity.activityDate);
-  }
-  
-  return serialized;
+  return serializeObjectTimestamps(activity, ['createdAt', 'updatedAt', 'activityDate']);
 }
 
 /**

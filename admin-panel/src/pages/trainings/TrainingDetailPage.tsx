@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Edit, Trash2, BookOpen, Search, Eye, EyeOff, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -8,11 +8,11 @@ import LessonDetailModal from '@/components/trainings/LessonDetailModal';
 import { trainingService } from '@/services/api/trainingService';
 import { lessonService } from '@/services/api/lessonService';
 import type { Training, Lesson } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 export default function TrainingDetailPage() {
-  const location = useLocation();
+  const { trainingId } = useParams<{ trainingId: string }>();
   const navigate = useNavigate();
-  const trainingId = (location.state as { trainingId?: string })?.trainingId;
   const [training, setTraining] = useState<Training | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export default function TrainingDetailPage() {
       const response = await trainingService.getTraining(trainingId);
       setTraining(response.training);
     } catch (err: any) {
-      console.error('Load training error:', err);
+      logger.error('Load training error:', err);
       setError(err.message || 'Eğitim yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export default function TrainingDetailPage() {
       const response = await lessonService.getLessons(trainingId);
       setLessons(response.lessons);
     } catch (err: any) {
-      console.error('Load lessons error:', err);
+      logger.error('Load lessons error:', err);
     }
   };
 
@@ -72,7 +72,7 @@ export default function TrainingDetailPage() {
       await lessonService.deleteLesson(lessonId);
       await loadLessons();
     } catch (err: any) {
-      console.error('Delete lesson error:', err);
+      logger.error('Delete lesson error:', err);
       alert(err.message || 'Ders silinirken bir hata oluştu');
     }
   };
@@ -84,7 +84,7 @@ export default function TrainingDetailPage() {
       });
       await loadLessons();
     } catch (err: any) {
-      console.error('Toggle lesson active error:', err);
+      logger.error('Toggle lesson active error:', err);
       alert(err.message || 'Ders durumu güncellenirken bir hata oluştu');
     }
   };
@@ -222,7 +222,7 @@ export default function TrainingDetailPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate('/admin/lessons/detail', { state: { lessonId: lesson.id, trainingId: trainingId } });
+                              navigate(`/admin/trainings/${trainingId}/lessons/${lesson.id}`);
                             }}
                             className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                             title="İçeriklere Git"

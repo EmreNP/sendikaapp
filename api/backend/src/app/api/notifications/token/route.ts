@@ -16,6 +16,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 interface RegisterTokenRequest {
   token: string;
   deviceId?: string;
@@ -68,7 +69,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      console.log(`✅ Yeni FCM token kaydedildi: ${user.uid} - ${token.substring(0, 20)}...`);
+      logger.log(`✅ Yeni FCM token kaydedildi: ${user.uid} - ${token.substring(0, 20)}...`);
     } else {
       // 4b. MEVCUT TOKEN GÜNCELLEMESİ
       // Token zaten var, sadece bilgileri güncelle
@@ -84,7 +85,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      console.log(`✅ FCM token güncellendi: ${user.uid} - ${token.substring(0, 20)}...`);
+      logger.log(`✅ FCM token güncellendi: ${user.uid} - ${token.substring(0, 20)}...`);
     }
     
     // 5. Başarılı response döndür
@@ -135,7 +136,7 @@ export const DELETE = asyncHandler(async (request: NextRequest) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      console.log(`✅ FCM token pasif yapıldı: ${user.uid}`);
+      logger.log(`✅ FCM token pasif yapıldı: ${user.uid}`);
     }
     
     // Diğer endpoint'lerle tutarlı olması için data gönderiyoruz

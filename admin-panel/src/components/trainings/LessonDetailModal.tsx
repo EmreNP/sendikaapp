@@ -3,6 +3,7 @@ import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalL
 import { useNavigate } from 'react-router-dom';
 import { lessonService } from '@/services/api/lessonService';
 import type { Lesson } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface LessonDetailModalProps {
   lesson: Lesson | null;
@@ -36,7 +37,7 @@ export default function LessonDetailModal({
           const response = await lessonService.getLesson(lesson.id);
           setLessonData(response.lesson);
         } catch (err) {
-          console.error('Load lesson error:', err);
+          logger.error('Load lesson error:', err);
         }
       };
       loadLesson();
@@ -161,7 +162,7 @@ export default function LessonDetailModal({
               <button
                 type="button"
                 onClick={() => {
-                  navigate('/admin/lessons/detail', { state: { lessonId: lessonData.id, trainingId: trainingId } });
+                  navigate(`/admin/trainings/${trainingId}/lessons/${lessonData.id}`);
                   onClose();
                 }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"

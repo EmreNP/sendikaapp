@@ -1,15 +1,26 @@
 import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 
+import { logger } from '../../lib/utils/logger';
+
 /**
- * Training için mevcut en yüksek order'ı bulur ve yeni order döndürür
+ * Verilen collection'da en yüksek order değerini transaction içinde atomik olarak okur
+ * ve yeni order döndürür. Race condition'lara karşı güvenlidir.
  */
-export async function getNextTrainingOrder(): Promise<number> {
-  try {
-    const snapshot = await db.collection('trainings')
-      .orderBy('order', 'desc')
-      .limit(1)
-      .get();
+async function getNextOrderInTransaction(
+  collectionName: string,
+  filterField?: string,
+  filterValue?: string
+): Promise<number> {
+  return db.runTransaction(async (transaction) => {
+    let query: FirebaseFirestore.Query = db.collection(collectionName);
+    
+    if (filterField && filterValue) {
+      query = query.where(filterField, '==', filterValue);
+    }
+    
+    query = query.orderBy('order', 'desc').limit(1);
+    const snapshot = await transaction.get(query);
     
     if (snapshot.empty) {
       return 1;
@@ -17,37 +28,38 @@ export async function getNextTrainingOrder(): Promise<number> {
     
     const maxOrder = snapshot.docs[0].data().order || 0;
     return maxOrder + 1;
+  });
+}
+
+/**
+ * Training için mevcut en yüksek order'ı bulur ve yeni order döndürür
+ * Transaction kullanarak race condition'lara karşı güvenli çalışır
+ */
+export async function getNextTrainingOrder(): Promise<number> {
+  try {
+    return await getNextOrderInTransaction('trainings');
   } catch (error) {
-    console.error('Error getting next training order:', error);
+    logger.error('Error getting next training order:', error);
     return 1;
   }
 }
 
 /**
  * Belirli bir training içindeki en yüksek lesson order'ını bulur ve yeni order döndürür
+ * Transaction kullanarak race condition'lara karşı güvenli çalışır
  */
 export async function getNextLessonOrder(trainingId: string): Promise<number> {
   try {
-    const snapshot = await db.collection('lessons')
-      .where('trainingId', '==', trainingId)
-      .orderBy('order', 'desc')
-      .limit(1)
-      .get();
-    
-    if (snapshot.empty) {
-      return 1;
-    }
-    
-    const maxOrder = snapshot.docs[0].data().order || 0;
-    return maxOrder + 1;
+    return await getNextOrderInTransaction('lessons', 'trainingId', trainingId);
   } catch (error) {
-    console.error('Error getting next lesson order:', error);
+    logger.error('Error getting next lesson order:', error);
     return 1;
   }
 }
 
 /**
  * Belirli bir lesson içindeki en yüksek content order'ını bulur ve yeni order döndürür
+ * Transaction kullanarak race condition'lara karşı güvenli çalışır
  */
 export async function getNextContentOrder(lessonId: string, contentType: 'video' | 'document' | 'test'): Promise<number> {
   try {
@@ -66,42 +78,22 @@ export async function getNextContentOrder(lessonId: string, contentType: 'video'
         return 1;
     }
     
-    const snapshot = await db.collection(collectionName)
-      .where('lessonId', '==', lessonId)
-      .orderBy('order', 'desc')
-      .limit(1)
-      .get();
-    
-    if (snapshot.empty) {
-      return 1;
-    }
-    
-    const maxOrder = snapshot.docs[0].data().order || 0;
-    return maxOrder + 1;
+    return await getNextOrderInTransaction(collectionName, 'lessonId', lessonId);
   } catch (error) {
-    console.error('Error getting next content order:', error);
+    logger.error('Error getting next content order:', error);
     return 1;
   }
 }
 
 /**
  * FAQ için mevcut en yüksek order'ı bulur ve yeni order döndürür
+ * Transaction kullanarak race condition'lara karşı güvenli çalışır
  */
 export async function getNextFAQOrder(): Promise<number> {
   try {
-    const snapshot = await db.collection('faqs')
-      .orderBy('order', 'desc')
-      .limit(1)
-      .get();
-    
-    if (snapshot.empty) {
-      return 1;
-    }
-    
-    const maxOrder = snapshot.docs[0].data().order || 0;
-    return maxOrder + 1;
+    return await getNextOrderInTransaction('faqs');
   } catch (error) {
-    console.error('Error getting next FAQ order:', error);
+    logger.error('Error getting next FAQ order:', error);
     return 1;
   }
 }
@@ -154,7 +146,7 @@ export async function shiftOrdersUp(
     // Firestore batch limit: 500
     if (updateCount > 0 && updateCount <= 500) {
       await batch.commit();
-      console.log(`✅ Shifted ${updateCount} orders up in ${collectionName}`);
+      logger.log(`✅ Shifted ${updateCount} orders up in ${collectionName}`);
     } else if (updateCount > 500) {
       // Eğer 500'den fazla güncelleme varsa, chunk'lar halinde yap
       const chunks: admin.firestore.DocumentSnapshot[][] = [];
@@ -176,10 +168,10 @@ export async function shiftOrdersUp(
         });
         await chunkBatch.commit();
       }
-      console.log(`✅ Shifted ${updateCount} orders up in ${collectionName} (chunked)`);
+      logger.log(`✅ Shifted ${updateCount} orders up in ${collectionName} (chunked)`);
     }
   } catch (error) {
-    console.error(`Error shifting orders up in ${collectionName}:`, error);
+    logger.error(`Error shifting orders up in ${collectionName}:`, error);
     throw error;
   }
 }
@@ -220,7 +212,7 @@ export async function shiftOrdersDown(
     
     if (updateCount > 0 && updateCount <= 500) {
       await batch.commit();
-      console.log(`✅ Shifted ${updateCount} orders down in ${collectionName}`);
+      logger.log(`✅ Shifted ${updateCount} orders down in ${collectionName}`);
     } else if (updateCount > 500) {
       // Chunk'lar halinde yap
       const chunks: admin.firestore.DocumentSnapshot[][] = [];
@@ -239,10 +231,10 @@ export async function shiftOrdersDown(
         });
         await chunkBatch.commit();
       }
-      console.log(`✅ Shifted ${updateCount} orders down in ${collectionName} (chunked)`);
+      logger.log(`✅ Shifted ${updateCount} orders down in ${collectionName} (chunked)`);
     }
   } catch (error) {
-    console.error(`Error shifting orders down in ${collectionName}:`, error);
+    logger.error(`Error shifting orders down in ${collectionName}:`, error);
     throw error;
   }
 }

@@ -8,13 +8,13 @@ import type { UserStatus, UserStatusUpdateData, UserRegistrationLog } from '@sha
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/status - Kullanıcı durumunu güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -111,9 +111,15 @@ export const PATCH = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       
-      // PDF belgesi URL'i varsa ekle
+      // PDF belgesi URL/path varsa ekle
       if (documentUrl) {
-        updateData.documentUrl = documentUrl;
+        // If documentUrl looks like a storage path (doesn't start with http), save as documentPath
+        if (!documentUrl.startsWith('http')) {
+          updateData.documentPath = documentUrl;
+        } else {
+          // Legacy: still accept full URLs (but prefer paths)
+          updateData.documentUrl = documentUrl;
+        }
       }
       
       await db.collection('users').doc(targetUserId).update(updateData as any);
@@ -147,7 +153,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.REJECTED) {
           try {
@@ -168,7 +174,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.PENDING_DETAILS) {
           try {
@@ -190,7 +196,7 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
           }
         }
       }
@@ -231,7 +237,7 @@ export const PATCH = asyncHandler(async (
           logCreated = true;
         } catch (err: unknown) {
           logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-          console.error('Failed to create admin log:', logError);
+          logger.error('Failed to create admin log:', logError);
         }
       } else {
         // Branch Manager log'ları yukarıda oluşturuldu

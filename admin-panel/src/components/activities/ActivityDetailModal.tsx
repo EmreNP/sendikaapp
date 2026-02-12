@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Calendar, Tag, Building2, FileText, User, Clock } from 'lucide-react';
 import type { Activity, ActivityCategory } from '@/types/activity';
+import { batchFetchUserNames, formatUserName } from '@/services/api/userNameService';
+import { apiRequest } from '@/utils/api';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface ActivityDetailModalProps {
   activity: Activity;
@@ -27,7 +30,6 @@ export default function ActivityDetailModal({ activity, categories, branches, on
       }
 
       try {
-        const { apiRequest } = await import('@/utils/api');
         const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${activity.branchId}`);
         setBranchName(data.branch?.name || 'Merkez Şube');
       } catch (error) {
@@ -45,47 +47,24 @@ export default function ActivityDetailModal({ activity, categories, branches, on
   const createdByName = userNames[activity.createdBy] || activity.createdBy;
   const updatedByName = activity.updatedBy ? (userNames[activity.updatedBy] || activity.updatedBy) : null;
 
-  // User bilgilerini çekme
+  // User bilgilerini toplu çekme (batch)
   useEffect(() => {
-    const fetchUserNames = async () => {
+    const fetchNames = async () => {
       const userIds = [activity.createdBy];
       if (activity.updatedBy) {
         userIds.push(activity.updatedBy);
       }
       
-      const uniqueUserIds = Array.from(new Set(userIds));
-      const newUserNames: Record<string, string> = {};
-      
-      for (const userId of uniqueUserIds) {
-        try {
-          // API'den kullanıcı bilgisi çek (örnek implementation)
-          const { apiRequest } = await import('@/utils/api');
-          const userData = await apiRequest<{ user: { firstName: string; lastName: string } }>(`/api/users/${userId}`);
-          if (userData.user) {
-            newUserNames[userId] = `${userData.user.firstName} ${userData.user.lastName}`;
-          }
-        } catch (error) {
-          console.error(`Error fetching user ${userId}:`, error);
-          newUserNames[userId] = userId; // Hata durumunda ID göster
-        }
+      const names = await batchFetchUserNames(userIds);
+      const nameMap: Record<string, string> = {};
+      for (const [uid, name] of Object.entries(names)) {
+        nameMap[uid] = formatUserName(name, uid);
       }
-      
-      setUserNames(newUserNames);
+      setUserNames(nameMap);
     };
     
-    fetchUserNames();
+    fetchNames();
   }, [activity.createdBy, activity.updatedBy]);
-
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const images = activity.images || [];
   const documents = activity.documents || [];

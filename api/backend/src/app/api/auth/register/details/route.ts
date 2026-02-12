@@ -10,12 +10,12 @@ import type { UserRegisterDetailsUpdateData } from '@shared/types/user';
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppConflictError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 interface RegisterDetailsRequest {
   tcKimlikNo: string;
   fatherName: string;
@@ -87,7 +87,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 if (!userLastName) userLastName = parts.slice(1).join(' ');
              }
            } catch (e) {
-             console.error('Error fetching auth user for creation:', e);
+             logger.error('Error fetching auth user for creation:', e);
            }
         }
 

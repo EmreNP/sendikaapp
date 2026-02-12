@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training, CreateTrainingRequest, UpdateTrainingRequest } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface TrainingFormModalProps {
   training: Training | null;
@@ -89,7 +90,7 @@ export default function TrainingFormModal({ training, isOpen, onClose, onSuccess
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save training error:', err);
+      logger.error('Save training error:', err);
       setError(err.message || 'Eğitim kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

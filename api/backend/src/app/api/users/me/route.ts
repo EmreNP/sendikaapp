@@ -5,15 +5,16 @@ import { validateName, validateAge, validateUserPhone, validateTCKimlikNo } from
 import { EDUCATION_LEVEL } from '@shared/constants/education';
 import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppAuthorizationError, AppConflictError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET /api/users/me - Kendi kullanıcı bilgilerini getir
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {
@@ -25,14 +26,20 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       }
       
       const userData = userDoc.data();
+      const userWithData: Record<string, any> = {
+        uid: userDoc.id,
+        ...userData,
+      };
+      
+      // Generate public URL for document if path exists
+      if (userData?.documentPath) {
+        userWithData.documentUrl = generatePublicUrl(userData.documentPath);
+      }
       
       return successResponse(
         'Kullanıcı bilgileri başarıyla getirildi',
         {
-          user: {
-            uid: userDoc.id,
-            ...userData,
-          },
+          user: userWithData,
         }
       );
   });

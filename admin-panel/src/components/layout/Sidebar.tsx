@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Bell, Calendar, LogOut, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Bell, Calendar, LogOut, User as UserIcon, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProfileModal from '@/components/common/ProfileModal';
 import { contactService } from '@/services/api/contactService';
+import { logger } from '@/utils/logger';
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -57,6 +58,12 @@ const sidebarItems: SidebarItem[] = [
     roles: ['admin', 'branch_manager'],
   },
   {
+    icon: BarChart3,
+    label: 'Performans Raporları',
+    path: '/admin/performance',
+    roles: ['admin'],
+  },
+  {
     icon: Bell,
     label: 'Bildirim Geçmişi',
     path: '/admin/notifications',
@@ -74,8 +81,11 @@ export default function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Kullanıcının rolüne göre menü öğelerini filtrele (superadmin tüm öğeleri görür)
-  const filteredItems = sidebarItems.filter((item) =>
-    user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
+  const filteredItems = useMemo(() =>
+    sidebarItems.filter((item) =>
+      user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
+    ),
+    [user?.role]
   );
 
   // Okunmamış mesaj sayısını al
@@ -90,7 +100,7 @@ export default function Sidebar() {
           });
           setUnreadCount(data.total || 0);
         } catch (err) {
-          console.error('Error fetching unread messages count:', err);
+          logger.error('Error fetching unread messages count:', err);
         }
       };
 
@@ -130,7 +140,7 @@ export default function Sidebar() {
 
   return (
     <aside 
-      className={`bg-white border-r border-gray-200 flex flex-col py-4 transition-all duration-300 ${
+      className={`bg-white border-r border-gray-200 flex flex-col py-4 transition-all duration-300 fixed left-0 top-0 h-screen overflow-y-auto z-50 ${
         isExpanded ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => setIsExpanded(true)}
@@ -144,7 +154,7 @@ export default function Sidebar() {
           </div>
           {isExpanded && (
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 truncate">SendikaApp</h2>
+              <h2 className="text-lg font-semibold text-gray-900 truncate">TDV Konya</h2>
               <p className="text-xs text-gray-500 truncate">
                 {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin Paneli' : 'Şube Paneli'}
               </p>
@@ -230,7 +240,7 @@ export default function Sidebar() {
                 try {
                   await signOut();
                 } catch (err) {
-                  console.error('Sign out failed', err);
+                  logger.error('Sign out failed', err);
                 }
                 setShowProfileOptions(false);
                 navigate('/login');

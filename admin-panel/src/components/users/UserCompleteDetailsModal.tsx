@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { X, Upload, FileText } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
+import { api } from '@/config/api';
+import { authService } from '@/services/auth/authService';
 import { useAuth } from '@/context/AuthContext';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import { logger } from '@/utils/logger';
 
 interface Props {
   userId: string | null;
@@ -57,7 +61,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
     }
   };
 
@@ -73,7 +77,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
         if (data.branch.name) setBranchName(data.branch.name);
       }
     } catch (err: any) {
-      console.error('❌ Error fetching branch by id:', err);
+      logger.error('❌ Error fetching branch by id:', err);
     }
   };
 
@@ -124,7 +128,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
         setPdfUrl(data.user.documentUrl);
       }
     } catch (err: any) {
-      console.error('Error fetching user data:', err);
+      logger.error('Error fetching user data:', err);
       setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
     } finally {
       setLoading(false);
@@ -141,9 +145,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       formData.append('userId', userId);
       
       // Backend API'ye yükle
-      const { api } = await import('@/config/api');
-      const { authService } = await import('@/services/auth/authService');
-      
       const token = await authService.getIdToken();
       const url = api.url('/api/files/user-documents/upload');
       
@@ -170,7 +171,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       setPdfUrl(documentUrl);
       return documentUrl;
     } catch (err: any) {
-      console.error('❌ Error uploading PDF:', err);
+      logger.error('❌ Error uploading PDF:', err);
       throw new Error('PDF yüklenirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setUploadingPdf(false);
@@ -230,7 +231,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       // Success
       onSuccess();
     } catch (err: any) {
-      console.error('Error completing user details:', err);
+      logger.error('Error completing user details:', err);
       setError(err.message || 'Detaylar kaydedilirken hata oluştu');
     } finally {
       setLoading(false);
@@ -354,13 +355,9 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
                     disabled={loading}
                   >
                     <option value="">Seçiniz</option>
-                    <option value="primary">İlkokul</option>
-                    <option value="middle">Ortaokul</option>
-                    <option value="high">Lise</option>
-                    <option value="associate">Ön Lisans</option>
-                    <option value="bachelor">Lisans</option>
-                    <option value="master">Yüksek Lisans</option>
-                    <option value="doctorate">Doktora</option>
+                    {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

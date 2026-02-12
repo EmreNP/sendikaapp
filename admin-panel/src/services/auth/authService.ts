@@ -2,6 +2,7 @@ import { signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import type { User, UserRole } from '@/types/user';
+import { logger } from '@/utils/logger';
 
 export interface SignInResult {
   user: User;
@@ -14,30 +15,30 @@ export const authService = {
    */
   async signIn(email: string, password: string): Promise<SignInResult> {
     try {
-      console.log('🔐 Sign in attempt:', { email });
+      logger.log('🔐 Sign in attempt:', { email });
       // Firebase Authentication ile giriş
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      console.log('✅ Firebase Auth success:', firebaseUser.uid);
+      logger.log('✅ Firebase Auth success:', firebaseUser.uid);
 
       // ID token al
       const idToken = await firebaseUser.getIdToken();
 
       // Firestore'dan user bilgilerini al
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      console.log('📄 Firestore check:', { exists: userDoc.exists(), uid: firebaseUser.uid });
+      logger.log('📄 Firestore check:', { exists: userDoc.exists(), uid: firebaseUser.uid });
 
       if (!userDoc.exists()) {
-        console.error('❌ Firestore user not found');
+        logger.error('❌ Firestore user not found');
         throw new Error('Kullanıcı bulunamadı');
       }
 
       const userData = userDoc.data() as User;
-      console.log('👤 User data:', { role: userData.role, status: userData.status });
+      logger.log('👤 User data:', { role: userData.role, status: userData.status });
 
       // Sadece admin, superadmin ve branch_manager giriş yapabilir
       if (userData.role !== 'admin' && userData.role !== 'branch_manager' && userData.role !== 'superadmin') {
-        console.error('❌ Invalid role:', userData.role);
+        logger.error('❌ Invalid role:', userData.role);
         await firebaseSignOut(auth);
         throw new Error('Bu panele erişim yetkiniz yok');
       }
@@ -49,7 +50,7 @@ export const authService = {
         idToken,
       };
     } catch (error: any) {
-      console.error('❌ Sign in error:', { 
+      logger.error('❌ Sign in error:', { 
         code: error.code, 
         message: error.message,
         error: error 
@@ -83,20 +84,36 @@ export const authService = {
 
   /**
    * Mevcut kullanıcının ID token'ını al
+   * Token cache'lenir, sadece gerektiğinde refresh edilir
    */
-  async getIdToken(): Promise<string | null> {
+  async getIdToken(forceRefresh: boolean = false): Promise<string | null> {
     const user = auth.currentUser;
     if (!user) return null;
-    return await user.getIdToken();
+    // forceRefresh = false: Cache'den al, sadece expired ise refresh et
+    // forceRefresh = true: Her zaman fresh token al (401 hatası sonrası retry için)
+    return await user.getIdToken(forceRefresh);
   },
 
   /**
-   * Kullanıcı bilgilerini Firestore'dan al
+   * Kullanıcı bilgilerini al
+   * - Kendi kullanıcısı için: Firestore (rules izin verir)
+   * - Diğer kullanıcılar için: Backend API (Firestore rules'a takılmasın)
    */
   async getUserData(uid: string): Promise<User | null> {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (!userDoc.exists()) return null;
-    return userDoc.data() as User;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+
+    // Own profile can be read via Firestore rules.
+    if (currentUser.uid === uid) {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (!userDoc.exists()) return null;
+      return userDoc.data() as User;
+    }
+
+    // Other users: fetch from backend (admin SDK) to avoid Firestore permission issues.
+    const { apiRequest } = await import('@/utils/api');
+    const data = await apiRequest<{ user: User }>(`/api/users/${uid}`);
+    return data?.user || null;
   },
 };
 

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { MessageSquare, Tag, Plus, Edit, Trash2, Search, Eye, EyeOff, Clock, CheckCircle, Calendar } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import ContactMessageDetailModal from '@/components/contact-messages/ContactMessageDetailModal';
 import TopicFormModal from '@/components/topics/TopicFormModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { contactService } from '@/services/api/contactService';
 import { useAuth } from '@/context/AuthContext';
 import type { ContactMessage, Topic } from '@/types/contact';
+import { logger } from '@/utils/logger';
 
 type TabType = 'messages' | 'topics';
 type FilterType = 'all' | 'read' | 'unread';
@@ -28,7 +30,7 @@ export default function ContactMessagesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 20;
+  const limit = 25;
 
   // Topics states
   const [topicsList, setTopicsList] = useState<Topic[]>([]);
@@ -65,7 +67,7 @@ export default function ContactMessagesPage() {
     if (activeTab === 'messages') {
       fetchMessages();
     }
-  }, [page, filter, selectedTopicId]);
+  }, [page, filter, selectedTopicId, searchTerm]);
 
   const fetchTopics = async () => {
     try {
@@ -84,7 +86,7 @@ export default function ContactMessagesPage() {
         setSelectedTopicId('all');
       }
     } catch (err) {
-      console.error('Error fetching topics:', err);
+      logger.error('Error fetching topics:', err);
     }
   };
 
@@ -95,7 +97,7 @@ export default function ContactMessagesPage() {
       const data = await contactService.getTopics();
       setTopicsList(data.topics || []);
     } catch (err: any) {
-      console.error('Error fetching topics:', err);
+      logger.error('Error fetching topics:', err);
       setTopicsError(err.message || 'Konular yüklenirken bir hata oluştu');
       setTopicsList([]);
     } finally {
@@ -113,6 +115,7 @@ export default function ContactMessagesPage() {
         limit: number;
         topicId?: string;
         isRead?: boolean;
+        search?: string;
       } = {
         page,
         limit,
@@ -128,24 +131,21 @@ export default function ContactMessagesPage() {
         params.isRead = false;
       }
 
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+
       const data = await contactService.getContactMessages(params);
       setMessages(data.messages || []);
       setTotal(data.total || 0);
     } catch (err: any) {
-      console.error('Error fetching messages:', err);
+      logger.error('Error fetching messages:', err);
       setMessagesError(err.message || 'Mesajlar yüklenirken bir hata oluştu');
       setMessages([]);
     } finally {
       setMessagesLoading(false);
     }
   };
-
-  const filteredMessages = messages.filter((message) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return message.message.toLowerCase().includes(searchLower) ||
-           getTopicName(message.topicId).toLowerCase().includes(searchLower);
-  });
 
   const handleMessageClick = (message: ContactMessage) => {
     setSelectedMessage(message);
@@ -175,7 +175,7 @@ export default function ContactMessagesPage() {
           await fetchTopicsList();
           setConfirmDialog({ ...confirmDialog, isOpen: false });
         } catch (err: any) {
-          console.error('Error deleting topic:', err);
+          logger.error('Error deleting topic:', err);
           setTopicsError(err.message || 'Konu silinirken bir hata oluştu');
         } finally {
           setProcessing(false);
@@ -383,7 +383,7 @@ export default function ContactMessagesPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
                   <p className="text-gray-500 mt-2">Yükleniyor...</p>
                 </div>
-              ) : filteredMessages.length === 0 ? (
+              ) : messages.length === 0 ? (
                 <div className="p-8 text-center">
                   <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-500">Mesaj bulunamadı</p>
@@ -391,7 +391,7 @@ export default function ContactMessagesPage() {
               ) : (
                 <>
                   <div className="divide-y divide-gray-200">
-                    {filteredMessages.map((message) => (
+                    {messages.map((message) => (
                       <div
                         key={message.id}
                         onClick={() => handleMessageClick(message)}
@@ -433,37 +433,13 @@ export default function ContactMessagesPage() {
                   </div>
 
                   {/* Pagination */}
-                  {totalPages > 1 && !searchTerm && (
-                    <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        Toplam {total} mesajdan {((page - 1) * limit) + 1}-{Math.min(page * limit, total)} arası gösteriliyor
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          disabled={page === 1}
-                          className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                        >
-                          Önceki
-                        </button>
-                        <span className="px-4 py-2 text-sm text-gray-700">
-                          Sayfa {page} / {totalPages}
-                        </span>
-                        <button
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={page === totalPages}
-                          className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors text-sm"
-                        >
-                          Sonraki
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {searchTerm && (
-                    <div className="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
-                      {filteredMessages.length} sonuç bulundu
-                    </div>
-                  )}
+                  <Pagination
+                    currentPage={page}
+                    total={total}
+                    limit={limit}
+                    onPageChange={setPage}
+                    showPageNumbers={false}
+                  />
                 </>
               )}
             </div>

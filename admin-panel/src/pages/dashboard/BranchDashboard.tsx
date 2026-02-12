@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Users, FileText, CheckCircle, XCircle } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 export default function BranchDashboard() {
   const { user } = useAuth();
@@ -18,8 +20,6 @@ export default function BranchDashboard() {
 
   const fetchStats = async () => {
     try {
-      const { apiRequest } = await import('@/utils/api');
-      
       const data = await apiRequest<{ stats: { 
         total: number; 
         byStatus: { 
@@ -37,7 +37,7 @@ export default function BranchDashboard() {
         rejected: data.stats?.byStatus?.rejected || 0,
       });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      logger.error('Error fetching stats:', error);
     }
   };
 

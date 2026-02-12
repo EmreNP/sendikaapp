@@ -7,6 +7,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 /**
  * GET /api/notifications/history
  * Bildirim geçmişini getir
@@ -43,9 +44,10 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const type = url.searchParams.get('type');
     const targetAudience = url.searchParams.get('targetAudience');
     const branchIdParam = url.searchParams.get('branchId');
+    const search = url.searchParams.get('search');
     
     // 3. Query oluştur
-    let query = db.collection('notificationHistory');
+    let query: FirebaseFirestore.Query = db.collection('notificationHistory');
     
     // Branch Manager sadece kendi şubesine ait bildirimleri görebilir
     if (userRole === USER_ROLE.BRANCH_MANAGER) {
@@ -66,10 +68,67 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     }
     
     // 4. Sıralama ve sayfalama
+    
+    // Search filter optimization
+    if (search) {
+      const snapshot = await query.orderBy('createdAt', 'desc').limit(500).get();
+      const searchLower = search.toLowerCase();
+      
+      const allDocs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let createdAt: any = null;
+        if (data.createdAt) {
+          if (data.createdAt.toDate) {
+            createdAt = data.createdAt.toDate().toISOString();
+          } else if (data.createdAt.seconds) {
+            createdAt = new Date(data.createdAt.seconds * 1000).toISOString();
+          } else if (data.createdAt instanceof Date) {
+            createdAt = data.createdAt.toISOString();
+          }
+        }
+        return {
+          id: doc.id,
+          title: data.title,
+          body: data.body,
+          type: data.type,
+          targetAudience: data.targetAudience,
+          sentCount: data.sentCount || 0,
+          failedCount: data.failedCount || 0,
+          status: data.status,
+          createdAt,
+          sentBy: data.sentBy,
+          branchId: data.branchId,
+          sentByUser: data.sentByUser
+        };
+      });
+
+      const filteredNotifications = allDocs.filter((n: any) => 
+        (n.title || '').toLowerCase().includes(searchLower) || 
+        (n.body || '').toLowerCase().includes(searchLower)
+      );
+      
+      const total = filteredNotifications.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedNotifications = filteredNotifications.slice(startIndex, endIndex);
+      
+      return successResponse('Bildirim geçmişi başarıyla getirildi', {
+        notifications: paginatedNotifications,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    }
+
+    // Standard pagination without search
     query = query.orderBy('createdAt', 'desc');
     
-    const totalSnapshot = await query.get();
-    const total = totalSnapshot.size;
+    // Firestore count() aggregation query ile toplam sayıyı al — tüm dökümanları çekmeden
+    const countSnapshot = await query.count().get();
+    const total = countSnapshot.data().count;
     
     const snapshot = await query
       .limit(limit)
@@ -126,7 +185,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             };
           }
         } catch (error) {
-          console.error(`Error fetching branch ${id}:`, error);
+          logger.error(`Error fetching branch ${id}:`, error);
         }
       });
       
@@ -150,7 +209,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
             };
           }
         } catch (error) {
-          console.error(`Error fetching user ${uid}:`, error);
+          logger.error(`Error fetching user ${uid}:`, error);
         }
       });
       

@@ -14,6 +14,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm FAQ'leri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -25,8 +26,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       const userRole = currentUserData!.role;
       const url = new URL(request.url);
-      const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-      const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+      const paginationParams = parsePaginationParams(url);
       const isPublishedParam = url.searchParams.get('isPublished');
       const search = url.searchParams.get('search');
       
@@ -41,39 +41,55 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           query = query.where('isPublished', '==', isPublishedParam === 'true');
         }
       }
-      
-      const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').get();
-      
-      let faqs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as FAQ[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
+
+      // Search with batch-based pagination
       if (search) {
         const searchLower = search.toLowerCase();
-        faqs = faqs.filter((f: FAQ) => {
-          const question = (f.question || '').toLowerCase();
-          const answer = (f.answer || '').replace(/<[^>]*>/g, '').toLowerCase();
-          return question.includes(searchLower) || answer.includes(searchLower);
+        const orderedQuery = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
+        
+        const result = await searchInBatches<FAQ>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as FAQ,
+          (f) => {
+            const question = (f.question || '').toLowerCase();
+            const answer = (f.answer || '').replace(/<[^>]*>/g, '').toLowerCase();
+            return question.includes(searchLower) || answer.includes(searchLower);
+          }
+        );
+        
+        const serializedFaqs = result.items.map(f => serializeFAQTimestamps(f));
+        
+        return successResponse('FAQ\'ler başarıyla getirildi', {
+          faqs: serializedFaqs,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       
-      // Sayfalama
-      const total = faqs.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedFaqs = faqs.slice(startIndex, endIndex);
+      // Server-side pagination with Firestore
+      query = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
       
-      const serializedFaqs = paginatedFaqs.map(f => serializeFAQTimestamps(f));
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }) as FAQ,
+        'order'
+      );
+      
+      const serializedFaqs = paginatedResult.items.map(f => serializeFAQTimestamps(f));
       
       return successResponse(
         'FAQ\'ler başarıyla getirildi',
         {
           faqs: serializedFaqs,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });
@@ -89,7 +105,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
         throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

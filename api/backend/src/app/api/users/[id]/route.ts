@@ -4,6 +4,7 @@ import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import { USER_STATUS } from '@shared/constants/status';
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import admin from 'firebase-admin';
 import { 
   successResponse, 
@@ -14,6 +15,7 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { isErrorWithMessage } from '@/lib/utils/response';
 import { parseJsonBody } from '@/lib/utils/request';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET /api/users/[id] - Kullanıcı detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -65,6 +67,14 @@ export const GET = asyncHandler(async (
         ...targetUserData,
       };
       const serializedUser = serializeUserTimestamps(userData);
+      
+      // Generate public URL for document if path exists
+      if (serializedUser.documentPath) {
+        serializedUser.documentUrl = generatePublicUrl(serializedUser.documentPath);
+      } else if (serializedUser.documentUrl && !serializedUser.documentUrl.startsWith('http')) {
+        // Eski kayıtlarda documentUrl aslında path olabilir
+        serializedUser.documentUrl = generatePublicUrl(serializedUser.documentUrl);
+      }
       
       return successResponse(
         'Kullanıcı bilgileri başarıyla getirildi',
@@ -123,19 +133,35 @@ export const DELETE = asyncHandler(async (
       throw new AppValidationError('Kendi hesabınızı silemezsiniz');
       }
       
+      logger.log(`🗑️ Starting user deletion for: ${targetUserId}`);
+      logger.log(`📋 User data:`, { role: targetUserData?.role, branchId: targetUserData?.branchId });
+      
       // Firebase Auth'dan sil
+      let authDeleteSuccess = false;
       try {
         await auth.deleteUser(targetUserId);
-        console.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
+        logger.log(`✅ Firebase Auth user deleted successfully: ${targetUserId}`);
+        authDeleteSuccess = true;
       } catch (authError: unknown) {
         const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-        console.error('⚠️ Firebase Auth delete error:', errorMessage);
-        // Auth'da yoksa devam et
+        const errorCode = (authError as any)?.code || 'unknown';
+        logger.error(`⚠️ Firebase Auth delete error for ${targetUserId}:`, { errorMessage, errorCode });
+        logger.error('Full auth error:', authError);
+        
+        // Eğer kullanıcı Auth'da yoksa (auth/user-not-found), bu normal olabilir
+        if (errorCode === 'auth/user-not-found') {
+          logger.log(`ℹ️ User not found in Auth (already deleted?): ${targetUserId}`);
+        } else {
+          // Diğer hatalarda warning ver ama devam et
+          logger.warn(`⚠️ Auth deletion failed but continuing with Firestore deletion`);
+        }
       }
       
       // Firestore'dan sil
       await db.collection('users').doc(targetUserId).delete();
-      console.log(`✅ Firestore user document deleted: ${targetUserId}`);
+      logger.log(`✅ Firestore user document deleted successfully: ${targetUserId}`);
+      
+      logger.log(`✨ User deletion completed: ${targetUserId} (Auth: ${authDeleteSuccess ? 'deleted' : 'not found or error'}, Firestore: deleted)`);
       
       return successResponse(
         'Kullanıcı kalıcı olarak silindi',
@@ -199,7 +225,7 @@ export const PATCH = asyncHandler(async (
           targetUserData = targetUserDoc.data();
         } catch (err: any) {
           // Auth'da kullanıcı yoksa Not Found gönder
-          console.error('Error creating initial user doc:', err);
+          logger.error('Error creating initial user doc:', err);
           throw new AppNotFoundError('Kullanıcı');
         }
       }
@@ -315,7 +341,7 @@ export const PATCH = asyncHandler(async (
       // Firestore'da güncelle
       await db.collection('users').doc(targetUserId).update(updateData);
       
-      console.log(`✅ User ${targetUserId} updated by ${user.uid}. Updated fields: ${updatedFields.join(', ')}`);
+      logger.log(`✅ User ${targetUserId} updated by ${user.uid}. Updated fields: ${updatedFields.join(', ')}`);
       
       // Log oluştur
       let logCreated = false;
@@ -347,7 +373,7 @@ export const PATCH = asyncHandler(async (
         await createRegistrationLog(logData);
         logCreated = true;
       } catch (logErr: any) {
-        console.error('Failed to create user_update log:', logErr?.message || logErr);
+        logger.error('Failed to create user_update log:', logErr?.message || logErr);
       }
       
       return successResponse(

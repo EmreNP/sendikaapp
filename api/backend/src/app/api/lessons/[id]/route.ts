@@ -15,6 +15,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek ders detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -72,7 +73,7 @@ export const PUT = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -155,7 +156,7 @@ export const DELETE = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -198,7 +199,7 @@ export const DELETE = asyncHandler(async (
       // Lesson'ı sil
       await db.collection('lessons').doc(lessonId).delete();
       
-      console.log(`✅ Lesson ${lessonId} deleted with cascade`);
+      logger.log(`✅ Lesson ${lessonId} deleted with cascade`);
       
       return successResponse(
         'Ders başarıyla silindi',

@@ -7,6 +7,7 @@ import {
   type NotificationType 
 } from '@shared/constants/notifications';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Notification Service
  * Bildirim gönderme ve yönetimi için helper fonksiyonlar
@@ -105,7 +106,7 @@ export async function sendMulticastNotification(
       failureCount: response.failureCount,
     };
   } catch (error) {
-    console.error('❌ FCM notification error:', error);
+    logger.error('❌ FCM notification error:', error);
     throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.NOTIFICATION_SEND_ERROR);
   }
 }
@@ -123,34 +124,38 @@ async function cleanupFailedTokens(
 ): Promise<void> {
   if (response.failureCount === 0) return;
   
-  response.responses.forEach(async (resp, idx) => {
-    if (!resp.success) {
-      const errorCode = resp.error?.code;
-      
-      // Geçersiz veya kayıtlı olmayan token'ları pasif yap
-      if (
-        errorCode === 'messaging/invalid-registration-token' ||
-        errorCode === 'messaging/registration-token-not-registered'
-      ) {
-        try {
-          const tokenSnapshots = await db.collection('fcmTokens')
-            .where('token', '==', tokens[idx])
-            .get();
-          
-          tokenSnapshots.docs.forEach(doc => {
-            doc.ref.update({ 
-              isActive: false,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-          });
-          
-          console.log(`⚠️ Geçersiz token pasif yapıldı: ${tokens[idx].substring(0, 20)}...`);
-        } catch (error) {
-          console.error('Token temizleme hatası:', error);
+  await Promise.all(
+    response.responses.map(async (resp, idx) => {
+      if (!resp.success) {
+        const errorCode = resp.error?.code;
+        
+        // Geçersiz veya kayıtlı olmayan token'ları pasif yap
+        if (
+          errorCode === 'messaging/invalid-registration-token' ||
+          errorCode === 'messaging/registration-token-not-registered'
+        ) {
+          try {
+            const tokenSnapshots = await db.collection('fcmTokens')
+              .where('token', '==', tokens[idx])
+              .get();
+            
+            await Promise.all(
+              tokenSnapshots.docs.map(doc =>
+                doc.ref.update({ 
+                  isActive: false,
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                })
+              )
+            );
+            
+            logger.log(`⚠️ Geçersiz token pasif yapıldı: ${tokens[idx].substring(0, 20)}...`);
+          } catch (error) {
+            logger.error('Token temizleme hatası:', error);
+          }
         }
       }
-    }
-  });
+    })
+  );
 }
 
 /**
@@ -203,9 +208,9 @@ export async function saveNotificationHistory(notification: {
     
     await db.collection('notificationHistory').add(historyData);
     
-    console.log(`✅ Bildirim geçmişi kaydedildi: ${notification.title}`);
+    logger.log(`✅ Bildirim geçmişi kaydedildi: ${notification.title}`);
   } catch (error) {
-    console.error('❌ Bildirim geçmişi kaydetme hatası:', error);
+    logger.error('❌ Bildirim geçmişi kaydetme hatası:', error);
     // Hata olsa bile bildirim gönderilmiş sayılır
     // Sadece log kaydedilemedi
   }

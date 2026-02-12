@@ -3,6 +3,7 @@ import { X, Upload, Video, ExternalLink } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { VideoContent, CreateVideoContentRequest, UpdateVideoContentRequest, VideoSource } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface VideoFormModalProps {
   video: VideoContent | null;
@@ -17,8 +18,10 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
     title: '',
     description: '',
     videoUrl: '',
+    videoPath: '',           // Storage path for uploaded videos (NEW)
     videoSource: 'uploaded' as VideoSource, // Default olarak 'uploaded'
     thumbnailUrl: '',
+    thumbnailPath: '',       // Storage path for thumbnails (NEW)
     order: '' as string | number,
     isActive: true,
   });
@@ -40,8 +43,10 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           title: video.title || '',
           description: video.description || '',
           videoUrl: video.videoUrl || '',
+          videoPath: (video as any).videoPath || '',
           videoSource: video.videoSource || 'uploaded',
           thumbnailUrl: video.thumbnailUrl || '',
+          thumbnailPath: (video as any).thumbnailPath || '',
           order: video.order || '',
           isActive: video.isActive ?? true,
         });
@@ -50,8 +55,10 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           title: '',
           description: '',
           videoUrl: '',
+          videoPath: '',
           videoSource: 'uploaded', // Default
           thumbnailUrl: '',
+          thumbnailPath: '',
           order: '',
           isActive: true,
         });
@@ -131,7 +138,9 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
     try {
       setLoading(true);
       let videoUrl = formData.videoUrl;
+      let videoPath = formData.videoPath;
       let thumbnailUrl = formData.thumbnailUrl;
+      let thumbnailPath = formData.thumbnailPath;
 
       // Video yükleme (sadece uploaded kaynağı için)
       if (formData.videoSource === 'uploaded') {
@@ -146,24 +155,17 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
             setUploading(true);
             setUploadProgress(0);
 
-            const progressInterval = setInterval(() => {
-              setUploadProgress((prev) => {
-                if (prev >= 90) {
-                  clearInterval(progressInterval);
-                  return 90;
-                }
-                return prev + 10;
-              });
-            }, 200);
-
-            const uploadResult = await fileUploadService.uploadVideo(selectedVideoFile!);
+            // Real progress tracking
+            const uploadResult = await fileUploadService.uploadVideo(
+              selectedVideoFile!,
+              (progress) => setUploadProgress(progress)
+            );
             
-            clearInterval(progressInterval);
-            setUploadProgress(100);
-            videoUrl = uploadResult.documentUrl;
+            videoPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
+            videoUrl = uploadResult.documentUrl;  // Display URL
             setUploading(false);
           } catch (uploadErr: any) {
-            console.error('Video upload error:', uploadErr);
+            logger.error('Video upload error:', uploadErr);
             setError(uploadErr.message || 'Video yüklenirken bir hata oluştu');
             setLoading(false);
             setUploading(false);
@@ -187,24 +189,17 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           setUploading(true);
           setUploadProgress(0);
 
-          const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-              if (prev >= 90) {
-                clearInterval(progressInterval);
-                return 90;
-              }
-              return prev + 10;
-            });
-          }, 200);
-
-          const uploadResult = await fileUploadService.uploadThumbnail(selectedThumbnailFile);
+          // Real progress tracking
+          const uploadResult = await fileUploadService.uploadThumbnail(
+            selectedThumbnailFile,
+            (progress) => setUploadProgress(progress)
+          );
           
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-          thumbnailUrl = uploadResult.documentUrl;
+          thumbnailPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
+          thumbnailUrl = uploadResult.documentUrl;  // Display URL
           setUploading(false);
         } catch (uploadErr: any) {
-          console.error('Thumbnail upload error:', uploadErr);
+          logger.error('Thumbnail upload error:', uploadErr);
           setError(uploadErr.message || 'Thumbnail yüklenirken bir hata oluştu');
           setLoading(false);
           setUploading(false);
@@ -213,14 +208,20 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
         }
       }
 
-      // Edit modunda ve dosya seçilmemişse mevcut URL'leri kullan
+      // Edit modunda ve dosya seçilmemişse mevcut path/URL'leri kullan
       if (isEditMode && video) {
-        if (!videoUrl) videoUrl = video.videoUrl;
-        if (!thumbnailUrl) thumbnailUrl = video.thumbnailUrl || '';
+        if (!videoPath && !videoUrl) {
+          videoPath = (video as any).videoPath || video.videoUrl;
+          videoUrl = video.videoUrl;
+        }
+        if (!thumbnailPath && !thumbnailUrl) {
+          thumbnailPath = (video as any).thumbnailPath || '';
+          thumbnailUrl = video.thumbnailUrl || '';
+        }
       }
 
-      if (!videoUrl) {
-        setError('Video URL zorunludur');
+      if (!videoPath && !videoUrl) {
+        setError('Video path veya URL zorunludur');
         setLoading(false);
         return;
       }
@@ -229,9 +230,11 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
         const updateData: UpdateVideoContentRequest = {
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          videoUrl: videoUrl,
+          videoUrl: formData.videoSource === 'uploaded' ? undefined : videoUrl,  // Only for YouTube/Vimeo
+          videoPath: formData.videoSource === 'uploaded' ? videoPath : undefined,  // Only for uploaded
           videoSource: formData.videoSource,
-          thumbnailUrl: thumbnailUrl || undefined,
+          thumbnailUrl: undefined,  // Don't send URL
+          thumbnailPath: thumbnailPath || undefined,  // Send path
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,
         };
@@ -241,9 +244,11 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           lessonId,
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          videoUrl: videoUrl,
+          videoUrl: formData.videoSource === 'uploaded' ? undefined : videoUrl,  // Only for YouTube/Vimeo
+          videoPath: formData.videoSource === 'uploaded' ? videoPath : undefined,  // Only for uploaded
           videoSource: formData.videoSource,
-          thumbnailUrl: thumbnailUrl || undefined,
+          thumbnailUrl: undefined,  // Don't send URL
+          thumbnailPath: thumbnailPath || undefined,  // Send path
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,
         };
@@ -253,7 +258,7 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save video error:', err);
+      logger.error('Save video error:', err);
       setError(err.message || 'Video kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

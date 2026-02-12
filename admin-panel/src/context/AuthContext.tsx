@@ -2,7 +2,9 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { authService } from '@/services/auth/authService';
+import { clearUserNameCache } from '@/services/api/userNameService';
 import type { User } from '@/types/user';
+import { logger } from '@/utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await authService.signOut();
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          logger.error('Error fetching user data:', error);
           setUser(null);
         }
       } else {
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     await authService.signOut();
+    clearUserNameCache();
     setUser(null);
   };
 

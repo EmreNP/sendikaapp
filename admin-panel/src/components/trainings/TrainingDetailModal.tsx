@@ -3,6 +3,7 @@ import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalL
 import { useNavigate } from 'react-router-dom';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface TrainingDetailModalProps {
   training: Training | null;
@@ -34,7 +35,7 @@ export default function TrainingDetailModal({
           const response = await trainingService.getTraining(training.id);
           setTrainingData(response.training);
         } catch (err) {
-          console.error('Load training error:', err);
+          logger.error('Load training error:', err);
         }
       };
       loadTraining();
@@ -159,7 +160,7 @@ export default function TrainingDetailModal({
               <button
                 type="button"
                 onClick={() => {
-                  navigate('/admin/trainings/detail', { state: { trainingId: trainingData.id } });
+                  navigate(`/admin/trainings/${trainingData.id}`);
                   onClose();
                 }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"

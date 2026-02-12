@@ -3,6 +3,7 @@ import { getApps } from 'firebase-admin/app';
 import * as path from 'path';
 import * as fs from 'fs';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Error type guard
  */
@@ -58,8 +59,8 @@ if (getApps().length === 0) {
         // Fallback: project_id'den bucket name oluştur
         // Ama önce mevcut bucket'ları kontrol etmek daha iyi
         storageBucket = `${serviceAccount.project_id}.appspot.com`;
-        console.warn(`⚠️  Storage bucket belirtilmemiş, varsayılan kullanılıyor: ${storageBucket}`);
-        console.warn(`   Lütfen .env dosyasına FIREBASE_STORAGE_BUCKET ekleyin veya service account'ta storageBucket field'ı olduğundan emin olun`);
+        logger.warn(`⚠️  Storage bucket belirtilmemiş, varsayılan kullanılıyor: ${storageBucket}`);
+        logger.warn(`   Lütfen .env dosyasına FIREBASE_STORAGE_BUCKET ekleyin veya service account'ta storageBucket field'ı olduğundan emin olun`);
       }
       
       admin.initializeApp({
@@ -68,34 +69,45 @@ if (getApps().length === 0) {
       });
       
       if (storageBucket) {
-        console.log(`   Storage bucket: ${storageBucket}`);
+        logger.log(`   Storage bucket: ${storageBucket}`);
       } else {
-        console.warn(`   ⚠️  Storage bucket yapılandırılmamış`);
+        logger.warn(`   ⚠️  Storage bucket yapılandırılmamış`);
       }
       
-      console.log('✅ Firebase Admin SDK initialized (Development)');
-      console.log(`   Service account loaded from: ${serviceAccountPath}`);
+      logger.log('✅ Firebase Admin SDK initialized (Development)');
+      logger.log(`   Service account loaded from: ${serviceAccountPath}`);
     } catch (error: unknown) {
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-      console.error('❌ Firebase Admin SDK initialization error:', errorMessage);
-      console.error('   Attempting to use default credentials...');
+      logger.error('❌ Firebase Admin SDK initialization error:', errorMessage);
+      logger.error('   Attempting to use default credentials...');
       // Fallback to default credentials
       try {
         admin.initializeApp();
-        console.log('✅ Firebase Admin SDK initialized with default credentials');
+        logger.log('✅ Firebase Admin SDK initialized with default credentials');
       } catch (fallbackError: unknown) {
         const fallbackErrorMessage = isErrorWithMessage(fallbackError) ? fallbackError.message : 'Bilinmeyen hata';
-        console.error('❌ Failed to initialize with default credentials:', fallbackErrorMessage);
+        logger.error('❌ Failed to initialize with default credentials:', fallbackErrorMessage);
         throw fallbackError;
       }
     }
   } else {
     // Production'da environment variables veya default credentials kullan
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+    
+    if (!storageBucket) {
+      logger.warn('⚠️  FIREBASE_STORAGE_BUCKET environment variable is not set');
+      logger.warn('   Storage operations may not work correctly');
+    }
+    
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
+      ...(storageBucket && { storageBucket: storageBucket }),
     });
     
-    console.log('✅ Firebase Admin SDK initialized (Production)');
+    logger.log('✅ Firebase Admin SDK initialized (Production)');
+    if (storageBucket) {
+      logger.log(`   Storage bucket: ${storageBucket}`);
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF } from '@/utils/pdfGenerator';
+import { logger } from '@/utils/logger';
 
 interface UserStatusModalProps {
   userId: string | null;
@@ -46,7 +47,7 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
       const data = await apiRequest<{ user: any }>(`/api/users/${userId}`);
       setUserData(data.user);
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      logger.error('Error fetching user data:', err);
     }
   };
 
@@ -55,7 +56,7 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
     } catch (err) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
     }
   };
 
@@ -109,7 +110,7 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user status:', err);
+      logger.error('Error updating user status:', err);
       setError(err.message || 'Durum güncellenirken bir hata oluştu');
     } finally {
       setLoading(false);

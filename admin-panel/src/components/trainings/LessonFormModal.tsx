@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { lessonService } from '@/services/api/lessonService';
 import type { Lesson, CreateLessonRequest, UpdateLessonRequest } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 interface LessonFormModalProps {
   lesson: Lesson | null;
@@ -91,7 +92,7 @@ export default function LessonFormModal({ lesson, trainingId, isOpen, onClose, o
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save lesson error:', err);
+      logger.error('Save lesson error:', err);
       setError(err.message || 'Ders kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

@@ -58,10 +58,15 @@ export const api = {
   fetch: async (endpoint: string, options?: RequestInit): Promise<Response> => {
     const url = api.url(endpoint);
     
-    // Default headers
-    const defaultHeaders: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    // Default headers - FormData ise Content-Type set etme
+    const defaultHeaders: HeadersInit = {};
+    
+    if (!(options?.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
+    
+    // CSRF koruması: Custom header ekle
+    defaultHeaders['X-Requested-With'] = 'XMLHttpRequest';
     
     // Token varsa ekle
     const { authService } = await import('@/services/auth/authService');

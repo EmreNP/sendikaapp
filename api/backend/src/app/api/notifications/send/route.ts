@@ -18,6 +18,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { sendMulticastNotification, saveNotificationHistory } from '@/lib/services/notificationService';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 interface SendNotificationRequest {
   title: string;
@@ -297,6 +298,19 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         data,
       });
     }
+
+    // Audit log
+    createAuditLog({
+      action: 'notification_sent',
+      category: 'notification',
+      performedBy: user.uid,
+      performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+      performedByRole: userRole,
+      branchId: branchId || currentUserData!.branchId,
+      targetName: title.trim(),
+      details: { type, targetAudience, sent: totalSent, failed: totalFailed },
+      message: `"${title.trim()}" bildirimi gönderildi (${totalSent} başarılı)`,
+    });
 
     return successResponse(
       NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,

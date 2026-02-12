@@ -5,6 +5,7 @@ import { authenticationError, notFoundError, emailVerificationError } from '../u
 import { USER_ROLE } from '@shared/constants/roles';
 import type { User } from '@shared/types/user';
 
+import { logger } from '../../lib/utils/logger';
 export interface AuthenticatedRequest extends NextRequest {
   user?: {
     uid: string;
@@ -40,7 +41,7 @@ export async function authenticateUser(request: NextRequest): Promise<{
       }
     };
   } catch (error: unknown) {
-    console.error('Auth middleware error:', error);
+    logger.error('Auth middleware error:', error);
     return {
       authenticated: false,
       error: 'Geçersiz token'
@@ -88,7 +89,7 @@ export async function getCurrentUser(uid: string): Promise<{
       user: { uid, ...userDoc.data() } as User
     };
   } catch (error: unknown) {
-    console.error('Get current user error:', error);
+    logger.error('Get current user error:', error);
     return { 
       error: notFoundError('Kullanıcı'), 
       user: null 

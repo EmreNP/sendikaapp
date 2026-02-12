@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, Newspaper, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import type { News } from '@/types/news';
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface NewsPreviewModalProps {
   news: News | null;
@@ -22,34 +24,6 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
   }, [news?.createdBy]);
 
   if (!isOpen || !news) return null;
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + (date.nanoseconds || 0) / 1000000);
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -129,7 +103,7 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
             <div className="mb-6">
               <div
                 className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: news.content || '' }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(news.content || '') }}
               />
             </div>
 

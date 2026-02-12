@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Check, RotateCw } from 'lucide-react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
+import { logger } from '@/utils/logger';
 import 'react-image-crop/dist/ReactCrop.css';
 
 interface ImageCropModalProps {
@@ -159,7 +160,7 @@ export default function ImageCropModal({
       onCropComplete(croppedBlob);
       onClose();
     } catch (error) {
-      console.error('Error cropping image:', error);
+      logger.error('Error cropping image:', error);
     } finally {
       setProcessing(false);
     }

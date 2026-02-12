@@ -6,6 +6,8 @@ import { announcementService } from '@/services/api/announcementService';
 import type { Announcement, CreateAnnouncementRequest, UpdateAnnouncementRequest } from '@/types/announcement';
 import ImageCropModal from '../news/ImageCropModal';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 
 interface AnnouncementFormModalProps {
@@ -27,7 +29,15 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onClose);
+
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  };
   
   // Image crop states
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -61,6 +71,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
         });
       }
       setError(null);
+      setHasChanges(false);
       // Reset image states
       setSelectedImageFile(null);
       setCroppedImageBlob(null);
@@ -68,6 +79,15 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       setIsCropModalOpen(false);
     }
   }, [isOpen, announcement, user]);
+
+  // Blob URL'lerini component unmount olduğunda temizle — memory leak önlemi
+  useEffect(() => {
+    return () => {
+      if (croppedImagePreview) {
+        URL.revokeObjectURL(croppedImagePreview);
+      }
+    };
+  }, [croppedImagePreview]);
 
 
 
@@ -187,7 +207,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving announcement:', err);
+      logger.error('Error saving announcement:', err);
       setError(err.message || 'Duyuru kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -202,7 +222,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Modal */}
@@ -214,7 +234,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
               {isEditMode ? 'Duyuru Düzenle' : 'Yeni Duyuru Ekle'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
             >
               <X className="w-4 h-4" />
@@ -238,7 +258,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) => updateFormData({ title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   required
                   placeholder="Duyuru başlığı"
@@ -261,9 +281,9 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                       const textContent = value.replace(/<[^>]*>/g, '').trim();
                       // Eğer içerik dolduruluyorsa, dış link'i temizle
                       if (textContent !== '') {
-                        setFormData({ ...formData, content: value, externalUrl: '' });
+                        updateFormData({ content: value, externalUrl: '' });
                       } else {
-                        setFormData({ ...formData, content: value });
+                        updateFormData({ content: value });
                       }
                     }}
                     placeholder="Duyuru içeriğini buraya yazın..."
@@ -317,9 +337,9 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                     const url = e.target.value;
                     // Eğer dış link dolduruluyorsa, içeriği temizle
                     if (url.trim() !== '') {
-                      setFormData({ ...formData, externalUrl: url, content: '' });
+                      updateFormData({ externalUrl: url, content: '' });
                     } else {
-                      setFormData({ ...formData, externalUrl: url });
+                      updateFormData({ externalUrl: url });
                     }
                   }}
                   disabled={!!formData.content.replace(/<[^>]*>/g, '').trim()}
@@ -406,7 +426,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                             }
                             setCroppedImageBlob(null);
                             setCroppedImagePreview('');
-                            setFormData({ ...formData, imageUrl: '' });
+                            updateFormData({ imageUrl: '' });
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Görseli kaldır"
@@ -433,7 +453,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                   <input
                     type="checkbox"
                     checked={formData.isPublished}
-                    onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                    onChange={(e) => updateFormData({ isPublished: e.target.checked })}
                     className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                   />
                   <span className="text-sm font-medium text-gray-700">Hemen yayınla</span>
@@ -449,7 +469,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
                   <input
                     type="checkbox"
                     checked={formData.isFeatured}
-                    onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
+                    onChange={(e) => updateFormData({ isFeatured: e.target.checked })}
                     className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                   />
                   <span className="text-sm font-medium text-gray-700">Öne çıkan duyuru</span>
@@ -464,7 +484,7 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
             <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 disabled={loading}
               >
@@ -494,6 +514,19 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
           onCropComplete={handleCropComplete}
           aspectRatio={16 / 9}
         />
+      )}
+
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+            <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
+              <button onClick={handleConfirmClose} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Çık</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

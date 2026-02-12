@@ -4,8 +4,8 @@ const path = require('path');
 const nextConfig = {
   transpilePackages: ['shared'],
   typescript: {
-    // Allow build even if there are TypeScript type errors (avoid blocking deploy). Consider fixing errors later.
-    ignoreBuildErrors: true,
+    // TypeScript hataları build'de kontrol edilir — tip hataları production'a geçemez
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,

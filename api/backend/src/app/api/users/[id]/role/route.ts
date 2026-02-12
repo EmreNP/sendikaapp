@@ -7,12 +7,12 @@ import type { UserRole, UserRoleUpdateData } from '@shared/types/user';
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/role - Kullanıcı rolünü güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -30,9 +30,9 @@ export const PATCH = asyncHandler(async (
       
       // Role geçerli mi kontrol et
       const validRoles = Object.values(USER_ROLE);
-      console.log('🔍 Role validation:', { newRole, validRoles, includes: validRoles.includes(newRole as UserRole) });
+      logger.log('🔍 Role validation:', { newRole, validRoles, includes: validRoles.includes(newRole as UserRole) });
       if (!validRoles.includes(newRole as UserRole)) {
-      console.error('❌ Invalid role received:', newRole, 'Valid roles:', validRoles);
+      logger.error('❌ Invalid role received:', `${newRole} - Valid roles: ${validRoles.join(', ')}`);
       throw new AppValidationError('Geçersiz rol değeri');
       }
       
@@ -103,7 +103,7 @@ export const PATCH = asyncHandler(async (
       
       await db.collection('users').doc(targetUserId).update(updateData as any);
       
-      console.log(`✅ User ${targetUserId} role updated: ${currentRole} → ${newRole}`);
+      logger.log(`✅ User ${targetUserId} role updated: ${currentRole} → ${newRole}`);
       
       // Log oluştur
       await createRegistrationLog({

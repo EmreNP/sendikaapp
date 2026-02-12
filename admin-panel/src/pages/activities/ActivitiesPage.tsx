@@ -3,12 +3,15 @@ import { Plus, Search, Clock, Edit, Trash2, Calendar, X, Tag } from 'lucide-reac
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import ActivityFormModal from '@/components/activities/ActivityFormModal';
 import ActivityDetailModal from '@/components/activities/ActivityDetailModal';
 import CategoryFormModal from '@/components/activities/CategoryFormModal';
 import { activityService } from '@/services/api/activityService';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/utils/api';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface BranchOption {
   id: string;
@@ -26,6 +29,9 @@ export default function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(25);
   const [processing, setProcessing] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -48,8 +54,13 @@ export default function ActivitiesPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await activityService.getActivities();
+      const response = await activityService.getActivities({
+        page,
+        limit,
+        search: searchTerm || undefined
+      });
       setActivities(response.activities);
+      setTotal(response.total || 0);
     } catch (err: any) {
       setError(err.message || 'Aktiviteler yüklenirken hata oluştu');
     } finally {
@@ -74,8 +85,14 @@ export default function ActivitiesPage() {
     const loadBranchesIfNeeded = async () => {
       try {
         if (user?.role !== 'admin' && user?.role !== 'superadmin') return;
-        const { apiRequest } = await import('@/utils/api');
-        const data = await apiRequest<{ branches: BranchOption[] }>('/api/branches');
+        const data = await apiRequest<{ 
+          branches: BranchOption[];
+          total?: number;
+          page: number;
+          limit: number;
+          hasMore: boolean;
+          nextCursor?: string;
+        }>('/api/branches');
         setBranches(data.branches || []);
       } catch (e) {
         // ignore
@@ -90,7 +107,7 @@ export default function ActivitiesPage() {
     if (activeTab === 'activities') {
       fetchActivities();
     }
-  }, [activeTab, user?.role]);
+  }, [activeTab, user?.role, page, searchTerm]);
 
   // If a non-admin somehow has `categories` active (e.g., bookmarked URL), force back to activities
   useEffect(() => {
@@ -98,14 +115,6 @@ export default function ActivitiesPage() {
       setActiveTab('activities');
     }
   }, [activeTab, user?.role]);
-
-  // Filter activities
-  const filteredActivities = activities.filter(activity => {
-    const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
 
   // Activity handlers
   const handleCreateActivity = () => {
@@ -206,17 +215,6 @@ export default function ActivitiesPage() {
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     return category?.name || 'Bilinmeyen Kategori';
-  };
-
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   return (
@@ -320,13 +318,14 @@ export default function ActivitiesPage() {
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   <p className="mt-2 text-gray-600">Yükleniyor...</p>
                 </div>
-              ) : filteredActivities.length === 0 ? (
+              ) : activities.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aktivite bulunamadı</h3>
                   <p className="text-gray-600">Filtreleri temizleyip tekrar deneyin veya yeni aktivite oluşturun.</p>
                 </div>
               ) : (
+                <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
@@ -338,7 +337,7 @@ export default function ActivitiesPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {filteredActivities.map((activity) => {
+                      {activities.map((activity) => {
                         const categoryName = getCategoryName(activity.categoryId);
                         return (
                           <tr 
@@ -361,7 +360,7 @@ export default function ActivitiesPage() {
                               <div className="flex items-center gap-2 text-sm text-gray-700">
                                 <Clock className="w-4 h-4 text-gray-400" />
                                 <div>
-                                  <div>{formatDate(activity.activityDate)}</div>
+                                  <div>{formatDate(activity.activityDate, true, '2-digit')}</div>
                                 </div>
                               </div>
                             </td>
@@ -389,6 +388,15 @@ export default function ActivitiesPage() {
                     </tbody>
                   </table>
                 </div>
+                {/* Pagination */}
+                <Pagination
+                  currentPage={page}
+                  total={total}
+                  limit={limit}
+                  onPageChange={setPage}
+                  showPageNumbers={false}
+                />
+                </>
               )}
             </div>
           </div>

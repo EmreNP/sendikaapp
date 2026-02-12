@@ -13,6 +13,8 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET - Tüm haberleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -28,8 +30,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       // Query parametreleri
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isPublishedParam = url.searchParams.get('isPublished');
     const isFeaturedParam = url.searchParams.get('isFeatured');
     const search = url.searchParams.get('search');
@@ -51,40 +52,51 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && isFeaturedParam !== null) {
         query = query.where('isFeatured', '==', isFeaturedParam === 'true');
       }
-      
-      // Query'yi çalıştır
-      const snapshot = await query.orderBy('createdAt', 'desc').get();
-      
-      let news = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as News[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
+
+      // ⚠️ IMPORTANT: Search filter handled client-side (see announcements endpoint for details)
       if (search) {
         const searchLower = search.toLowerCase();
-        news = news.filter((n: News) => {
-          const title = (n.title || '').toLowerCase();
-          return title.includes(searchLower);
+        const orderedQuery = query.orderBy('createdAt', 'desc');
+        
+        const result = await searchInBatches<News>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as News,
+          (n) => (n.title || '').toLowerCase().includes(searchLower)
+        );
+        
+        const serializedNews = result.items.map(n => serializeNewsTimestamps(n));
+        
+        return successResponse('Haberler başarıyla getirildi', {
+          news: serializedNews,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       
-      // Sayfalama
-      const total = news.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedNews = news.slice(startIndex, endIndex);
+      // Server-side pagination with Firestore
+      query = query.orderBy('createdAt', 'desc');
       
-      // Timestamp'leri serialize et
-      const serializedNews = paginatedNews.map(n => serializeNewsTimestamps(n));
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }) as News,
+        'createdAt'
+      );
+      
+      const serializedNews = paginatedResult.items.map(n => serializeNewsTimestamps(n));
       
       return successResponse(
         'Haberler başarıyla getirildi',
         {
           news: serializedNews,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });
@@ -100,7 +112,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -144,7 +156,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Timestamp'leri serialize et
       const serializedNews = serializeNewsTimestamps(news);
-      
+
+      // Audit log
+      createAuditLog({
+        action: 'news_created',
+        category: 'news',
+        performedBy: user.uid,
+        performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+        performedByRole: currentUserData!.role,
+        branchId: currentUserData!.branchId,
+        targetId: newsDoc.id,
+        targetName: title.trim(),
+        details: { isPublished: newsData.isPublished, isFeatured: newsData.isFeatured },
+        message: `"${title.trim()}" haberi oluşturuldu`,
+      });
+
       return successResponse(
         'Haber başarıyla oluşturuldu',
         { news: serializedNews },

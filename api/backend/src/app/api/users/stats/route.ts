@@ -90,6 +90,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         rejected: 0,
         byRole: {
           admin: 0,
+          superadmin: 0,
           branch_manager: 0,
           user: 0,
         },

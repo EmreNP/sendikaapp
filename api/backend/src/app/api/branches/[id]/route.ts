@@ -13,6 +13,7 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { getBranchDetails } from '@/lib/utils/branchQueries';
 
+import { logger } from '../../../../lib/utils/logger';
 // Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
 // artık getBranchDetails() utility fonksiyonu kullanılıyor (src/lib/utils/branchQueries.ts)
 
@@ -87,7 +88,7 @@ export const PUT = asyncHandler(async (
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
+      if (!userData || (userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -176,7 +177,7 @@ export const DELETE = asyncHandler(async (
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
       
-      if (!userData || userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN) {
+      if (!userData || (userData.role !== USER_ROLE.ADMIN && userData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -199,7 +200,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete - belgeyi tamamen sil
       await db.collection('branches').doc(branchId).delete();
       
-      console.log(`✅ Branch ${branchId} deleted`);
+      logger.log(`✅ Branch ${branchId} deleted`);
       
       return successResponse(
         'Şube başarıyla silindi',

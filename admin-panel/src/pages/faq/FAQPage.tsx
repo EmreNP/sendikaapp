@@ -3,12 +3,15 @@ import { HelpCircle, Plus, Search, Trash2, Edit, User, XCircle, CheckCircle } fr
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import FAQFormModal from '@/components/faq/FAQFormModal';
 import FAQPreviewModal from '@/components/faq/FAQPreviewModal';
 import { faqService } from '@/services/api/faqService';
-import { authService } from '@/services/auth/authService';
+import { batchFetchUserNames } from '@/services/api/userNameService';
 import type { FAQ } from '@/types/faq';
 import type { User as UserType } from '@/types/user';
+import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormatter';
 
 export default function FAQPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -20,8 +23,9 @@ export default function FAQPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [filterPublished, setFilterPublished] = useState<boolean | null>(null);
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const limit = 25;
   const [userCache, setUserCache] = useState<Record<string, UserType>>({});
   const [selectedFAQIds, setSelectedFAQIds] = useState<Set<string>>(new Set());
   
@@ -50,7 +54,7 @@ export default function FAQPage() {
 
       const data = await faqService.getFAQ({
         page,
-        limit: 100,
+        limit: 25,
         isPublished: filterPublished ?? undefined,
         search: searchTerm || undefined,
       });
@@ -58,39 +62,28 @@ export default function FAQPage() {
       setFaqs(data.faqs || []);
       setTotal(data.total || 0);
 
-      // Kullanıcı bilgilerini cache'le
+      // Kullanıcı bilgilerini toplu olarak çek (batch)
       const uniqueUserIds = new Set<string>();
       data.faqs?.forEach((item) => {
         if (item.createdBy) uniqueUserIds.add(item.createdBy);
         if (item.updatedBy) uniqueUserIds.add(item.updatedBy);
       });
 
-      // Cache'de olmayan kullanıcıları getir
+      // Cache'de olmayan kullanıcıları toplu getir
       const userIdsToFetch = Array.from(uniqueUserIds).filter(uid => !userCache[uid]);
       
       if (userIdsToFetch.length > 0) {
-        const userPromises = userIdsToFetch.map(async (uid) => {
-          try {
-            const userData = await authService.getUserData(uid);
-            return userData ? { uid, user: userData } : null;
-          } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
-            return null;
-          }
-        });
-
-        const userResults = await Promise.all(userPromises);
+        const batchNames = await batchFetchUserNames(userIdsToFetch);
         const newUserCache: Record<string, UserType> = {};
-        userResults.forEach((result) => {
-          if (result) {
-            newUserCache[result.uid] = result.user;
-          }
-        });
+        
+        for (const [uid, name] of Object.entries(batchNames)) {
+          newUserCache[uid] = { firstName: name.firstName, lastName: name.lastName } as UserType;
+        }
 
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching FAQ:', error);
+      logger.error('❌ Error fetching FAQ:', error);
       setError(error.message || 'FAQ\'ler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setFaqs([]);
     } finally {
@@ -107,45 +100,9 @@ export default function FAQPage() {
     return 'Yükleniyor...';
   };
 
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + ((date.nanoseconds || 0) / 1000000));
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const filteredFAQ = faqs.filter((item) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.answer.replace(/<[^>]*>/g, '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedFAQIds(new Set(filteredFAQ.map(f => f.id)));
+      setSelectedFAQIds(new Set(faqs.map(f => f.id)));
     } else {
       setSelectedFAQIds(new Set());
     }
@@ -172,7 +129,7 @@ export default function FAQPage() {
         return newSet;
       });
     } catch (error: any) {
-      console.error('Error deleting FAQ:', error);
+      logger.error('Error deleting FAQ:', error);
       setError(error.message || 'FAQ silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -187,7 +144,7 @@ export default function FAQPage() {
       });
       await fetchFAQ();
     } catch (error: any) {
-      console.error('Error toggling published:', error);
+      logger.error('Error toggling published:', error);
       setError(error.message || 'FAQ durumu güncellenirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -212,7 +169,7 @@ export default function FAQPage() {
 
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk deleting FAQ:', error);
+      logger.error('Error bulk deleting FAQ:', error);
       setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -233,7 +190,7 @@ export default function FAQPage() {
       await fetchFAQ();
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk publishing FAQ:', error);
+      logger.error('Error bulk publishing FAQ:', error);
       setError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -254,7 +211,7 @@ export default function FAQPage() {
       await fetchFAQ();
       setSelectedFAQIds(new Set());
     } catch (error: any) {
-      console.error('Error bulk unpublishing FAQ:', error);
+      logger.error('Error bulk unpublishing FAQ:', error);
       setError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -343,7 +300,7 @@ export default function FAQPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
               <p className="text-gray-500 mt-2">Yükleniyor...</p>
             </div>
-          ) : filteredFAQ.length === 0 ? (
+          ) : faqs.length === 0 ? (
             <div className="p-8 text-center">
               <HelpCircle className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">FAQ bulunamadı</p>
@@ -357,7 +314,7 @@ export default function FAQPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                         <input
                           type="checkbox"
-                          checked={filteredFAQ.length > 0 && selectedFAQIds.size === filteredFAQ.length}
+                          checked={faqs.length > 0 && selectedFAQIds.size === faqs.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                           className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                           onClick={(e) => e.stopPropagation()}
@@ -381,7 +338,7 @@ export default function FAQPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredFAQ.map((item, index) => (
+                    {faqs.map((item, index) => (
                       <tr 
                         key={item.id || `faq-${index}`} 
                         className={`hover:bg-gray-50 transition-colors ${
@@ -416,7 +373,7 @@ export default function FAQPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {formatDate(item.createdAt)}
+                            {formatDate(item.createdAt, true, 'short')}
                           </div>
                         </td>
                         <td 
@@ -427,7 +384,7 @@ export default function FAQPage() {
                           }}
                         >
                           <div className="text-sm text-gray-600">
-                            {formatDate(item.updatedAt)}
+                            {formatDate(item.updatedAt, true, 'short')}
                           </div>
                         </td>
                         <td 
@@ -499,12 +456,14 @@ export default function FAQPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Toplam FAQ sayısı: <span className="font-medium text-gray-900">{total}</span>
-                </div>
-              </div>
+              {/* Pagination */}
+              <Pagination
+                currentPage={page}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
         </div>
