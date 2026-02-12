@@ -13,6 +13,7 @@ import { notificationsPaths } from './paths/notifications'
 import { miscPaths } from './paths/misc'
 import { activitiesPaths } from './paths/activities'
 import { activityCategoriesPaths } from './paths/activity-categories'
+import { reportsPaths } from './paths/reports'
 
 export const paths = {
   ...healthPaths,
@@ -30,4 +31,5 @@ export const paths = {
   ...miscPaths,
   ...activitiesPaths,
   ...activityCategoriesPaths,
+  ...reportsPaths,
 }

@@ -230,5 +230,119 @@ export const components = {
           deviceType: { type: 'string', enum: ['ios', 'android'], description: 'Cihaz tipi (opsiyonel)' },
         },
       },
+
+      /* ===== Reports related schemas ===== */
+      LogEntry: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', format: 'date-time' },
+          message: { type: 'string' },
+          type: { type: 'string' },
+          actor: { type: 'string', nullable: true },
+        },
+      },
+
+      ActivityItem: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string', nullable: true },
+          categoryName: { type: 'string', nullable: true },
+          activityDate: { type: 'string', format: 'date-time', nullable: true },
+          createdAt: { type: 'string', format: 'date-time', nullable: true },
+          isPublished: { type: 'boolean' },
+          createdByName: { type: 'string', nullable: true },
+        },
+      },
+
+      BranchReport: {
+        type: 'object',
+        properties: {
+          branchId: { type: 'string' },
+          branchName: { type: 'string' },
+          isActive: { type: 'boolean' },
+          managers: { type: 'array', items: { type: 'object', properties: { uid: { type: 'string' }, fullName: { type: 'string' } } } },
+          period: { type: 'object', properties: { startDate: { type: 'string' }, endDate: { type: 'string' } } },
+          summary: {
+            type: 'object',
+            properties: {
+              totalMembers: { type: 'integer' },
+              activeMembers: { type: 'integer' },
+              newMembers: { type: 'integer' },
+              updatedMembers: { type: 'integer' },
+              totalActivities: { type: 'integer' },
+              activitiesByCategory: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, count: { type: 'integer' } } } },
+              notificationsSent: { type: 'integer' },
+              newsCreated: { type: 'integer' },
+              announcementsCreated: { type: 'integer' },
+            },
+          },
+          logEntries: { type: 'array', items: { $ref: '#/components/schemas/LogEntry' } },
+          activities: { type: 'array', items: { $ref: '#/components/schemas/ActivityItem' } },
+        },
+      },
+
+      ManagerReport: {
+        type: 'object',
+        properties: {
+          uid: { type: 'string' },
+          fullName: { type: 'string' },
+          branchName: { type: 'string' },
+          district: { type: 'string', nullable: true },
+          email: { type: 'string', nullable: true },
+          period: { type: 'object', properties: { startDate: { type: 'string' }, endDate: { type: 'string' } } },
+          summary: { type: 'object' , properties: { managedMembers: { type: 'integer' }, activeMembers: { type: 'integer' }, newMembers: { type: 'integer' }, updatedMembers: { type: 'integer' }, approvals: { type: 'integer' }, rejections: { type: 'integer' }, totalActivities: { type: 'integer' }, notificationsSent: { type: 'integer' } } },
+          logEntries: { type: 'array', items: { $ref: '#/components/schemas/LogEntry' } },
+          activities: { type: 'array', items: { $ref: '#/components/schemas/ActivityItem' } },
+        },
+      },
+
+      ReportGenerateResponse: {
+        allOf: [
+          { $ref: '#/components/schemas/SuccessResponse' },
+          {
+            type: 'object',
+            properties: {
+              data: {
+                type: 'object',
+                properties: {
+                  reportType: { type: 'string', enum: ['branch', 'manager'] },
+                  generatedAt: { type: 'string', format: 'date-time' },
+                  period: { type: 'object', properties: { startDate: { type: 'string' }, endDate: { type: 'string' } } },
+                  reports: { type: 'array', items: { oneOf: [ { $ref: '#/components/schemas/BranchReport' }, { $ref: '#/components/schemas/ManagerReport' } ] } },
+                },
+              },
+            },
+          },
+        ],
+      },
+
+      PerformanceTrendItem: {
+        type: 'object',
+        properties: { period: { type: 'string' }, count: { type: 'integer' }, granularity: { type: 'string' } },
+      },
+
+      BranchComparisonItem: {
+        type: 'object',
+        properties: { branchId: { type: 'string' }, branchName: { type: 'string' }, activityCount: { type: 'integer' }, memberCount: { type: 'integer' }, newsCount: { type: 'integer' } },
+      },
+
+      TopBranchItem: {
+        type: 'object',
+        properties: { branchId: { type: 'string' }, branchName: { type: 'string' }, activityCount: { type: 'integer' }, memberCount: { type: 'integer' }, performanceScore: { type: 'integer' } },
+      },
+
+      TopManagerItem: {
+        type: 'object',
+        properties: { uid: { type: 'string' }, fullName: { type: 'string' }, branchName: { type: 'string' }, activityCount: { type: 'integer' }, performanceScore: { type: 'integer' } },
+      },
+
+      PerformanceSummaryResponse: {
+        allOf: [ { $ref: '#/components/schemas/SuccessResponse' }, { type: 'object', properties: { data: { type: 'object', properties: { overview: { type: 'object', properties: { totalBranches: { type: 'integer' }, activeBranches: { type: 'integer' }, totalManagers: { type: 'integer' }, totalActivities: { type: 'integer' }, totalMembers: { type: 'integer' }, activeMembersCount: { type: 'integer' } } }, topBranches: { type: 'array', items: { $ref: '#/components/schemas/TopBranchItem' } }, topManagers: { type: 'array', items: { $ref: '#/components/schemas/TopManagerItem' } }, activityTrend: { type: 'array', items: { $ref: '#/components/schemas/PerformanceTrendItem' } }, branchComparison: { type: 'array', items: { $ref: '#/components/schemas/BranchComparisonItem' } }, timeGranularity: { type: 'string' } } } } ] },
+
+      BranchesPerformanceResponse: { allOf: [ { $ref: '#/components/schemas/SuccessResponse' }, { type: 'object', properties: { data: { type: 'object', properties: { branches: { type: 'array', items: { type: 'object' } }, summary: { type: 'object' }, timeGranularity: { type: 'string' } } } } } ] },
+
+      ManagersPerformanceResponse: { allOf: [ { $ref: '#/components/schemas/SuccessResponse' }, { type: 'object', properties: { data: { type: 'object', properties: { managers: { type: 'array', items: { type: 'object' } }, summary: { type: 'object' }, timeGranularity: { type: 'string' } } } } } ] },
     },
 }

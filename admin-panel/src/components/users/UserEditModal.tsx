@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF } from '@/utils/pdfGenerator';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { logger } from '@/utils/logger';
 
 interface Props {
@@ -548,12 +549,17 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         İlçe <span className="text-red-500">*</span>
                     </label>
-                    <input
+                    <select
                       value={district}
                       onChange={(e) => setDistrict(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                       required
-                    />
+                    >
+                      <option value="">Seçiniz</option>
+                      {KONYA_DISTRICTS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="col-span-2">
