@@ -11,8 +11,9 @@ import {
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
+import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, News } from '../types';
@@ -73,7 +74,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
@@ -83,13 +84,23 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>❌</Text>
+          <View style={styles.errorIconContainer}>
+            <Feather name="alert-circle" size={48} color="#ef4444" />
+          </View>
           <Text style={styles.errorText}>Haber bulunamadı</Text>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backBtnText}>Geri Dön</Text>
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.backBtnGradient}
+            >
+              <Feather name="arrow-left" size={18} color="#ffffff" />
+              <Text style={styles.backBtnText}>Geri Dön</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -103,9 +114,14 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
         {newsItem.imageUrl ? (
           <Image source={{ uri: newsItem.imageUrl }} style={styles.headerImage} />
         ) : (
-          <View style={[styles.headerImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderEmoji}>📰</Text>
-          </View>
+          <LinearGradient
+            colors={['#0f172a', '#312e81', '#4338ca']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.headerImage, styles.placeholderImage]}
+          >
+            <Feather name="file-text" size={56} color="rgba(255,255,255,0.4)" />
+          </LinearGradient>
         )}
 
         {/* Back Button Overlay */}
@@ -114,13 +130,13 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Feather name="arrow-left" size={22} color="#ffffff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.shareButton}
             onPress={handleShare}
           >
-            <Text style={styles.shareIcon}>↗</Text>
+            <Feather name="share-2" size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
@@ -128,9 +144,14 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
         <View style={styles.content}>
           {/* Category Badge */}
           {newsItem.category && (
-            <View style={styles.categoryBadge}>
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.categoryBadge}
+            >
               <Text style={styles.categoryText}>{newsItem.category}</Text>
-            </View>
+            </LinearGradient>
           )}
 
           {/* Title */}
@@ -139,12 +160,12 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
           {/* Meta Info */}
           <View style={styles.metaContainer}>
             <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>📅</Text>
-              <Text style={styles.metaText}>{formatDate(newsItem.createdAt)}</Text>
+              <Feather name="calendar" size={14} color="#64748b" />
+              <Text style={styles.metaText}>{formatDate(newsItem.createdAt || '')}</Text>
             </View>
             {newsItem.author && (
               <View style={styles.metaItem}>
-                <Text style={styles.metaIcon}>✍️</Text>
+                <Feather name="user" size={14} color="#64748b" />
                 <Text style={styles.metaText}>{newsItem.author}</Text>
               </View>
             )}
@@ -161,20 +182,6 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
           <Text style={styles.bodyText}>
             {newsItem.content || newsItem.summary || 'İçerik mevcut değil.'}
           </Text>
-
-          {/* Tags */}
-          {newsItem.tags && newsItem.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              <Text style={styles.tagsTitle}>Etiketler</Text>
-              <View style={styles.tagsList}>
-                {newsItem.tags.map((tag, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>#{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -184,7 +191,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -195,27 +202,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: 32,
   },
-  errorEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+  errorIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   errorText: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.text,
-    marginBottom: SPACING.lg,
+    fontSize: 18,
+    color: '#0f172a',
+    marginBottom: 24,
   },
   backBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  backBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    gap: 8,
   },
   backBtnText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
   headerImage: {
     width: '100%',
@@ -223,12 +240,8 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   placeholderImage: {
-    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  placeholderEmoji: {
-    fontSize: 64,
   },
   headerOverlay: {
     position: 'absolute',
@@ -237,123 +250,120 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: SPACING.md,
+    padding: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backIcon: {
-    fontSize: 20,
-    color: COLORS.textWhite,
-    fontWeight: 'bold',
   },
   shareButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shareIcon: {
-    fontSize: 18,
-    color: COLORS.textWhite,
-    fontWeight: 'bold',
-  },
   content: {
-    padding: SPACING.lg,
+    padding: 20,
+    marginTop: -24,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   categoryBadge: {
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
     alignSelf: 'flex-start',
-    marginBottom: SPACING.md,
+    marginBottom: 16,
   },
   categoryText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.primary,
+    fontSize: 12,
+    color: '#ffffff',
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   title: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#0f172a',
     lineHeight: 32,
-    marginBottom: SPACING.md,
+    marginBottom: 16,
   },
   metaContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: SPACING.lg,
+    marginBottom: 20,
+    gap: 16,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SPACING.lg,
-    marginBottom: SPACING.xs,
-  },
-  metaIcon: {
-    fontSize: 14,
-    marginRight: 4,
+    gap: 6,
   },
   metaText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
   },
   summaryContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#ffffff',
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
+    borderLeftColor: '#4338ca',
+    padding: 16,
+    marginBottom: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   summaryText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.text,
+    fontSize: 15,
+    color: '#0f172a',
     fontStyle: 'italic',
     lineHeight: 24,
   },
   bodyText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.text,
+    fontSize: 15,
+    color: '#374151',
     lineHeight: 26,
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
   },
   tagsContainer: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.lg,
-    marginTop: SPACING.md,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 20,
+    marginTop: 8,
   },
   tagsTitle: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 12,
   },
   tagsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
   },
   tag: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-    marginRight: SPACING.xs,
-    marginBottom: SPACING.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
   },
   tagText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#4338ca',
+    fontWeight: '500',
   },
 });

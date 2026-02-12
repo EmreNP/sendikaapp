@@ -1,4 +1,4 @@
-// Courses Screen - Training List
+// Courses Screen - Training List - Redesigned to match front web design
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,18 +6,21 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { ApiService } from '../services/api';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW } from '../constants/theme';
+import ApiService from '../services/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList, Training } from '../types';
+
+const { width } = Dimensions.get('window');
 
 type CoursesScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Courses'>,
@@ -28,11 +31,76 @@ type CoursesScreenProps = {
   navigation: CoursesScreenNavigationProp;
 };
 
+// İcon haritası - Statik olarak tanımlanmış
+const trainingIcons: Record<string, any> = {
+  // İslami/Dini
+  'İslami': 'book',
+  'Kuran': 'book',
+  'Hadis': 'book-open',
+  'Fiqh': 'award',
+  'Siyer': 'user',
+  // Eğitim kategorileri
+  'Temel': 'star',
+  'Sosyal': 'users',
+  'Mesleki': 'briefcase',
+  'Hukuk': 'shield',
+  'Sağlık': 'heart',
+  'Teknoloji': 'cpu',
+  'Yönetim': 'settings',
+  'Liderlik': 'target',
+  'İletişim': 'message-circle',
+  'Gelişim': 'trending-up',
+  'default': 'book-open',
+};
+
+// Ders iconları - Statik
+const lessonIcons = ['play-circle', 'file-text', 'video', 'headphones', 'clipboard'];
+
+const getLessonIcon = (index: number): string => {
+  return lessonIcons[index % lessonIcons.length];
+};
+const colorPalette = [
+  { gradient: ['#2563eb', '#1d4ed8'], light: '#eff6ff', text: '#2563eb', border: '#dbeafe' },
+  { gradient: ['#059669', '#047857'], light: '#ecfdf5', text: '#059669', border: '#d1fae5' },
+  { gradient: ['#d97706', '#b45309'], light: '#fffbeb', text: '#d97706', border: '#fef3c7' },
+  { gradient: ['#7c3aed', '#6d28d9'], light: '#f5f3ff', text: '#7c3aed', border: '#e9d5ff' },
+  { gradient: ['#e11d48', '#be123c'], light: '#fff1f2', text: '#e11d48', border: '#fecdd3' },
+];
+
+// İcon seçim fonksiyonu
+const getTrainingIcon = (title: string): string => {
+  const normalizedTitle = title.toLowerCase();
+  for (const key in trainingIcons) {
+    if (normalizedTitle.includes(key.toLowerCase())) {
+      return trainingIcons[key];
+    }
+  }
+  return trainingIcons.default;
+};
+
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const { canAccessTrainings, isPendingDetails } = useAuth();
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Accordion / lessons state per training
+  const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
+  const [lessonsMap, setLessonsMap] = useState<Record<string, any[]>>({});
+  const [loadingLessons, setLoadingLessons] = useState<string | null>(null);
+
+  const loadLessons = async (trainingId: string) => {
+    if (lessonsMap[trainingId]) return; // already loaded
+    try {
+      setLoadingLessons(trainingId);
+      const lessons = await ApiService.getLessons(trainingId);
+      setLessonsMap(prev => ({ ...prev, [trainingId]: lessons }));
+    } catch (err) {
+      console.error('Error loading lessons:', err);
+    } finally {
+      setLoadingLessons(null);
+    }
+  };
 
   useEffect(() => {
     if (canAccessTrainings) {
@@ -68,7 +136,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         </View>
         <View style={styles.lockedContainer}>
           <View style={styles.lockedIcon}>
-            <Text style={styles.lockedEmoji}>🔒</Text>
+            <Feather name="lock" size={48} color="#4338ca" />
           </View>
           <Text style={styles.lockedTitle}>Eğitimlere Erişim Kısıtlı</Text>
           <Text style={styles.lockedText}>
@@ -80,8 +148,17 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.membershipButton}
               onPress={() => navigation.navigate('Membership' as any)}
+              activeOpacity={0.9}
             >
-              <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
+              <LinearGradient
+                colors={['#4338ca', '#1e40af']}
+                style={styles.membershipButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Feather name="user-plus" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -96,58 +173,190 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
           <Text style={styles.headerTitle}>Eğitimler</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#4338ca" />
         </View>
       </SafeAreaView>
     );
   }
 
-  const renderTrainingItem = ({ item }: { item: Training }) => (
-    <TouchableOpacity
-      style={styles.trainingCard}
-      onPress={() => navigation.navigate('CourseDetail', { courseId: item.id })}
-      activeOpacity={0.7}
-    >
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
-      ) : (
-        <View style={[styles.trainingImage, styles.placeholderImage]}>
-          <Text style={styles.placeholderEmoji}>📚</Text>
-        </View>
-      )}
-      <View style={styles.trainingContent}>
-        <View style={styles.trainingBadge}>
-          <Text style={styles.trainingBadgeText}>
-            {item.lessonsCount || 0} Ders
-          </Text>
-        </View>
-        <Text style={styles.trainingTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.trainingDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.trainingMeta}>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaIcon}>⏱️</Text>
-            <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
+  const renderTrainingItem = ({ item, index }: { item: Training; index: number }) => {
+    const palette = colorPalette[index % colorPalette.length];
+    const isExpanded = expandedTrainingId === item.id;
+    const lessons = lessonsMap[item.id] || [];
+    const isLoadingThisLessons = loadingLessons === item.id;
+    const icon = getTrainingIcon(item.title);
+
+    // Statik değerler
+    const totalLessons = lessons.length || 3;
+    const completedLessons = Math.floor(Math.random() * (totalLessons + 1)); // 0 ile totalLessons arası random
+
+    return (
+      <View style={styles.trainingCard}>
+        {/* Training Header - Clickable */}
+        <TouchableOpacity
+          style={styles.trainingHeader}
+          onPress={() => {
+            if (isExpanded) {
+              setExpandedTrainingId(null);
+            } else {
+              setExpandedTrainingId(item.id);
+              loadLessons(item.id);
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          {/* Icon Container */}
+          <LinearGradient
+            colors={palette.gradient as [string, string]}
+            style={styles.iconContainer}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Feather name={icon as any} size={28} color="#ffffff" />
+          </LinearGradient>
+
+          {/* Content */}
+          <View style={styles.trainingContent}>
+            <Text style={styles.trainingTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {item.description && (
+              <Text style={styles.trainingDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+            <Text style={styles.categoryText}>{totalLessons} alt kategori</Text>
           </View>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaIcon}>👥</Text>
-            <Text style={styles.metaText}>{item.enrolledCount || 0} Katılımcı</Text>
+
+          {/* Chevron */}
+          {isLoadingThisLessons ? (
+            <ActivityIndicator size="small" color="#94a3b8" style={styles.chevron} />
+          ) : (
+            <Feather
+              name="chevron-down"
+              size={20}
+              color="#94a3b8"
+              style={[
+                styles.chevron,
+                { transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] },
+              ]}
+            />
+          )}
+        </TouchableOpacity>
+
+        {/* Lessons Accordion */}
+        {isExpanded && (
+          <View style={styles.lessonsContainer}>
+            {isLoadingThisLessons ? (
+              <View style={styles.lessonsLoading}>
+                <ActivityIndicator size="small" color={palette.text} />
+                <Text style={[styles.lessonsLoadingText, { color: palette.text }]}>
+                  Dersler yükleniyor...
+                </Text>
+              </View>
+            ) : lessons.length === 0 ? (
+              <View style={styles.lessonsEmpty}>
+                <Text style={styles.lessonsEmptyText}>
+                  Bu eğitimde henüz ders bulunmuyor.
+                </Text>
+              </View>
+            ) : (
+              lessons.map((lesson, lessonIndex) => {
+                // Statik değerler - her ders için
+                const videoCount = Math.floor(Math.random() * 3) + 1; // 1-3 arası
+                const docCount = 1;
+                const testCount = 1;
+                const completed = lessonIndex < completedLessons;
+                const progressPercent = completed ? 100 : Math.floor(Math.random() * 70);
+                
+                return (
+                  <TouchableOpacity
+                    key={lesson.id}
+                    onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id, lessonId: lesson.id })}
+                    style={styles.lessonCard}
+                    activeOpacity={0.7}
+                  >
+                    {/* Sol: Progress Fraction */}
+                    <View style={styles.lessonProgress}>
+                      <Text style={styles.progressFraction}>
+                        {lessonIndex + 1}/{totalLessons}
+                      </Text>
+                    </View>
+
+                    {/* Orta: İçerik */}
+                    <View style={styles.lessonMainContent}>
+                      <Text style={styles.lessonCardTitle} numberOfLines={2}>
+                        {lesson.title}
+                      </Text>
+                      {lesson.description && (
+                        <Text style={styles.lessonCardDescription} numberOfLines={1}>
+                          {lesson.description}
+                        </Text>
+                      )}
+                      
+                      {/* İkon Satırı */}
+                      <View style={styles.lessonMeta}>
+                        <View style={styles.metaItem}>
+                          <Feather name="play-circle" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{videoCount} video</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Feather name="file-text" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{docCount} döküman</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Feather name="clipboard" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{testCount} test</Text>
+                        </View>
+                      </View>
+
+                      {/* Progress Bar */}
+                      <View style={styles.progressBarContainer}>
+                        <View style={styles.progressBarBg}>
+                          <View 
+                            style={[
+                              styles.progressBarFill, 
+                              { 
+                                width: `${progressPercent}%`,
+                                backgroundColor: progressPercent >= 70 ? '#f59e0b' : progressPercent >= 40 ? '#ef4444' : '#94a3b8'
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={styles.progressText}>
+                          <Feather name="award" size={12} color="#2563eb" /> %{progressPercent} Tamamlandı
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Sağ: Chevron */}
+                    <Feather name="chevron-right" size={20} color="#cbd5e1" />
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
-        </View>
+        )}
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Eğitimler</Text>
-        <Text style={styles.headerSubtitle}>{trainings.length} eğitim mevcut</Text>
-      </View>
+      {/* Header */}
+      <LinearGradient
+        colors={['#2563eb', '#1d4ed8']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Eğitimler</Text>
+          <Text style={styles.headerSubtitle}>{trainings.length} eğitim</Text>
+        </View>
+      </LinearGradient>
 
+      {/* Content */}
       <FlatList
         data={trainings}
         renderItem={renderTrainingItem}
@@ -155,11 +364,13 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📚</Text>
+            <View style={styles.emptyIconContainer}>
+              <Feather name="book-open" size={48} color="#94a3b8" />
+            </View>
             <Text style={styles.emptyTitle}>Henüz Eğitim Yok</Text>
             <Text style={styles.emptyText}>
               Yeni eğitimler eklendiğinde burada görünecektir.
@@ -174,23 +385,29 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  headerContent: {
+    gap: 4,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   loadingContainer: {
     flex: 1,
@@ -198,137 +415,232 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: SPACING.lg,
+    padding: 16,
+    paddingBottom: 80,
   },
   trainingCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
-    ...SHADOW.md,
+    marginBottom: 16,
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  trainingImage: {
-    width: '100%',
-    height: 160,
-    resizeMode: 'cover',
+  trainingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
-  placeholderImage: {
-    backgroundColor: COLORS.primaryLight,
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  placeholderEmoji: {
-    fontSize: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
   trainingContent: {
-    padding: SPACING.md,
+    flex: 1,
+    gap: 4,
   },
-  trainingBadge: {
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
-    alignSelf: 'flex-start',
-    marginBottom: SPACING.sm,
-  },
-  trainingBadgeText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.primary,
-    fontWeight: '600',
+  categoryText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
   trainingTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    lineHeight: 24,
   },
   trainingDescription: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     lineHeight: 20,
-    marginBottom: SPACING.sm,
   },
-  trainingMeta: {
-    flexDirection: 'row',
+  chevron: {
+    marginLeft: 8,
+  },
+  lessonsContainer: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    padding: 12,
+  },
+  lessonsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  lessonsLoadingText: {
+    fontSize: 14,
+  },
+  lessonsEmpty: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  lessonsEmptyText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  lessonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  lessonProgress: {
+    width: 48,
+    alignItems: 'center',
+  },
+  progressFraction: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  lessonMainContent: {
+    flex: 1,
+    gap: 8,
+  },
+  lessonCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    lineHeight: 22,
+  },
+  lessonCardDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+  lessonMeta: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SPACING.lg,
-  },
-  metaIcon: {
-    fontSize: 14,
-    marginRight: 4,
+    gap: 4,
   },
   metaText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  progressBarContainer: {
+    gap: 6,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 11,
+    color: '#2563eb',
+    fontWeight: '600',
   },
   lockedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: 32,
   },
   lockedIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.warning + '20',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(67, 56, 202, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  lockedEmoji: {
-    fontSize: 36,
+    marginBottom: 24,
   },
   lockedTitle: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    color: '#0f172a',
+    marginBottom: 12,
+    textAlign: 'center',
   },
   lockedText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   membershipButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  membershipButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
   membershipButtonText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
   emptyContainer: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
+    marginBottom: 24,
   },
   emptyTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 32,
   },
 });

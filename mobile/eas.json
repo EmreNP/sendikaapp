@@ -1,8 +1,6 @@
 {
   "cli": {
-    "version": ">= 3.0.0",
-    "appVersionSource": "local",
-    "promptToConfigurePushNotifications": false
+    "version": ">= 3.0.0"
   },
   "build": {
     "development": {
@@ -11,12 +9,12 @@
     },
     "preview": {
       "android": {
-        "buildType": "apk",
-        "env": {
-          "EXPO_PUBLIC_API_BASE_URL": "https://sectoral-marcelina-unwiped.ngrok-free.dev"
-        }
+        "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
+      }
     },
     "production": {
       "android": {

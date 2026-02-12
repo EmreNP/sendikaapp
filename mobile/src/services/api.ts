@@ -2,7 +2,7 @@
 import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
-import type { User, Training, Lesson, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
+import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
 
 class ApiService {
   private async getAuthToken(): Promise<string | null> {
@@ -139,89 +139,153 @@ class ApiService {
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await this.request<{ success: boolean; data: User }>(
+    const response = await this.request<{ success: boolean; data: { user: User } }>(
       API_ENDPOINTS.USERS.ME
     );
-    return response.data;
+    return response.data.user;
   }
 
   // Trainings
   async getTrainings(): Promise<Training[]> {
-    const response = await this.request<{ success: boolean; data: Training[] }>(
-      API_ENDPOINTS.TRAININGS.BASE,
-      {},
-      true
-    );
-    return response.data;
+    const response = await this.request<{
+      success: boolean;
+      data: { trainings: Training[]; total: number; page: number; limit: number };
+    }>(API_ENDPOINTS.TRAININGS.BASE, {}, true);
+
+    return response.data.trainings;
   }
 
   async getTraining(id: string): Promise<Training> {
-    const response = await this.request<{ success: boolean; data: Training }>(
+    const response = await this.request<{ success: boolean; data: { training: Training } }>(
       API_ENDPOINTS.TRAININGS.BY_ID(id)
     );
-    return response.data;
+    return response.data.training;
   }
 
   async getLessons(trainingId: string): Promise<Lesson[]> {
-    const response = await this.request<{ success: boolean; data: Lesson[] }>(
+    const response = await this.request<{ success: boolean; data: { lessons: Lesson[] } }>(
       API_ENDPOINTS.TRAININGS.LESSONS(trainingId)
     );
-    return response.data;
+    return response.data.lessons;
   }
 
   async getLesson(trainingId: string, lessonId: string): Promise<Lesson> {
-    const response = await this.request<{ success: boolean; data: Lesson }>(
+    const response = await this.request<{ success: boolean; data: { lesson: Lesson } }>(
       API_ENDPOINTS.TRAININGS.LESSON_BY_ID(trainingId, lessonId)
     );
-    return response.data;
+    return response.data.lesson;
+  }
+
+  async getLessonContents(lessonId: string, type?: 'video' | 'document' | 'test') : Promise<LessonContent[]> {
+    // Backend exposes separate endpoints for videos/documents/tests. Use them and normalize to LessonContent[]
+    const mapVideo = (v: any) => ({ id: v.id, lessonId: v.lessonId, title: v.title, description: v.description, type: 'video' as const, url: v.videoUrl, duration: v.duration ? String(v.duration) : undefined, order: v.order });
+    const mapDocument = (d: any) => ({ id: d.id, lessonId: d.lessonId, title: d.title, description: d.description, type: 'document' as const, url: d.documentUrl, order: d.order });
+    const mapTest = (t: any) => ({ id: t.id, lessonId: t.lessonId, title: t.title, description: t.description, type: 'test' as const, order: t.order });
+
+    if (type === 'video') {
+      const response = await this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId));
+      return (response.data.videos || []).map(mapVideo);
+    }
+
+    if (type === 'document') {
+      const response = await this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId));
+      return (response.data.documents || []).map(mapDocument);
+    }
+
+    if (type === 'test') {
+      const response = await this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId));
+      return (response.data.tests || []).map(mapTest);
+    }
+
+    // no type: fetch all three in parallel
+    const [videosRes, docsRes, testsRes] = await Promise.all([
+      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ data: { videos: [] } } as any)),
+      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ data: { documents: [] } } as any)),
+      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ data: { tests: [] } } as any)),
+    ]);
+
+    const combined = [
+      ...(videosRes.data.videos || []).map(mapVideo),
+      ...(docsRes.data.documents || []).map(mapDocument),
+      ...(testsRes.data.tests || []).map(mapTest),
+    ];
+
+    // sort by order when available
+    combined.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    return combined;
+  }
+
+  async getTest(testId: string): Promise<any> {
+    const response = await this.request<{ success: boolean; data: { test: any } }>(API_ENDPOINTS.TESTS.BY_ID(testId));
+    return response.data.test;
   }
 
   // Branches
   async getBranches(): Promise<Branch[]> {
-    const response = await this.request<{ success: boolean; data: Branch[] }>(
+    // Backend may return different shapes:
+    // - { success: true, branches: Branch[], total, page }
+    // - { success: true, data: { branches: Branch[] } }
+    // - { success: true, data: Branch[] }
+    const response = await this.request<any>(
       API_ENDPOINTS.BRANCHES.BASE,
       {},
-      false
+      true
     );
-    return response.data;
+
+    if (Array.isArray(response.branches)) return response.branches;
+    if (response.data) {
+      if (Array.isArray(response.data.branches)) return response.data.branches;
+      if (Array.isArray(response.data)) return response.data;
+    }
+
+    // Fallback empty list
+    return [];
   }
 
   async getBranch(id: string): Promise<Branch> {
-    const response = await this.request<{ success: boolean; data: Branch }>(
+    const response = await this.request<any>(
       API_ENDPOINTS.BRANCHES.BY_ID(id),
       {},
-      false
+      true
     );
-    return response.data;
+
+    if (response.branch) return response.branch;
+    if (response.data) {
+      if (response.data.branch) return response.data.branch;
+      // if data itself is the branch object
+      if (typeof response.data === 'object' && !Array.isArray(response.data)) return response.data;
+    }
+
+    throw new Error('Branch not found');
   }
 
   // News
   async getNews(): Promise<News[]> {
-    const response = await this.request<{ success: boolean; data: News[] }>(
+    const response = await this.request<{ success: boolean; data: { news: News[]; total?: number } }>(
       API_ENDPOINTS.NEWS.BASE,
       {},
-      false
+      true
     );
-    return response.data;
+    return response.data.news || [];
   }
 
   async getNewsItem(id: string): Promise<News> {
-    const response = await this.request<{ success: boolean; data: News }>(
+    const response = await this.request<{ success: boolean; data: { news: News } }>(
       API_ENDPOINTS.NEWS.BY_ID(id),
       {},
-      false
+      true
     );
-    return response.data;
+    return response.data.news;
   }
 
   // Announcements
   async getAnnouncements(): Promise<Announcement[]> {
-    const response = await this.request<{ success: boolean; data: Announcement[] }>(
+    const response = await this.request<{ success: boolean; data: { announcements: Announcement[]; total?: number } }>(
       API_ENDPOINTS.ANNOUNCEMENTS.BASE,
       {},
-      false
+      true
     );
-    return response.data;
+    return response.data.announcements || [];
   }
 
   // FAQ
@@ -242,7 +306,7 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify(data),
       },
-      false
+      true
     );
   }
 }

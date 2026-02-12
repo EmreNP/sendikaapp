@@ -8,8 +8,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
 
 export const PendingApprovalScreen: React.FC = () => {
   const { logout, refreshUser } = useAuth();
@@ -20,14 +20,18 @@ export const PendingApprovalScreen: React.FC = () => {
 
   return (
     <LinearGradient
-      colors={[COLORS.warning + 'CC', COLORS.warning]}
+      colors={['#0f172a', '#312e81', '#4338ca']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           {/* Icon */}
           <View style={styles.iconContainer}>
-            <Text style={styles.icon}>⏳</Text>
+            <View style={styles.iconInner}>
+              <Feather name="clock" size={56} color="#f59e0b" />
+            </View>
           </View>
 
           {/* Title */}
@@ -40,19 +44,25 @@ export const PendingApprovalScreen: React.FC = () => {
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Ne Yapmalısınız?</Text>
             <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>✓</Text>
+              <View style={styles.infoIconContainer}>
+                <Feather name="check-circle" size={18} color="#22c55e" />
+              </View>
               <Text style={styles.infoText}>
                 Başvurunuz başarıyla alındı ve inceleme sürecinde
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>📧</Text>
+              <View style={styles.infoIconContainer}>
+                <Feather name="mail" size={18} color="#4338ca" />
+              </View>
               <Text style={styles.infoText}>
                 Onay durumunuz hakkında e-posta ile bilgilendirileceksiniz
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>⏱️</Text>
+              <View style={styles.infoIconContainer}>
+                <Feather name="clock" size={18} color="#f59e0b" />
+              </View>
               <Text style={styles.infoText}>
                 Onay süreci genellikle 1-3 iş günü içinde tamamlanır
               </Text>
@@ -66,7 +76,8 @@ export const PendingApprovalScreen: React.FC = () => {
               onPress={handleRefresh}
               activeOpacity={0.8}
             >
-              <Text style={styles.refreshButtonText}>🔄 Durumu Kontrol Et</Text>
+              <Feather name="refresh-cw" size={20} color="#4338ca" />
+              <Text style={styles.refreshButtonText}>Durumu Kontrol Et</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -74,6 +85,7 @@ export const PendingApprovalScreen: React.FC = () => {
               onPress={logout}
               activeOpacity={0.8}
             >
+              <Feather name="log-out" size={18} color="#ffffff" />
               <Text style={styles.logoutButtonText}>Çıkış Yap</Text>
             </TouchableOpacity>
           </View>
@@ -94,86 +106,112 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: 24,
   },
   iconContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
   },
-  icon: {
-    fontSize: 64,
+  iconInner: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
-    fontSize: FONT_SIZE.xxl,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.textWhite,
-    marginBottom: SPACING.xs,
+    color: '#ffffff',
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: FONT_SIZE.md,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: 32,
   },
   infoCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
     width: '100%',
-    marginBottom: SPACING.xl,
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   infoTitle: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
+    color: '#0f172a',
+    marginBottom: 16,
   },
   infoItem: {
     flexDirection: 'row',
-    marginBottom: SPACING.sm,
+    marginBottom: 14,
+    alignItems: 'flex-start',
   },
-  infoIcon: {
-    fontSize: 16,
-    marginRight: SPACING.sm,
-    width: 24,
+  infoIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   infoText: {
     flex: 1,
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#64748b',
     lineHeight: 20,
   },
   actions: {
     width: '100%',
+    gap: 12,
   },
   refreshButton: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   refreshButtonText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.warning,
+    color: '#4338ca',
   },
   logoutButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
   logoutButtonText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textWhite,
+    color: '#ffffff',
   },
 });

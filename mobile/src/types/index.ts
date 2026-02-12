@@ -57,6 +57,19 @@ export interface Lesson {
   isPublished: boolean;
 }
 
+export interface LessonContent {
+  id: string;
+  lessonId: string;
+  title: string;
+  description?: string;
+  type: 'video' | 'document' | 'test' | 'text';
+  url?: string;
+  duration?: string; // e.g., "5:20" or seconds
+  isActive?: boolean;
+  order?: number;
+  createdAt?: string;
+} 
+
 export interface Branch {
   id: string;
   name: string;
@@ -124,13 +137,24 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Main: undefined;
+  MainTabs: undefined;
   Membership: undefined;
   PendingApproval: undefined;
   Rejected: undefined;
   CourseDetail: { trainingId: string; lessonId?: string };
+  Test: { testId: string };
+  PDFViewer: { url: string; title?: string };
+  Document: { url: string; title?: string };
   BranchDetail: { branchId: string };
   NewsDetail: { newsId: string };
   AllAnnouncements: undefined;
+  AllNews: undefined; 
+  Contact: undefined;
+  About: undefined;
+  Muktesep: undefined;
+  DistrictRepresentative: undefined;
+  PartnerInstitutions: undefined;
+  PartnerDetail: { partner: import('../data/partners').Partner };
 };
 
 export type MainTabParamList = {

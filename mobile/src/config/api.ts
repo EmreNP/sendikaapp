@@ -7,28 +7,8 @@ const envApiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL;
 
-const DEFAULT_PROD_API_ORIGIN = 'https://sendikaapp.web.app';
+export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app/api').replace(/\/$/, '');
 
-function normalizeBaseUrl(value: string): string {
-  return value.replace(/\/$/, '');
-}
-
-function getDefaultApiBaseUrl(): string {
-  // If we are on web and hosted on a real domain, prefer same-origin.
-  // If we are on localhost (expo start --web), default to production backend.
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return DEFAULT_PROD_API_ORIGIN;
-    }
-    return window.location.origin;
-  }
-
-  // Native builds: default to production backend unless overridden by env.
-  return DEFAULT_PROD_API_ORIGIN;
-}
-
-export const API_BASE_URL = normalizeBaseUrl(envApiBaseUrl || getDefaultApiBaseUrl());
 
 export const API_ENDPOINTS = {
   // Auth
@@ -50,6 +30,18 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/api/trainings/${id}`,
     LESSONS: (trainingId: string) => `/api/trainings/${trainingId}/lessons`,
     LESSON_BY_ID: (trainingId: string, lessonId: string) => `/api/trainings/${trainingId}/lessons/${lessonId}`,
+  },
+  // Lessons (contents, videos, documents, tests)
+  LESSONS: {
+    BY_ID: (id: string) => `/api/lessons/${id}`,
+    CONTENTS: (id: string) => `/api/lessons/${id}/contents`,
+    VIDEOS: (id: string) => `/api/lessons/${id}/videos`,
+    DOCUMENTS: (id: string) => `/api/lessons/${id}/documents`,
+    TESTS: (id: string) => `/api/lessons/${id}/tests`,
+  },
+  // Tests
+  TESTS: {
+    BY_ID: (id: string) => `/api/tests/${id}`,
   },
   // Branches
   BRANCHES: {
