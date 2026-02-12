@@ -433,7 +433,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <Image 
-              source={{ uri: 'https://tdvsen.org.tr/wp-content/uploads/2023/01/tdv-sen-logo.png' }}
+              source={require('../../assets/logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -459,7 +459,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as any)}
             onMembershipClick={() => navigation.navigate('Membership' as any)}
             onNotificationsClick={() => {}} 
-            onAboutClick={() => navigation.navigate('Contact' as any)}
+            onAboutClick={() => navigation.navigate('About' as any)}
           />
         </View>
       </LinearGradient>
@@ -611,11 +611,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
+    padding: 4,
   },
   logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   brandText: {
     gap: 4,

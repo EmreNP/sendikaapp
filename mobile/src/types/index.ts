@@ -150,6 +150,7 @@ export type RootStackParamList = {
   AllAnnouncements: undefined;
   AllNews: undefined; 
   Contact: undefined;
+  About: undefined;
   Muktesep: undefined;
   DistrictRepresentative: undefined;
   PartnerInstitutions: undefined;

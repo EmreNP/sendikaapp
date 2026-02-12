@@ -13,6 +13,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -214,7 +215,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                 </View>
                 <View style={styles.cardHeaderContent}>
                   <View style={styles.iconContainer}>
-                    <Feather name="user-plus" size={32} color="#ffffff" />
+                    <Image
+                      source={require('../../assets/logo.png')}
+                      style={styles.logoImage}
+                      resizeMode="contain"
+                    />
                   </View>
                   <Text style={styles.title}>Hesap Oluştur</Text>
                   <Text style={styles.subtitle}>Aramıza katılın ve avantajlardan yararlanın</Text>
@@ -467,12 +472,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 6,
+  },
+  logoImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
   },
   title: {
     fontSize: 24,

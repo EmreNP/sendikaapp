@@ -6,9 +6,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,8 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList, Training } from '../types';
 
+const { width } = Dimensions.get('window');
+
 type CoursesScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Courses'>,
   NativeStackNavigationProp<RootStackParamList>
@@ -29,14 +31,52 @@ type CoursesScreenProps = {
   navigation: CoursesScreenNavigationProp;
 };
 
-// Color palette for training cards
+// İcon haritası - Statik olarak tanımlanmış
+const trainingIcons: Record<string, any> = {
+  // İslami/Dini
+  'İslami': 'book',
+  'Kuran': 'book',
+  'Hadis': 'book-open',
+  'Fiqh': 'award',
+  'Siyer': 'user',
+  // Eğitim kategorileri
+  'Temel': 'star',
+  'Sosyal': 'users',
+  'Mesleki': 'briefcase',
+  'Hukuk': 'shield',
+  'Sağlık': 'heart',
+  'Teknoloji': 'cpu',
+  'Yönetim': 'settings',
+  'Liderlik': 'target',
+  'İletişim': 'message-circle',
+  'Gelişim': 'trending-up',
+  'default': 'book-open',
+};
+
+// Ders iconları - Statik
+const lessonIcons = ['play-circle', 'file-text', 'video', 'headphones', 'clipboard'];
+
+const getLessonIcon = (index: number): string => {
+  return lessonIcons[index % lessonIcons.length];
+};
 const colorPalette = [
-  { colors: ['#2563eb', '#1d4ed8'], light: '#eff6ff' },
-  { colors: ['#059669', '#047857'], light: '#ecfdf5' },
-  { colors: ['#d97706', '#b45309'], light: '#fffbeb' },
-  { colors: ['#7c3aed', '#6d28d9'], light: '#f5f3ff' },
-  { colors: ['#e11d48', '#be123c'], light: '#fff1f2' },
+  { gradient: ['#2563eb', '#1d4ed8'], light: '#eff6ff', text: '#2563eb', border: '#dbeafe' },
+  { gradient: ['#059669', '#047857'], light: '#ecfdf5', text: '#059669', border: '#d1fae5' },
+  { gradient: ['#d97706', '#b45309'], light: '#fffbeb', text: '#d97706', border: '#fef3c7' },
+  { gradient: ['#7c3aed', '#6d28d9'], light: '#f5f3ff', text: '#7c3aed', border: '#e9d5ff' },
+  { gradient: ['#e11d48', '#be123c'], light: '#fff1f2', text: '#e11d48', border: '#fecdd3' },
 ];
+
+// İcon seçim fonksiyonu
+const getTrainingIcon = (title: string): string => {
+  const normalizedTitle = title.toLowerCase();
+  for (const key in trainingIcons) {
+    if (normalizedTitle.includes(key.toLowerCase())) {
+      return trainingIcons[key];
+    }
+  }
+  return trainingIcons.default;
+};
 
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const { canAccessTrainings, isPendingDetails } = useAuth();
@@ -144,11 +184,17 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     const isExpanded = expandedTrainingId === item.id;
     const lessons = lessonsMap[item.id] || [];
     const isLoadingThisLessons = loadingLessons === item.id;
+    const icon = getTrainingIcon(item.title);
+
+    // Statik değerler
+    const totalLessons = lessons.length || 3;
+    const completedLessons = Math.floor(Math.random() * (totalLessons + 1)); // 0 ile totalLessons arası random
 
     return (
       <View style={styles.trainingCard}>
+        {/* Training Header - Clickable */}
         <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center' }}
+          style={styles.trainingHeader}
           onPress={() => {
             if (isExpanded) {
               setExpandedTrainingId(null);
@@ -157,71 +203,138 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
               loadLessons(item.id);
             }
           }}
-          activeOpacity={0.9}
+          activeOpacity={0.7}
         >
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.trainingImage} />
-          ) : (
-            <LinearGradient
-              colors={palette.colors as [string, string]}
-              style={[styles.trainingImage, styles.placeholderImage]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Feather name="book-open" size={48} color="rgba(255,255,255,0.9)" />
-            </LinearGradient>
-          )}
+          {/* Icon Container */}
+          <LinearGradient
+            colors={palette.gradient as [string, string]}
+            style={styles.iconContainer}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Feather name={icon as any} size={28} color="#ffffff" />
+          </LinearGradient>
+
+          {/* Content */}
           <View style={styles.trainingContent}>
-            <View style={[styles.trainingBadge, { backgroundColor: palette.light }]}>
-              <Text style={[styles.trainingBadgeText, { color: palette.colors[0] }]}>
-                {item.lessonsCount || 0} Ders
-              </Text>
-            </View>
             <Text style={styles.trainingTitle} numberOfLines={2}>
               {item.title}
             </Text>
-            <Text style={styles.trainingDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-            <View style={styles.trainingMeta}>
-              <View style={styles.metaItem}>
-                <Feather name="clock" size={14} color="#64748b" />
-                <Text style={styles.metaText}>{item.duration || '60'} dk</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Feather name="users" size={14} color="#64748b" />
-                <Text style={styles.metaText}>{(item as any).enrolledCount || 0} Katılımcı</Text>
-              </View>
-            </View>
+            {item.description && (
+              <Text style={styles.trainingDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+            <Text style={styles.categoryText}>{totalLessons} alt kategori</Text>
           </View>
-          <View style={{ paddingHorizontal: 12 }}>
-            <Feather name="chevron-down" size={20} color="#64748b" style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }} />
-          </View>
+
+          {/* Chevron */}
+          {isLoadingThisLessons ? (
+            <ActivityIndicator size="small" color="#94a3b8" style={styles.chevron} />
+          ) : (
+            <Feather
+              name="chevron-down"
+              size={20}
+              color="#94a3b8"
+              style={[
+                styles.chevron,
+                { transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] },
+              ]}
+            />
+          )}
         </TouchableOpacity>
 
+        {/* Lessons Accordion */}
         {isExpanded && (
-          <View style={[{ backgroundColor: palette.light, borderTopWidth: 1, borderTopColor: '#e6edf7' }]}>
-            <View style={{ padding: 12 }}>
-              {isLoadingThisLessons ? (
-                <View style={{ justifyContent: 'center', alignItems: 'center', padding: 12 }}>
-                  <ActivityIndicator size="small" color="#4338ca" />
-                </View>
-              ) : lessons.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#64748b' }}>Bu eğitimde henüz ders bulunmuyor.</Text>
-              ) : (
-                lessons.map((lesson) => (
+          <View style={styles.lessonsContainer}>
+            {isLoadingThisLessons ? (
+              <View style={styles.lessonsLoading}>
+                <ActivityIndicator size="small" color={palette.text} />
+                <Text style={[styles.lessonsLoadingText, { color: palette.text }]}>
+                  Dersler yükleniyor...
+                </Text>
+              </View>
+            ) : lessons.length === 0 ? (
+              <View style={styles.lessonsEmpty}>
+                <Text style={styles.lessonsEmptyText}>
+                  Bu eğitimde henüz ders bulunmuyor.
+                </Text>
+              </View>
+            ) : (
+              lessons.map((lesson, lessonIndex) => {
+                // Statik değerler - her ders için
+                const videoCount = Math.floor(Math.random() * 3) + 1; // 1-3 arası
+                const docCount = 1;
+                const testCount = 1;
+                const completed = lessonIndex < completedLessons;
+                const progressPercent = completed ? 100 : Math.floor(Math.random() * 70);
+                
+                return (
                   <TouchableOpacity
                     key={lesson.id}
                     onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id, lessonId: lesson.id })}
-                    style={{ backgroundColor: '#ffffff', padding: 12, borderRadius: 10, marginBottom: 8 }}
-                    activeOpacity={0.8}
+                    style={styles.lessonCard}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontWeight: '600', color: '#0f172a' }}>{lesson.title}</Text>
-                    {lesson.description ? <Text style={{ color: '#64748b', marginTop: 6 }}>{lesson.description}</Text> : null}
+                    {/* Sol: Progress Fraction */}
+                    <View style={styles.lessonProgress}>
+                      <Text style={styles.progressFraction}>
+                        {lessonIndex + 1}/{totalLessons}
+                      </Text>
+                    </View>
+
+                    {/* Orta: İçerik */}
+                    <View style={styles.lessonMainContent}>
+                      <Text style={styles.lessonCardTitle} numberOfLines={2}>
+                        {lesson.title}
+                      </Text>
+                      {lesson.description && (
+                        <Text style={styles.lessonCardDescription} numberOfLines={1}>
+                          {lesson.description}
+                        </Text>
+                      )}
+                      
+                      {/* İkon Satırı */}
+                      <View style={styles.lessonMeta}>
+                        <View style={styles.metaItem}>
+                          <Feather name="play-circle" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{videoCount} video</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Feather name="file-text" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{docCount} döküman</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Feather name="clipboard" size={14} color="#64748b" />
+                          <Text style={styles.metaText}>{testCount} test</Text>
+                        </View>
+                      </View>
+
+                      {/* Progress Bar */}
+                      <View style={styles.progressBarContainer}>
+                        <View style={styles.progressBarBg}>
+                          <View 
+                            style={[
+                              styles.progressBarFill, 
+                              { 
+                                width: `${progressPercent}%`,
+                                backgroundColor: progressPercent >= 70 ? '#f59e0b' : progressPercent >= 40 ? '#ef4444' : '#94a3b8'
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={styles.progressText}>
+                          <Feather name="award" size={12} color="#2563eb" /> %{progressPercent} Tamamlandı
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Sağ: Chevron */}
+                    <Feather name="chevron-right" size={20} color="#cbd5e1" />
                   </TouchableOpacity>
-                ))
-              )}
-            </View>
+                );
+              })
+            )}
           </View>
         )}
       </View>
@@ -230,11 +343,20 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Eğitimler</Text>
-        <Text style={styles.headerSubtitle}>{trainings.length} eğitim mevcut</Text>
-      </View>
+      {/* Header */}
+      <LinearGradient
+        colors={['#2563eb', '#1d4ed8']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Eğitimler</Text>
+          <Text style={styles.headerSubtitle}>{trainings.length} eğitim</Text>
+        </View>
+      </LinearGradient>
 
+      {/* Content */}
       <FlatList
         data={trainings}
         renderItem={renderTrainingItem}
@@ -242,12 +364,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="book-open" size={48} color="#4338ca" />
+              <Feather name="book-open" size={48} color="#94a3b8" />
             </View>
             <Text style={styles.emptyTitle}>Henüz Eğitim Yok</Text>
             <Text style={styles.emptyText}>
@@ -266,21 +388,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  headerContent: {
+    gap: 4,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   loadingContainer: {
     flex: 1,
@@ -289,69 +416,158 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 80,
   },
   trainingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  trainingImage: {
-    width: '100%',
-    height: 180,
-    resizeMode: 'cover',
+  trainingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
-  placeholderImage: {
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
   trainingContent: {
-    padding: 16,
+    flex: 1,
+    gap: 4,
   },
-  trainingBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-  },
-  trainingBadgeText: {
+  categoryText: {
     fontSize: 12,
-    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 4,
   },
   trainingTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 6,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    lineHeight: 24,
   },
   trainingDescription: {
     fontSize: 14,
     color: '#64748b',
     lineHeight: 20,
-    marginBottom: 12,
   },
-  trainingMeta: {
-    flexDirection: 'row',
+  chevron: {
+    marginLeft: 8,
+  },
+  lessonsContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingTop: 12,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    padding: 12,
+  },
+  lessonsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  lessonsLoadingText: {
+    fontSize: 14,
+  },
+  lessonsEmpty: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  lessonsEmptyText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  lessonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  lessonProgress: {
+    width: 48,
+    alignItems: 'center',
+  },
+  progressFraction: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  lessonMainContent: {
+    flex: 1,
+    gap: 8,
+  },
+  lessonCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    lineHeight: 22,
+  },
+  lessonCardDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+  lessonMeta: {
+    flexDirection: 'row',
+    gap: 16,
     marginTop: 4,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    gap: 4,
   },
   metaText: {
     fontSize: 12,
     color: '#64748b',
-    marginLeft: 6,
+  },
+  progressBarContainer: {
+    gap: 6,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 11,
+    color: '#2563eb',
+    fontWeight: '600',
   },
   lockedContainer: {
     flex: 1,
@@ -373,6 +589,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#0f172a',
     marginBottom: 12,
+    textAlign: 'center',
   },
   lockedText: {
     fontSize: 14,
@@ -400,28 +617,30 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    justifyContent: 'center',
+    paddingVertical: 80,
   },
   emptyIconContainer: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 32,
   },
 });

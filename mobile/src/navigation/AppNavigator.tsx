@@ -23,6 +23,7 @@ import {
   NewsDetailScreen,
   AllAnnouncementsScreen,
   ContactScreen,
+  AboutScreen,
   MembershipScreen,
   PendingApprovalScreen,
   RejectedScreen,
@@ -128,6 +129,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
             <Stack.Screen name="AllAnnouncements" component={AllAnnouncementsScreen} />
             <Stack.Screen name="Contact" component={ContactScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Membership" component={MembershipScreen} />
             <Stack.Screen name="Muktesep" component={MuktesepScreen} />
             <Stack.Screen name="DistrictRepresentative" component={DistrictRepresentativeScreen} />

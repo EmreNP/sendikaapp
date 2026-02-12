@@ -9,6 +9,7 @@ import {
   Easing,
   TouchableOpacity,
   StatusBar,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -323,14 +324,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                 style={styles.logoGradient}
               >
                 <View style={styles.logoInner}>
-                  <LinearGradient
-                    colors={['#2563eb', '#3b82f6', '#60a5fa']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.logoIconContainer}
-                  >
-                    <Feather name="home" size={42} color="#ffffff" />
-                  </LinearGradient>
+                  <Image
+                    source={require('../../assets/logo.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
                 </View>
               </LinearGradient>
             </Animated.View>
@@ -519,9 +517,13 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-  },
-  logoIconContainer: {
+    backgroundColor: '#ffffff',
+    padding: 8,
+  },  logoImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },  logoIconContainer: {
     width: 70,
     height: 70,
     borderRadius: 35,

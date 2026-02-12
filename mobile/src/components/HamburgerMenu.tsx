@@ -27,11 +27,10 @@ interface HamburgerMenuProps {
 }
 
 const socialLinks = [
-  { icon: 'facebook', label: 'Facebook', href: 'https://facebook.com', color: '#1877F2' },
-  { icon: 'twitter', label: 'Twitter', href: 'https://twitter.com', color: '#1DA1F2' },
-  { icon: 'instagram', label: 'Instagram', href: 'https://instagram.com', color: '#E1306C' },
-  { icon: 'youtube', label: 'YouTube', href: 'https://youtube.com', color: '#FF0000' },
-  { icon: 'linkedin', label: 'LinkedIn', href: 'https://linkedin.com', color: '#0A66C2' },
+  { icon: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/share/17xcaDfcmz/?mibextid=wwXIfr', color: '#1877F2' },
+  { icon: 'twitter', label: 'X', href: 'https://x.com/tdvskonya?s=11', color: '#000000' },
+  { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/tdvskonya?igsh=NzAzbjk0emw5MjNy&utm_source=qr', color: '#E1306C' },
+  { icon: 'youtube', label: 'YouTube', href: 'https://youtube.com/@turkdiyanetvakif-senkonya?si=7sI8kUPWQu2pQsSw', color: '#FF0000' },
 ];
 
 export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
