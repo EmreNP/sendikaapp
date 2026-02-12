@@ -8,13 +8,13 @@ import type { UserStatus, UserStatusUpdateData, UserRegistrationLog } from '@sha
 import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/status - Kullanıcı durumunu güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -24,11 +24,10 @@ export const PATCH = asyncHandler(async (
       const targetUserId = params.id;
     const body = await parseJsonBody<{ 
       status: string; 
-      rejectionReason?: string; 
       documentUrl?: string; 
       note?: string;
     }>(req);
-      const { status: newStatus, rejectionReason, documentUrl, note } = body;
+      const { status: newStatus, documentUrl, note } = body;
       
       // Validasyon
       if (!newStatus) {
@@ -72,35 +71,38 @@ export const PATCH = asyncHandler(async (
         throw new AppAuthorizationError('Bu kullanıcıya erişim yetkiniz yok');
         }
         
-        // Branch Manager sadece belirli status geçişlerini yapabilir
+        // Branch Manager aktif kullanıcıların durumunu değiştiremez
+        if (currentStatus === USER_STATUS.ACTIVE) {
+        throw new AppAuthorizationError('Aktif kullanıcıların durumunu değiştiremezsiniz');
+        }
+        
+        // Branch Manager aktif olmayan tüm kullanıcıların durumunu değiştirebilir
         const allowedTransitions: Record<string, string[]> = {
           [USER_STATUS.PENDING_BRANCH_REVIEW]: [
-            USER_STATUS.PENDING_ADMIN_APPROVAL,  // Onaylama (ileri)
-            USER_STATUS.PENDING_DETAILS,         // Geri gönderme (geri)
+            USER_STATUS.ACTIVE,           // Onaylama (PDF ile direkt aktif)
+            USER_STATUS.REJECTED,         // Reddetme
+            USER_STATUS.PENDING_DETAILS,  // Geri gönderme (düzeltme gerekli)
+          ],
+          [USER_STATUS.PENDING_DETAILS]: [
+            USER_STATUS.PENDING_BRANCH_REVIEW, // Gönder: detaylar tamamlandı, şube kontrolü
+            USER_STATUS.ACTIVE,                // Direkt onayla (şube yöneticisi onayı ile)
+            USER_STATUS.REJECTED,              // Reddet
+          ],
+          [USER_STATUS.REJECTED]: [
+            USER_STATUS.PENDING_DETAILS,       // Yeniden değerlendirme için geri al
+            USER_STATUS.PENDING_BRANCH_REVIEW, // Şube incelemesine gönder
+            USER_STATUS.ACTIVE,                // Direkt aktif yap
           ]
         };
         
         const allowed = allowedTransitions[currentStatus as string] || [];
         
         if (!allowed.includes(newStatus)) {
-        throw new AppAuthorizationError('Bu status değişikliğine yetkiniz yok. Sadece pending_branch_review durumundaki kullanıcıları pending_admin_approval veya pending_details yapabilirsiniz.');
+        throw new AppAuthorizationError('Bu status değişikliğine yetkiniz yok');
         }
         
-        // Branch Manager active ve rejected yapamaz
-        if (newStatus === USER_STATUS.ACTIVE || newStatus === USER_STATUS.REJECTED) {
-        throw new AppAuthorizationError('Branch Manager kullanıcıyı active veya rejected yapamaz');
-        }
-        
-        // Admin'e gönderme durumunda PDF zorunlu
-        if (newStatus === USER_STATUS.PENDING_ADMIN_APPROVAL && !documentUrl) {
-        throw new AppValidationError('Admin onayına göndermek için PDF belgesi zorunludur');
-        }
-      }
-      
-      // Admin her şeyi yapabilir
-      // Rejected durumu için rejection reason kontrolü
-      if (newStatus === USER_STATUS.REJECTED && !rejectionReason) {
-      throw new AppValidationError('Reddetme nedeni belirtilmelidir');
+        // PDF opsiyonel ancak önerilir
+        // Artık zorunlu değil, sadece uyarı
       }
       
       // Status'u güncelle
@@ -109,19 +111,18 @@ export const PATCH = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       
-      if (rejectionReason) {
-        updateData.rejectionReason = rejectionReason;
-      }
-      
-      // PDF belgesi URL'i varsa ekle
+      // PDF belgesi URL/path varsa ekle
       if (documentUrl) {
-        updateData.documentUrl = documentUrl;
+        // If documentUrl looks like a storage path (doesn't start with http), save as documentPath
+        if (!documentUrl.startsWith('http')) {
+          updateData.documentPath = documentUrl;
+        } else {
+          // Legacy: still accept full URLs (but prefer paths)
+          updateData.documentUrl = documentUrl;
+        }
       }
       
       await db.collection('users').doc(targetUserId).update(updateData as any);
-      
-      console.log(`📊 Status update - User: ${targetUserId}, Role: ${userRole}, Current: ${currentStatus}, New: ${newStatus}`);
-      console.log(`📊 USER_ROLE.ADMIN: ${USER_ROLE.ADMIN}, userRole: ${userRole}, Match: ${userRole === USER_ROLE.ADMIN}`);
       
       // Log oluşturma durumu takibi
       let logCreated = false;
@@ -129,7 +130,7 @@ export const PATCH = asyncHandler(async (
       
       // Log oluştur - Branch Manager için
       if (userRole === USER_ROLE.BRANCH_MANAGER) {
-        if (newStatus === USER_STATUS.PENDING_ADMIN_APPROVAL) {
+        if (newStatus === USER_STATUS.ACTIVE) {
           try {
             const branchManagerLogDataRaw: any = {
               userId: targetUserId,
@@ -137,7 +138,7 @@ export const PATCH = asyncHandler(async (
               performedBy: user.uid,
               performedByRole: 'branch_manager',
               previousStatus: currentStatus,
-              newStatus: USER_STATUS.PENDING_ADMIN_APPROVAL,
+              newStatus: USER_STATUS.ACTIVE,
             };
             
             // Opsiyonel field'ları sadece varsa ekle
@@ -152,7 +153,28 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager approval log: ${logError}`);
+          }
+        } else if (newStatus === USER_STATUS.REJECTED) {
+          try {
+            const branchManagerRejectLogDataRaw: any = {
+              userId: targetUserId,
+              action: 'branch_manager_rejection',
+              performedBy: user.uid,
+              performedByRole: 'branch_manager',
+              previousStatus: currentStatus,
+              newStatus: USER_STATUS.REJECTED,
+            };
+            
+            if (note) {
+              branchManagerRejectLogDataRaw.note = note;
+            }
+            
+            await createRegistrationLog(branchManagerRejectLogDataRaw);
+            logCreated = true;
+          } catch (err: unknown) {
+            logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
+            logger.error(`❌ CRITICAL: Failed to create branch manager rejection log: ${logError}`);
           }
         } else if (newStatus === USER_STATUS.PENDING_DETAILS) {
           try {
@@ -174,86 +196,52 @@ export const PATCH = asyncHandler(async (
             logCreated = true;
           } catch (err: unknown) {
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
-            console.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
+            logger.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
           }
         }
       }
       
       // Log oluştur - Admin için (TÜM status değişiklikleri loglanmalı)
-      // ÖNEMLİ: Admin'in yaptığı TÜM status değişiklikleri loglanmalı
-      // Branch Manager log'ları yukarıda oluşturuldu, şimdi Admin log'larını oluştur
-      if (userRole === USER_ROLE.ADMIN) {
-        console.log(`✅ Admin role confirmed, creating log for status change: ${currentStatus} → ${newStatus}`);
-        
-        // Admin'in yaptığı TÜM status değişikliklerini logla
-        let action: 'admin_approval' | 'admin_rejection' | 'admin_return' = 'admin_return';
-        
+      if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
+        // Duruma göre uygun action belirle
+        let adminAction: string = 'status_update';
         if (newStatus === USER_STATUS.ACTIVE) {
-          action = 'admin_approval';
+          adminAction = 'admin_approval';
         } else if (newStatus === USER_STATUS.REJECTED) {
-          action = 'admin_rejection';
-        } else {
-          // Diğer tüm durumlar için admin_return (pending_details, pending_branch_review, pending_admin_approval)
-          action = 'admin_return';
+          adminAction = 'admin_rejection';
+        } else if (newStatus === USER_STATUS.PENDING_DETAILS || newStatus === USER_STATUS.PENDING_BRANCH_REVIEW) {
+          adminAction = 'admin_return';
         }
-        
-        // Log verilerini hazırla (undefined field'ları kaldırmak için önce objeyi oluştur, sonra temizle)
-        const logDataRaw: any = {
-          userId: targetUserId,
-          action: action,
-          performedBy: user.uid,
-          performedByRole: 'admin',
-          previousStatus: currentStatus,
-          newStatus: newStatus,
-        };
-        
-        // Opsiyonel field'ları sadece varsa ekle (undefined olmamalı)
-        const noteValue = note || (newStatus === USER_STATUS.REJECTED ? rejectionReason : undefined);
-        if (noteValue) {
-          logDataRaw.note = noteValue;
-        }
-        
-        if (documentUrl) {
-          logDataRaw.documentUrl = documentUrl;
-        }
-        
-        const logData: Omit<UserRegistrationLog, 'id' | 'timestamp'> = logDataRaw;
-        
-        console.log(`📝 Creating ${action} log for admin status change:`, JSON.stringify(logData, null, 2));
-        console.log(`📝 Log data structure:`, {
-          userId: logData.userId,
-          action: logData.action,
-          performedBy: logData.performedBy,
-          performedByRole: logData.performedByRole,
-          previousStatus: logData.previousStatus,
-          newStatus: logData.newStatus,
-          note: logData.note || 'none',
-          documentUrl: logData.documentUrl || 'none',
-        });
         
         try {
-          console.log(`🔄 Calling createRegistrationLog...`);
-          await createRegistrationLog(logData);
-          console.log(`✅ Admin ${action} log created successfully for user ${targetUserId}`);
-          logCreated = true;
-        } catch (logErr: unknown) {
-          const logErrorMessage = isErrorWithMessage(logErr) ? logErr.message : 'Bilinmeyen hata';
-          logError = logErrorMessage;
-          console.error(`❌ CRITICAL: Failed to create admin log: ${logErrorMessage}`);
-          console.error(`❌ Log error details:`, logErr);
-          if (logErr instanceof Error) {
-            console.error(`❌ Error stack:`, logErr.stack);
-            console.error(`❌ Error name:`, logErr.name);
+          const adminLogData: any = {
+            userId: targetUserId,
+            action: adminAction,
+            performedBy: user.uid,
+            performedByRole: userRole as any,
+            previousStatus: currentStatus,
+            newStatus: newStatus,
+          };
+          
+          if (note) adminLogData.note = note;
+          if (documentUrl) {
+            adminLogData.documentUrl = documentUrl;
+            // Eski document URL'i de kaydet
+            const oldDocumentUrl = targetUserData?.documentUrl;
+            if (oldDocumentUrl && oldDocumentUrl !== documentUrl) {
+              adminLogData.previousDocumentUrl = oldDocumentUrl;
+            }
           }
-          // Log hatası ana işlemi durdurmamalı ama mutlaka loglanmalı
-          // Burada throw yapmıyoruz çünkü status update başarılı olmuş olabilir
-          // Ancak bu hatayı mutlaka log'layalım ki sorun tespit edilebilsin
+          
+          await createRegistrationLog(adminLogData);
+          logCreated = true;
+        } catch (err: unknown) {
+          logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
+          logger.error('Failed to create admin log:', logError);
         }
       } else {
-        console.log(`ℹ️ Not admin role (${userRole}), admin log creation skipped`);
+        // Branch Manager log'ları yukarıda oluşturuldu
       }
-      
-      console.log(`✅ User ${targetUserId} status updated: ${currentStatus} → ${newStatus}`);
       
       return successResponse(
         'Kullanıcı durumu başarıyla güncellendi',

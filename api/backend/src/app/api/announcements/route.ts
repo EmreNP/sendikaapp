@@ -13,6 +13,8 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET - Tüm duyuruları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -28,63 +30,100 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       // Query parametreleri
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isPublishedParam = url.searchParams.get('isPublished');
     const isFeaturedParam = url.searchParams.get('isFeatured');
     const search = url.searchParams.get('search');
+    const branchIdParam = url.searchParams.get('branchId');
       
       // Query oluştur
       let query: admin.firestore.Query = db.collection('announcements') as admin.firestore.Query;
       
-      // USER/BRANCH_MANAGER için sadece yayınlanan duyurular
-      if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
+      // USER için sadece yayınlanan duyurular
+      if (userRole === USER_ROLE.USER) {
         query = query.where('isPublished', '==', true);
-      } else if (userRole === USER_ROLE.ADMIN) {
-        // Admin için isPublished filtresi kullanılabilir
+      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN || userRole === USER_ROLE.BRANCH_MANAGER) {
+        // Admin/Superadmin/Branch Manager için isPublished filtresi kullanılabilir
         if (isPublishedParam !== null) {
           query = query.where('isPublished', '==', isPublishedParam === 'true');
         }
       }
+
+      // Branch manager sadece kendi şubesinin duyurularını görür
+      if (userRole === USER_ROLE.BRANCH_MANAGER) {
+        if (!currentUserData?.branchId) {
+          throw new AppValidationError('Şube bilgisi bulunamadı');
+        }
+        query = query.where('branchId', '==', currentUserData.branchId);
+      }
+
+      // Admin/Superadmin için şube filtresi
+      if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && branchIdParam) {
+        query = query.where('branchId', '==', branchIdParam);
+      }
       
-      // Featured filtresi (admin için)
-      if (userRole === USER_ROLE.ADMIN && isFeaturedParam !== null) {
+      // Featured filtresi (admin/superadmin için)
+      if ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) && isFeaturedParam !== null) {
         query = query.where('isFeatured', '==', isFeaturedParam === 'true');
       }
+
+      // ⚠️ IMPORTANT: Search filter is moved to client-side due to Firestore limitations
+      // Firestore doesn't support full-text search natively
+      // For production: Consider using Algolia, Elasticsearch, or Firestore text search extensions
+      // For now: If search is provided, we fetch more results and filter client-side
+      // This is acceptable for small result sets, but should be replaced with proper search service
       
-      // Query'yi çalıştır
-      const snapshot = await query.orderBy('createdAt', 'desc').get();
-      
-      let announcements = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Announcement[];
-      
-      // Search filtresi (client-side - Firestore'da full-text search yok)
       if (search) {
         const searchLower = search.toLowerCase();
-        announcements = announcements.filter((a: Announcement) => {
-          const title = (a.title || '').toLowerCase();
-          return title.includes(searchLower);
-        });
+        const orderedQuery = query.orderBy('createdAt', 'desc');
+        
+        const result = await searchInBatches<Announcement>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as Announcement,
+          (a) => (a.title || '').toLowerCase().includes(searchLower)
+        );
+        
+        const serializedAnnouncements = result.items.map(a => serializeAnnouncementTimestamps(a));
+        
+        return successResponse(
+          'Duyurular başarıyla getirildi',
+          {
+            announcements: serializedAnnouncements,
+            total: result.total,
+            page: result.page,
+            limit: result.limit,
+            hasMore: result.hasMore,
+          }
+        );
       }
       
-      // Sayfalama
-      const total = announcements.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
+      // Server-side pagination with Firestore (BEST PRACTICE)
+      // Only fetches documents needed for current page
+      query = query.orderBy('createdAt', 'desc');
+      
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Announcement,
+        'createdAt'
+      );
       
       // Timestamp'leri serialize et
-      const serializedAnnouncements = paginatedAnnouncements.map(a => serializeAnnouncementTimestamps(a));
+      const serializedAnnouncements = paginatedResult.items.map(a => serializeAnnouncementTimestamps(a));
       
       return successResponse(
         'Duyurular başarıyla getirildi',
         {
           announcements: serializedAnnouncements,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });
@@ -100,15 +139,15 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
-      throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER)) {
+      throw new AppAuthorizationError('Bu işlem için admin veya şube yöneticisi yetkisi gerekli');
       }
       
       // Request body size kontrolü (max 1MB)
     validateBodySize(req, 1024 * 1024);
       
     const body = await parseJsonBody<CreateAnnouncementRequest>(req);
-      const { title, content, externalUrl, imageUrl, isPublished, isFeatured } = body;
+      const { title, content, externalUrl, imageUrl, isPublished, isFeatured, branchId } = body;
       
       // Validation
       const validation = validateCreateAnnouncement(body);
@@ -123,12 +162,22 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         sanitizedContent = sanitizeHtml(content);
       }
       
+      // Branch manager için branchId zorunlu ve kendi şubesi ile sınırlı
+      let finalBranchId: string | null | undefined = branchId ?? null;
+      if (currentUserData.role === USER_ROLE.BRANCH_MANAGER) {
+        if (!currentUserData.branchId) {
+          throw new AppValidationError('Şube bilgisi bulunamadı');
+        }
+        finalBranchId = currentUserData.branchId;
+      }
+
       // Yeni duyuru oluştur
       const announcementData = {
         title: title.trim(),
         content: sanitizedContent || null,
         externalUrl: externalUrl?.trim() || null,
         imageUrl: imageUrl?.trim() || null,
+        branchId: finalBranchId ?? null,
         isPublished: isPublished || false,
         isFeatured: isFeatured || false,
         publishedAt: isPublished ? admin.firestore.FieldValue.serverTimestamp() : null,
@@ -148,7 +197,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Timestamp'leri serialize et
       const serializedAnnouncement = serializeAnnouncementTimestamps(announcement);
-      
+
+      // Audit log
+      createAuditLog({
+        action: 'announcement_created',
+        category: 'announcement',
+        performedBy: user.uid,
+        performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+        performedByRole: currentUserData!.role,
+        branchId: finalBranchId || currentUserData!.branchId,
+        targetId: announcementDoc.id,
+        targetName: title.trim(),
+        details: { isPublished: announcementData.isPublished, branchId: finalBranchId },
+        message: `"${title.trim()}" duyurusu oluşturuldu`,
+      });
+
       return successResponse(
         'Duyuru başarıyla oluşturuldu',
         { announcement: serializedAnnouncement },

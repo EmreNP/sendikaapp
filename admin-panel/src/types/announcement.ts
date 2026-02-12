@@ -5,6 +5,7 @@ export interface Announcement {
   content?: string;
   externalUrl?: string;
   imageUrl?: string;
+  branchId?: string | null;
   isPublished: boolean;
   isFeatured: boolean;
   publishedAt?: string | Date;
@@ -35,9 +36,11 @@ export interface UpdateAnnouncementRequest {
 
 export interface AnnouncementListResponse {
   announcements: Announcement[];
-  total: number;
+  total?: number;
   page: number;
   limit: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export type BulkAnnouncementAction = 'delete' | 'publish' | 'unpublish';

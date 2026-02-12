@@ -3,9 +3,12 @@ import { Building2, Search, Trash2, XCircle, CheckCircle, Edit, Plus } from 'luc
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ActionButton from '@/components/common/ActionButton';
+import Pagination from '@/components/common/Pagination';
 import BranchFormModal from '@/components/branches/BranchFormModal';
 import BranchDetailModal from '@/components/branches/BranchDetailModal';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -34,6 +37,10 @@ export default function BranchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [_totalPages, setTotalPages] = useState(1);
+  const [totalBranches, setTotalBranches] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -53,25 +60,49 @@ export default function BranchesPage() {
     onConfirm: () => {},
   });
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); // Reset to first page on search change
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchBranches();
-  }, []);
+  }, [page, debouncedSearch]);
 
   const fetchBranches = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { apiRequest } = await import('@/utils/api');
-      
-      console.log('📡 Fetching branches from:', '/api/branches');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '25',
+      });
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
 
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      logger.log('📡 Fetching branches from:', `/api/branches?${params.toString()}`);
+
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+      }>(`/api/branches?${params.toString()}`);
       
-      console.log('✅ Branches data received:', data);
+      logger.log('✅ Branches data received:', data);
       setBranches(data.branches || []);
+      setTotalBranches(data.total || 0);
+      setTotalPages(Math.ceil((data.total || 0) / 25));
     } catch (error: any) {
-      console.error('❌ Error fetching branches:', error);
+      logger.error('❌ Error fetching branches:', error);
       setError(error.message || 'Şubeler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setBranches([]);
     } finally {
@@ -79,24 +110,15 @@ export default function BranchesPage() {
     }
   };
 
-  const filteredBranches = branches.filter((branch) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      branch.address?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const handleDeleteBranch = async (branchId: string) => {
     try {
       setProcessing(true);
-      const { apiRequest } = await import('@/utils/api');
       await apiRequest(`/api/branches/${branchId}`, { method: 'DELETE' });
       
       // State'den direkt kaldır
       setBranches(prev => prev.filter(b => b.id !== branchId));
     } catch (error: any) {
-      console.error('Error deleting branch:', error);
+      logger.error('Error deleting branch:', error);
       setError(error.message || 'Şube silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -106,7 +128,7 @@ export default function BranchesPage() {
   const handleToggleActive = async (branchId: string, currentActive: boolean) => {
     try {
       setProcessing(true);
-      const { apiRequest } = await import('@/utils/api');
+
       await apiRequest(`/api/branches/${branchId}`, {
         method: 'PUT',
         body: JSON.stringify({ isActive: !currentActive }),
@@ -115,7 +137,7 @@ export default function BranchesPage() {
       // State'deki ilgili şubenin isActive değerini güncelle
       setBranches(prev => prev.map(b => b.id === branchId ? { ...b, isActive: !currentActive } : b));
     } catch (error: any) {
-      console.error('Error toggling branch active status:', error);
+      logger.error('Error toggling branch active status:', error);
       setError(error.message || 'Şube durumu değiştirilirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -137,7 +159,7 @@ export default function BranchesPage() {
     }
   };
 
-  const totalBranches = filteredBranches.length;
+
 
   return (
     <AdminLayout>
@@ -157,7 +179,7 @@ export default function BranchesPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
               <button
                 onClick={() => {
                   setSelectedBranch(null);
@@ -191,7 +213,7 @@ export default function BranchesPage() {
               <Building2 className="w-12 h-12 text-red-400 mx-auto mb-2" />
               <p className="text-red-600">{error}</p>
             </div>
-          ) : filteredBranches.length === 0 ? (
+          ) : branches.length === 0 ? (
             <div className="p-8 text-center">
               <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">Şube bulunamadı</p>
@@ -229,7 +251,7 @@ export default function BranchesPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredBranches.map((branch) => (
+                    {branches.map((branch) => (
                       <tr 
                         key={branch.id} 
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -280,7 +302,7 @@ export default function BranchesPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || user?.role === 'superadmin') && (
                               <>
                                 <ActionButton
                                   icon={Edit}
@@ -358,12 +380,14 @@ export default function BranchesPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Total Count */}
-              <div className="flex justify-end px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Toplam şube sayısı: <span className="font-medium text-gray-900">{totalBranches}</span>
-                </div>
-              </div>
+              {/* Pagination */}
+              <Pagination
+                currentPage={page}
+                total={totalBranches}
+                limit={25}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
         </div>

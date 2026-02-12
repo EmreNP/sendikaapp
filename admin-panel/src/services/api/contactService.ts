@@ -52,12 +52,14 @@ export const contactService = {
     limit?: number;
     topicId?: string;
     isRead?: boolean;
+    search?: string;
   }): Promise<ContactMessageListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.topicId) queryParams.append('topicId', params.topicId);
     if (params?.isRead !== undefined) queryParams.append('isRead', params.isRead.toString());
+    if (params?.search) queryParams.append('search', params.search);
 
     const queryString = queryParams.toString();
     const endpoint = `/api/contact-messages${queryString ? `?${queryString}` : ''}`;

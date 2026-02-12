@@ -3,7 +3,7 @@
 export type UserStatus = 
   | 'pending_details'
   | 'pending_branch_review'
-  | 'pending_admin_approval'
+  | 'pending_admin_approval' // Legacy (artık kullanılmuyor)
   | 'active'
   | 'rejected';
 

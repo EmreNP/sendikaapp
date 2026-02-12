@@ -32,9 +32,11 @@ export interface UpdateNewsRequest {
 
 export interface NewsListResponse {
   news: News[];
-  total: number;
+  total?: number;
   page: number;
   limit: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export type BulkNewsAction = 'delete' | 'publish' | 'unpublish';

@@ -23,14 +23,13 @@ export interface User {
   fatherName?: string;
   motherName?: string;
   birthPlace?: string;
-  education?: EducationLevel;
+  education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
-  kadroUnvani?: string;
+  kadroUnvani?: string; // Kadro Ünvanı (Step 1'de doldurulur)
   kadroUnvanKodu?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  district?: string;
+  phone?: string; // Telefon (Step 1'de doldurulur)
+  district?: string; // Görev ilçesi (Step 1'de doldurulur)
+  isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
   
   // Sistem Bilgileri
   branchId?: string;
@@ -39,6 +38,8 @@ export interface User {
   email: string;
   emailVerified?: boolean; // Email doğrulandı mı?
   isActive: boolean; // Kullanıcı aktif mi? (delete durumunda false olur)
+  documentUrl?: string; // Kullanıcı kayıt formu PDF URL'i (deprecated, use documentPath)
+  documentPath?: string; // Storage path for user registration form PDF
   
   // Timestamps
   createdAt: Timestamp | Date;
@@ -49,9 +50,12 @@ export interface User {
 export interface RegisterBasicRequest {
   firstName: string;
   lastName: string;
+  phone: string;
   email: string;
   password: string;
   birthDate: string; // ISO date string
+  district: string; // Görev ilçesi
+  kadroUnvani: string; // Kadro Ünvanı
   gender: Gender;
 }
 
@@ -61,14 +65,10 @@ export interface RegisterDetailsRequest {
   fatherName?: string;
   motherName?: string;
   birthPlace?: string;
-  education?: EducationLevel;
+  education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
-  kadroUnvani?: string;
   kadroUnvanKodu?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  district?: string;
+  isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
 }
 
 // Firestore Update Data Types
@@ -81,7 +81,8 @@ export interface UserStatusUpdateData {
   status: UserStatus;
   updatedAt: FirestoreTimestamp;
   rejectionReason?: string;
-  documentUrl?: string; // PDF belgesi URL'i (Branch Manager admin'e gönderirken zorunlu)
+  documentUrl?: string; // PDF belgesi URL'i (deprecated, use documentPath)
+  documentPath?: string; // Storage path for PDF document
 }
 
 // User Role Update
@@ -159,16 +160,32 @@ export interface CreateUserData {
 export interface UserRegistrationLog {
   id?: string; // Firestore document ID
   userId: string; // İşlem yapılan kullanıcının UID'i
-  action: 'register_basic' | 'register_details' | 'branch_manager_approval' | 'admin_approval' | 'admin_rejection' | 'admin_return' | 'branch_manager_return';
+  action: 
+    | 'register_basic' 
+    | 'register_details' 
+    | 'branch_manager_approval' 
+    | 'branch_manager_rejection' 
+    | 'admin_approval' 
+    | 'admin_rejection' 
+    | 'admin_return' 
+    | 'branch_manager_return'
+    | 'user_update'          // Kullanıcı bilgileri güncellemesi
+    | 'role_update'          // Rol değişikliği
+    | 'status_update';       // Durum değişikliği
   performedBy: string; // İşlemi yapan kullanıcının UID'i
-  performedByRole: 'admin' | 'branch_manager' | 'user';
+  performedByRole: 'superadmin' | 'admin' | 'branch_manager' | 'user';
   previousStatus?: UserStatus; // Önceki durum (status değişikliklerinde)
   newStatus?: UserStatus; // Yeni durum (status değişikliklerinde)
   note?: string; // Opsiyonel not
-  documentUrl?: string; // PDF belgesi URL'i (branch manager approval için - ESKİ BELGELERİ TUTMAK İÇİN)
+  documentUrl?: string; // Yeni PDF belgesi URL'i
+  previousDocumentUrl?: string; // Önceki PDF belgesi URL'i (güncelleme için)
   metadata?: {
     branchId?: string; // Register details'te seçilen şube
     email?: string; // Register basic'te email
+    updatedFields?: string[]; // Güncellenen alanlar (user_update için)
+    fieldChanges?: Record<string, { oldValue: any; newValue: any }>; // Alan değişiklikleri detayı
+    previousRole?: string; // Önceki rol (role_update için)
+    newRole?: string; // Yeni rol (role_update için)
   };
   timestamp: Timestamp;
 }

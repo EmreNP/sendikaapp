@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Newspaper, Megaphone, Search, Bell, User, X, Eye, EyeOff } from 'lucide-react';
+import { Newspaper, Megaphone, Search, Bell, User, X, Eye, EyeOff, Plus } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
@@ -7,10 +8,13 @@ import { authService } from '@/services/auth/authService';
 import SendNotificationSimpleModal from '@/components/notifications/SendNotificationSimpleModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import ActionButton from '@/components/common/ActionButton';
+import AnnouncementFormModal from '@/components/announcements/AnnouncementFormModal';
 import type { News } from '@/types/news';
 import type { Announcement } from '@/types/announcement';
 import type { User as UserType } from '@/types/user';
 import type { NotificationType } from '@shared/constants/notifications';
+import { formatDate } from '@/utils/dateFormatter';
+import { logger } from '@/utils/logger';
 
 type TabType = 'news' | 'announcements';
 
@@ -33,6 +37,7 @@ export default function BranchNewsPage() {
   const [announcementsSearchTerm, setAnnouncementsSearchTerm] = useState('');
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [isAnnouncementPreviewModalOpen, setIsAnnouncementPreviewModalOpen] = useState(false);
+  const [isAnnouncementFormModalOpen, setIsAnnouncementFormModalOpen] = useState(false);
   
   // Notification modal states
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -59,7 +64,7 @@ export default function BranchNewsPage() {
 
       const data = await newsService.getNews({
         page: 1,
-        limit: 100,
+        limit: 25,
         isPublished: true, // Sadece yayındakiler
         search: searchTerm || undefined,
       });
@@ -81,7 +86,7 @@ export default function BranchNewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -97,7 +102,7 @@ export default function BranchNewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching news:', error);
+      logger.error('❌ Error fetching news:', error);
       setError(error.message || 'Haberler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setNews([]);
     } finally {
@@ -112,7 +117,7 @@ export default function BranchNewsPage() {
 
       const data = await announcementService.getAnnouncements({
         page: 1,
-        limit: 100,
+        limit: 25,
         isPublished: true, // Sadece yayındakiler
         search: announcementsSearchTerm || undefined,
       });
@@ -134,7 +139,7 @@ export default function BranchNewsPage() {
             const userData = await authService.getUserData(uid);
             return userData ? { uid, user: userData } : null;
           } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
+            logger.error(`Error fetching user ${uid}:`, error);
             return null;
           }
         });
@@ -150,7 +155,7 @@ export default function BranchNewsPage() {
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
-      console.error('❌ Error fetching announcements:', error);
+      logger.error('❌ Error fetching announcements:', error);
       setAnnouncementsError(error.message || 'Duyurular yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       setAnnouncements([]);
     } finally {
@@ -167,11 +172,19 @@ export default function BranchNewsPage() {
     return 'Yükleniyor...';
   };
 
-  // HTML içeriğinden düz metin çıkar ve kısalt
+  // HTML içeriğinden düz metin çıkar ve kısalt (XSS-safe: innerHTML kullanmaz)
   const extractPlainText = (html: string, maxLength: number = 200): string => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const text = div.textContent || div.innerText || '';
+    // HTML tag'lerini regex ile kaldır (innerHTML kullanmak XSS riski taşır)
+    const text = html
+      .replace(/<[^>]*>/g, '') // HTML tag'lerini kaldır
+      .replace(/&nbsp;/gi, ' ') // &nbsp; → boşluk
+      .replace(/&amp;/gi, '&')  // &amp; → &
+      .replace(/&lt;/gi, '<')   // &lt; → <
+      .replace(/&gt;/gi, '>')   // &gt; → >
+      .replace(/&quot;/gi, '"') // &quot; → "
+      .replace(/&#39;/gi, "'")  // &#39; → '
+      .replace(/\s+/g, ' ')     // Çoklu boşlukları tek boşluğa dönüştür
+      .trim();
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
@@ -188,34 +201,6 @@ export default function BranchNewsPage() {
       imageUrl: item.imageUrl,
     });
     setIsNotificationModalOpen(true);
-  };
-
-  const formatDate = (date: string | Date | { seconds?: number; nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let d: Date;
-    
-    // Firestore timestamp formatı kontrolü
-    if (typeof date === 'object' && 'seconds' in date && date.seconds) {
-      d = new Date(date.seconds * 1000 + ((date.nanoseconds || 0) / 1000000));
-    } else if (typeof date === 'string' || date instanceof Date) {
-      d = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Invalid date kontrolü
-    if (isNaN(d.getTime())) {
-      return '-';
-    }
-    
-    return d.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const filteredNews = news.filter((item) => {
@@ -245,6 +230,22 @@ export default function BranchNewsPage() {
   return (
     <AdminLayout>
       <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-end">
+          {activeTab === 'announcements' && (
+            <button
+              onClick={() => {
+                setSelectedAnnouncement(null);
+                setIsAnnouncementFormModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Duyuru
+            </button>
+          )}
+        </div>
+
         {/* Tabs */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -374,7 +375,7 @@ export default function BranchNewsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="text-sm text-gray-600">
-                            {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                            {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -467,7 +468,7 @@ export default function BranchNewsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="text-sm text-gray-600">
-                            {item.publishedAt ? formatDate(item.publishedAt) : '-'}
+                            {item.publishedAt ? formatDate(item.publishedAt, true, 'short') : '-'}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -585,7 +586,7 @@ export default function BranchNewsPage() {
                     <div className="mb-6">
                       <div
                         className="prose max-w-none"
-                        dangerouslySetInnerHTML={{ __html: selectedAnnouncement.content }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedAnnouncement.content) }}
                       />
                     </div>
                   )}
@@ -609,6 +610,19 @@ export default function BranchNewsPage() {
             </div>
           </div>
         )}
+
+        {/* Announcement Form Modal */}
+        <AnnouncementFormModal
+          announcement={null}
+          isOpen={isAnnouncementFormModalOpen}
+          onClose={() => {
+            setIsAnnouncementFormModalOpen(false);
+          }}
+          onSuccess={() => {
+            setIsAnnouncementFormModalOpen(false);
+            fetchAnnouncements();
+          }}
+        />
 
         {/* Notification Modal */}
         {isNotificationModalOpen && notificationData && (

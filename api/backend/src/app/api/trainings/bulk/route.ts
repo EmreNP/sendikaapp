@@ -21,7 +21,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -41,25 +41,17 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppValidationError('Maksimum 100 eğitim için toplu işlem yapılabilir');
       }
       
-      const results: BulkTrainingActionResult = {
-        success: true,
-        successCount: 0,
-        failureCount: 0,
-        errors: [],
-      };
-      
       // Her eğitim için işlemi yap
       const promises = trainingIds.map(async (trainingId: string) => {
         try {
           const trainingDoc = await db.collection('trainings').doc(trainingId).get();
           
           if (!trainingDoc.exists) {
-            results.failureCount++;
-            results.errors?.push({
+            return {
+              success: false,
               trainingId,
               error: 'Eğitim bulunamadı',
-            });
-            return;
+            };
           }
           
           switch (action) {
@@ -80,8 +72,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
               
               // Training'i sil
               await db.collection('trainings').doc(trainingId).delete();
-              results.successCount++;
-              break;
+              return { success: true, trainingId };
               
             case 'activate':
               await db.collection('trainings').doc(trainingId).update({
@@ -89,8 +80,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, trainingId };
               
             case 'deactivate':
               await db.collection('trainings').doc(trainingId).update({
@@ -98,27 +88,49 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, trainingId };
               
             default:
-              results.failureCount++;
-              results.errors?.push({
+              return {
+                success: false,
                 trainingId,
                 error: 'Geçersiz işlem tipi',
-              });
+              };
           }
         } catch (error: unknown) {
-          results.failureCount++;
           const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-          results.errors?.push({
+          return {
+            success: false,
             trainingId,
             error: errorMessage,
-          });
+          };
         }
       });
       
-      await Promise.all(promises);
+      // Tüm işlemleri bekle ve sonuçları topla
+      const operationResults = await Promise.all(promises);
+      
+      // Sonuçları reduce ile say (race condition yok)
+      const results: BulkTrainingActionResult = operationResults.reduce(
+        (acc, result) => {
+          if (result.success) {
+            acc.successCount++;
+          } else {
+            acc.failureCount++;
+            acc.errors?.push({
+              trainingId: result.trainingId,
+              error: result.error || 'Bilinmeyen hata',
+            });
+          }
+          return acc;
+        },
+        {
+          success: true,
+          successCount: 0,
+          failureCount: 0,
+          errors: [] as Array<{ trainingId: string; error: string }>,
+        } as BulkTrainingActionResult
+      );
       
       results.success = results.failureCount === 0;
       

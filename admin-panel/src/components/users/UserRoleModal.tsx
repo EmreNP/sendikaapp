@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { X, User as UserIcon, Building2 } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
+import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -18,6 +20,7 @@ interface UserRoleModalProps {
 }
 
 export default function UserRoleModal({ userId, currentRole, isOpen, onClose, onSuccess }: UserRoleModalProps) {
+  const { user: currentUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState<string>(currentRole);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -44,10 +47,17 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
   const fetchBranches = async () => {
     try {
       setBranchesLoading(true);
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches.filter(b => b.isActive) || []);
     } catch (err: any) {
-      console.error('Error fetching branches:', err);
+      logger.error('Error fetching branches:', err);
       setError('Şubeler yüklenirken bir hata oluştu');
     } finally {
       setBranchesLoading(false);
@@ -80,7 +90,7 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating user role:', err);
+      logger.error('Error updating user role:', err);
       setError(err.message || 'Rol güncellenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -89,15 +99,45 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
 
   const getRoleLabel = (role: string) => {
     switch (role) {
+      case 'superadmin':
+        return 'Superadmin';
       case 'admin':
         return 'Admin';
       case 'branch_manager':
-        return 'Şube Yöneticisi';
+        return 'İlçe Temsilcisi';
       case 'user':
         return 'Kullanıcı';
       default:
         return role;
     }
+  };
+
+  // Mevcut kullanıcının rolüne göre seçilebilir rolleri filtrele
+  const getAvailableRoles = () => {
+    const userRole = currentUser?.role;
+    
+    // Superadmin tüm rolleri seçebilir
+    if (userRole === 'superadmin') {
+      return [
+        { value: 'user', label: 'Kullanıcı' },
+        { value: 'branch_manager', label: 'İlçe Temsilcisi' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'superadmin', label: 'Superadmin' },
+      ];
+    }
+    
+    // Admin sadece user ve branch_manager seçebilir
+    if (userRole === 'admin') {
+      return [
+        { value: 'user', label: 'Kullanıcı' },
+        { value: 'branch_manager', label: 'İlçe Temsilcisi' },
+      ];
+    }
+    
+    // Varsayılan (branch_manager vb için)
+    return [
+      { value: 'user', label: 'Kullanıcı' },
+    ];
   };
 
   if (!isOpen) return null;
@@ -158,9 +198,11 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 >
-                  <option value="user">Kullanıcı</option>
-                  <option value="branch_manager">Şube Yöneticisi</option>
-                  <option value="admin">Admin</option>
+                  {getAvailableRoles().map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

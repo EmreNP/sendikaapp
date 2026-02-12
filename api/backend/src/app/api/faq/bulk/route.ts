@@ -22,7 +22,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
         throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 
@@ -42,33 +42,24 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppValidationError('Maksimum 100 FAQ için toplu işlem yapılabilir');
       }
 
-      const results: BulkFAQActionResult = {
-        success: true,
-        successCount: 0,
-        failureCount: 0,
-        errors: [],
-      };
-
       // Her FAQ için işlemi yap
       const promises = faqIds.map(async (faqId: string) => {
         try {
           const faqDoc = await db.collection('faqs').doc(faqId).get();
 
           if (!faqDoc.exists) {
-            results.failureCount++;
-            results.errors?.push({
+            return {
+              success: false,
               faqId,
               error: 'FAQ bulunamadı',
-            });
-            return;
+            };
           }
 
           switch (action) {
             case 'delete':
               // Hard delete
               await db.collection('faqs').doc(faqId).delete();
-              results.successCount++;
-              break;
+              return { success: true, faqId };
 
             case 'publish':
               // Yayınla
@@ -77,8 +68,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, faqId };
 
             case 'unpublish':
               // Yayından kaldır
@@ -87,28 +77,49 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, faqId };
 
             default:
-              results.failureCount++;
-              results.errors?.push({
+              return {
+                success: false,
                 faqId,
                 error: 'Geçersiz işlem tipi',
-              });
+              };
           }
         } catch (error: unknown) {
-          results.failureCount++;
           const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-          results.errors?.push({
+          return {
+            success: false,
             faqId,
             error: errorMessage,
-          });
+          };
         }
       });
 
-      // Tüm işlemleri bekle
-      await Promise.all(promises);
+      // Tüm işlemleri bekle ve sonuçları topla
+      const operationResults = await Promise.all(promises);
+
+      // Sonuçları reduce ile say (race condition yok)
+      const results: BulkFAQActionResult = operationResults.reduce(
+        (acc, result) => {
+          if (result.success) {
+            acc.successCount++;
+          } else {
+            acc.failureCount++;
+            acc.errors?.push({
+              faqId: result.faqId,
+              error: result.error || 'Bilinmeyen hata',
+            });
+          }
+          return acc;
+        },
+        {
+          success: true,
+          successCount: 0,
+          failureCount: 0,
+          errors: [] as Array<{ faqId: string; error: string }>,
+        } as BulkFAQActionResult
+      );
 
       // Sonuçları belirle
       results.success = results.failureCount === 0;

@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import { X, MapPin, Building2, FileText, Save } from 'lucide-react';
+import { X, MapPin, Building2, FileText, Save, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { userService, UpdateProfileRequest } from '@/services/api/userService';
-import type { User as SharedUser } from '../../../../shared/types/user';
+import { KONYA_DISTRICTS } from '@shared/constants/districts';
+import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
+import type { EducationLevel } from '@shared/types/user';
+import type { User as SharedUser } from '@shared/types/user';
+import { logger } from '@/utils/logger';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -23,9 +27,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     birthDate: '',
     gender: undefined,
     phone: '',
-    address: '',
-    city: '',
-    district: '',
+    district: '', // Görev İlçesi
     tcKimlikNo: '',
     fatherName: '',
     motherName: '',
@@ -37,38 +39,86 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   });
 
   useEffect(() => {
-    if (isOpen && user) {
-      // Kullanıcı bilgilerini form'a yükle
-      // API'den dönen user SharedUser type'ında olacak
-      const sharedUser = user as unknown as SharedUser;
-      const birthDate = sharedUser.birthDate
-        ? new Date(sharedUser.birthDate instanceof Date ? sharedUser.birthDate : (sharedUser.birthDate as any).toDate?.() || sharedUser.birthDate)
-            .toISOString()
-            .split('T')[0]
-        : '';
+    let cancelled = false;
+    async function loadProfile() {
+      if (!isOpen) return;
+      setLoading(true);
+      try {
+        const resp = await userService.getMyProfile();
+        const sharedUser = resp.user as unknown as SharedUser;
+        // Safely parse birthDate coming from different sources (Date | Firebase Timestamp | ISO string | seconds/nanoseconds object)
+        let birthDate = '';
+        const parseBirthDate = (raw: any): string => {
+          if (!raw) return '';
+          try {
+            // Date instance
+            if (raw instanceof Date) {
+              return raw.toISOString().split('T')[0];
+            }
 
-      setFormData({
-        firstName: sharedUser.firstName || '',
-        lastName: sharedUser.lastName || '',
-        birthDate: birthDate,
-        gender: sharedUser.gender as 'male' | 'female' | undefined,
-        phone: sharedUser.phone || '',
-        address: sharedUser.address || '',
-        city: sharedUser.city || '',
-        district: sharedUser.district || '',
-        tcKimlikNo: sharedUser.tcKimlikNo || '',
-        fatherName: sharedUser.fatherName || '',
-        motherName: sharedUser.motherName || '',
-        birthPlace: sharedUser.birthPlace || '',
-        education: sharedUser.education as 'ilkögretim' | 'lise' | 'yüksekokul' | undefined,
-        kurumSicil: sharedUser.kurumSicil || '',
-        kadroUnvani: sharedUser.kadroUnvani || '',
-        kadroUnvanKodu: sharedUser.kadroUnvanKodu || '',
-      });
-      setError(null);
-      setSuccess(false);
+            // ISO string
+            if (typeof raw === 'string') {
+              const d = new Date(raw);
+              if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            }
+
+            // Firestore Timestamp with toDate()
+            if (raw?.toDate && typeof raw.toDate === 'function') {
+              const d = raw.toDate();
+              if (d instanceof Date && !isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            }
+
+            // Plain object with seconds/nanoseconds (from serialized Timestamp)
+            if (typeof raw === 'object') {
+              const seconds = Number(raw.seconds ?? raw._seconds);
+              const nanoseconds = Number(raw.nanoseconds ?? raw._nanoseconds ?? 0);
+              if (!isNaN(seconds)) {
+                const d = new Date(seconds * 1000 + Math.floor(nanoseconds / 1e6));
+                if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+              }
+
+              // As a last resort, try Date constructor
+              const d2 = new Date(raw as any);
+              if (!isNaN(d2.getTime())) return d2.toISOString().split('T')[0];
+            }
+          } catch (err) {
+            logger.warn('Error parsing birthDate:', err, raw);
+          }
+
+          logger.warn('Invalid birthDate value for user:', raw);
+          return '';
+        };
+
+        birthDate = parseBirthDate(sharedUser.birthDate);
+
+        setFormData({
+          firstName: sharedUser.firstName || '',
+          lastName: sharedUser.lastName || '',
+          birthDate: birthDate,
+          gender: sharedUser.gender as 'male' | 'female' | undefined,
+          phone: sharedUser.phone || '',
+          district: sharedUser.district || '',
+          tcKimlikNo: sharedUser.tcKimlikNo || '',
+          fatherName: sharedUser.fatherName || '',
+          motherName: sharedUser.motherName || '',
+          birthPlace: sharedUser.birthPlace || '',
+          education: (sharedUser.education || undefined) as EducationLevel | undefined,
+          kurumSicil: sharedUser.kurumSicil || '',
+          kadroUnvani: sharedUser.kadroUnvani || '',
+          kadroUnvanKodu: sharedUser.kadroUnvanKodu || '',
+        });
+        setError(null);
+        setSuccess(false);
+      } catch (err: any) {
+        logger.error('Error loading profile:', err);
+        setError('Profil bilgileri yüklenirken bir hata oluştu');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }, [isOpen, user]);
+    loadProfile();
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   const handleChange = (field: keyof UpdateProfileRequest, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -80,10 +130,83 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+
+    // Ensure all mandatory fields are filled (all fields are required per request)
+    const mandatory: (keyof UpdateProfileRequest)[] = [
+      'firstName','lastName','birthDate','gender','phone','district','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani','kadroUnvanKodu'
+    ];
+    for (const k of mandatory) {
+      const v = (formData as any)[k];
+      // Check for undefined, null, empty string, or whitespace-only string
+      if (!v || (typeof v === 'string' && v.trim() === '')) {
+        setError('Lütfen tüm zorunlu alanları doldurun');
+        return;
+      }
+    }
+
+    // Validate TC Kimlik No
+    const tc = (formData.tcKimlikNo || '').replace(/\D/g, '');
+    if (tc.length !== 11) {
+      setError('TC Kimlik No 11 haneli olmalıdır');
+      return;
+    }
+
+    // TC Kimlik No algoritma kontrolü
+    const tcDigits = tc.split('').map(Number);
+    const sum1 = tcDigits[0] + tcDigits[2] + tcDigits[4] + tcDigits[6] + tcDigits[8];
+    const sum2 = tcDigits[1] + tcDigits[3] + tcDigits[5] + tcDigits[7];
+    
+    if ((sum1 * 7 - sum2) % 10 !== tcDigits[9]) {
+      setError('Geçersiz TC Kimlik No (kontrol basamağı hatalı)');
+      return;
+    }
+    
+    if ((sum1 + sum2 + tcDigits[9]) % 10 !== tcDigits[10]) {
+      setError('Geçersiz TC Kimlik No (son basamak hatalı)');
+      return;
+    }
+
+    // Normalize/validate phone number
+    let phone = (formData.phone || '').trim();
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setError('Telefon numarası geçersiz veya eksik');
+      return;
+    }
+    if (digits.length === 10 && digits.startsWith('5')) {
+      phone = `+90${digits}`;
+    } else if (digits.length === 11 && digits.startsWith('90')) {
+      phone = `+${digits}`;
+    } else if (phone && !phone.startsWith('+')) {
+      // leave as-is
+      phone = phone;
+    }
+
+    // Ensure district choice is valid
+    if (!KONYA_DISTRICTS.includes(formData.district || '')) {
+      setError('Lütfen geçerli bir görev ilçesi seçin');
+      return;
+    }
+
+    // Build payload with only fields present
+    const payload: UpdateProfileRequest = {};
+    
+    // Add all mandatory fields
+    mandatory.forEach((k) => {
+      const val = (formData as any)[k];
+      if (val !== undefined && val !== null && val !== '') {
+        (payload as any)[k] = val;
+      }
+    });
+
+    // Override with normalized values
+    payload.phone = phone;
+    payload.tcKimlikNo = tc;
+
     setSaving(true);
 
     try {
-      const updatedUser = await userService.updateMyProfile(formData);
+      const updatedUser = await userService.updateMyProfile(payload);
       setUser(updatedUser.user);
       setSuccess(true);
       setTimeout(() => {
@@ -135,7 +258,13 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="animate-spin w-6 h-6 border-2 border-slate-700 border-t-transparent rounded-full mr-3"></div>
+              <span>Profil yükleniyor...</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
             {/* Temel Bilgiler */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -169,7 +298,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Doğum Tarihi
+                    Doğum Tarihi <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -180,7 +309,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cinsiyet
+                    Cinsiyet <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.gender || ''}
@@ -194,12 +323,15 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefon
+                    Telefon <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
+                    inputMode="tel"
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
@@ -218,48 +350,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               </div>
             </div>
 
-            {/* Adres Bilgileri */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Adres Bilgileri
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adres
-                  </label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => handleChange('address', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    İl
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => handleChange('city', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    İlçe
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.district}
-                    onChange={(e) => handleChange('district', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
+{/* Adres Bilgileri removed per request */}
 
             {/* Kimlik Bilgileri */}
             <div className="space-y-4">
@@ -270,46 +361,60 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    TC Kimlik No
+                    TC Kimlik No <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={formData.tcKimlikNo}
-                    onChange={(e) => handleChange('tcKimlikNo', e.target.value)}
+                    onChange={(e) => {
+                      // Sadece rakam girişine izin ver
+                      const value = e.target.value.replace(/\D/g, '');
+                      handleChange('tcKimlikNo', value);
+                    }}
                     maxLength={11}
+                    required
+                    aria-required="true"
+                    placeholder="11 haneli TC Kimlik No"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Doğum Yeri
+                    Doğum Yeri <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.birthPlace}
                     onChange={(e) => handleChange('birthPlace', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Baba Adı
+                    Baba Adı <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.fatherName}
                     onChange={(e) => handleChange('fatherName', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Anne Adı
+                    Anne Adı <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.motherName}
                     onChange={(e) => handleChange('motherName', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
@@ -325,49 +430,72 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Eğitim Seviyesi
+                    Eğitim Seviyesi <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.education || ''}
                     onChange={(e) => handleChange('education', e.target.value || undefined)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   >
                     <option value="">Seçiniz</option>
-                    <option value="ilkögretim">İlköğretim</option>
-                    <option value="lise">Lise</option>
-                    <option value="yüksekokul">Yüksekokul</option>
+                    {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kurum Sicil No
+                    Görev İlçesi <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.district || ''}
+                    onChange={(e) => handleChange('district', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  >
+                    <option value="">Seçiniz</option>
+                    {KONYA_DISTRICTS.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Kurum Sicil <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.kurumSicil}
                     onChange={(e) => handleChange('kurumSicil', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kadro Unvanı
+                    Kadro Unvanı <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.kadroUnvani}
                     onChange={(e) => handleChange('kadroUnvani', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kadro Unvan Kodu
+                    Kadro Unvan Kodu <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.kadroUnvanKodu}
                     onChange={(e) => handleChange('kadroUnvanKodu', e.target.value)}
+                    required
+                    aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   />
                 </div>
@@ -402,6 +530,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               </button>
             </div>
           </form>
+          )}
         </div>
         </div>
       </div>

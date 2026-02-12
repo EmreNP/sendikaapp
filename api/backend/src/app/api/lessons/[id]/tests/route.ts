@@ -73,7 +73,7 @@ export const POST = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -103,10 +103,10 @@ export const POST = asyncHandler(async (
       // Questions için ID'leri oluştur
       const questionsWithIds: TestQuestion[] = testData.questions.map((q, index) => ({
         ...q,
-        id: `q_${Date.now()}_${index}`,
+        id: crypto.randomUUID(),
         options: q.options.map((opt, optIndex) => ({
           ...opt,
-          id: opt.id || `opt_${Date.now()}_${index}_${optIndex}`,
+          id: opt.id || crypto.randomUUID(),
         })),
       }));
       

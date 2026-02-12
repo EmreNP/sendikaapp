@@ -55,14 +55,14 @@ export const authPaths = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['branchId'],
+              required: ['branchId','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani','kadroUnvanKodu','phone','address','city','district'],
               properties: {
                 branchId: { type: 'string', example: 'branch-id-123' },
                 tcKimlikNo: { type: 'string', pattern: '^[0-9]{11}$', example: '12345678901' },
                 fatherName: { type: 'string', example: 'Mehmet' },
                 motherName: { type: 'string', example: 'Ayşe' },
                 birthPlace: { type: 'string', example: 'İstanbul' },
-                education: { type: 'string', enum: ['ilkögretim', 'lise', 'yüksekokul'], example: 'lise' },
+                education: { type: 'string', enum: ['ilkokul','ortaokul','lise','on_lisans','lisans','yuksek_lisans','doktora'], example: 'lise' },
                 kurumSicil: { type: 'string', example: '12345' },
                 kadroUnvani: { type: 'string', example: 'Memur' },
                 kadroUnvanKodu: { type: 'string', example: 'M001' },
@@ -151,22 +151,5 @@ export const authPaths = {
       },
     },
   },
-  '/api/auth/verify-email/send': {
-    post: {
-      summary: 'E-posta Doğrulama Linki Gönder',
-      description: 'E-posta doğrulama linki oluşturur',
-      tags: ['Auth'],
-      security: [{ bearerAuth: [] }],
-      responses: {
-        '200': {
-          description: 'Başarılı',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/SuccessResponse' },
-            },
-          },
-        },
-      },
-    },
-  },
+
 }

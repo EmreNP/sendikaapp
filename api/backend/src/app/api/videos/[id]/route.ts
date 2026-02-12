@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Video detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -72,7 +73,7 @@ export const PUT = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -155,7 +156,7 @@ export const DELETE = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -168,7 +169,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete
       await db.collection('video_contents').doc(videoId).delete();
       
-      console.log(`✅ Video ${videoId} deleted`);
+      logger.log(`✅ Video ${videoId} deleted`);
       
       return successResponse(
         'Video başarıyla silindi',

@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import Pagination from '@/components/common/Pagination';
 import TrainingFormModal from '@/components/trainings/TrainingFormModal';
 import TrainingDetailModal from '@/components/trainings/TrainingDetailModal';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
+import { logger } from '@/utils/logger';
 
 export default function TrainingsPage() {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function TrainingsPage() {
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const limit = 25;
   const [selectedTrainingIds, setSelectedTrainingIds] = useState<Set<string>>(new Set());
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -41,14 +44,14 @@ export default function TrainingsPage() {
       setError(null);
       const response = await trainingService.getTrainings({
         page,
-        limit: 20,
+        limit,
         isActive: filterActive ?? undefined,
         search: searchTerm || undefined,
       });
       setTrainings(response.trainings);
       setTotal(response.total);
     } catch (err: any) {
-      console.error('Load trainings error:', err);
+      logger.error('Load trainings error:', err);
       setError(err.message || 'Eğitimler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -65,7 +68,7 @@ export default function TrainingsPage() {
       await trainingService.deleteTraining(id);
       await loadTrainings();
     } catch (err: any) {
-      console.error('Delete training error:', err);
+      logger.error('Delete training error:', err);
       alert(err.message || 'Eğitim silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -80,7 +83,7 @@ export default function TrainingsPage() {
       });
       await loadTrainings();
     } catch (err: any) {
-      console.error('Toggle active error:', err);
+      logger.error('Toggle active error:', err);
       alert(err.message || 'Eğitim durumu güncellenirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -107,7 +110,7 @@ export default function TrainingsPage() {
         await loadTrainings();
       }
     } catch (err: any) {
-      console.error('Bulk action error:', err);
+      logger.error('Bulk action error:', err);
       alert(err.message || 'Toplu işlem sırasında bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -341,7 +344,7 @@ export default function TrainingsPage() {
                               variant="view"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate('/admin/trainings/detail', { state: { trainingId: training.id } });
+                                navigate(`/admin/trainings/${training.id}`);
                               }}
                               title="Derslere Git"
                             />
@@ -394,29 +397,13 @@ export default function TrainingsPage() {
         </div>
 
         {/* Pagination */}
-        {total > 20 && (
-          <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg border border-gray-200">
-            <div className="text-sm text-gray-700">
-              Toplam <span className="font-medium">{total}</span> eğitim
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-              >
-                Önceki
-              </button>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={page * 20 >= total}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-              >
-                Sonraki
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+          showPageNumbers={false}
+        />
 
         {/* Confirm Dialog */}
         <ConfirmDialog

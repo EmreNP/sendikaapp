@@ -14,6 +14,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
 // GET - Tüm eğitimleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -25,8 +26,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       
       const userRole = currentUserData!.role;
     const url = new URL(request.url);
-    const page = parseQueryParamAsNumber(url, 'page', 1, 1);
-    const limit = Math.min(parseQueryParamAsNumber(url, 'limit', 20, 1), 100);
+    const paginationParams = parsePaginationParams(url);
     const isActiveParam = url.searchParams.get('isActive');
     const search = url.searchParams.get('search');
       
@@ -35,44 +35,57 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       // USER/BRANCH_MANAGER için sadece aktif eğitimler
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         query = query.where('isActive', '==', true);
-      } else if (userRole === USER_ROLE.ADMIN) {
-        // Admin için isActive filtresi kullanılabilir
+      } else if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) {
+        // Admin/Superadmin için isActive filtresi kullanılabilir
         if (isActiveParam !== null) {
           query = query.where('isActive', '==', isActiveParam === 'true');
         }
       }
-      
-      const snapshot = await query.orderBy('order', 'asc').orderBy('createdAt', 'desc').get();
-      
-      let trainings = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Training[];
-      
-      // Search filtresi
+
+      // Search with batch-based pagination
       if (search) {
         const searchLower = search.toLowerCase();
-        trainings = trainings.filter((t: Training) => {
-          const title = (t.title || '').toLowerCase();
-          return title.includes(searchLower);
+        const orderedQuery = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
+        
+        const result = await searchInBatches<Training>(
+          orderedQuery,
+          paginationParams,
+          (doc) => ({ id: doc.id, ...doc.data() }) as Training,
+          (t) => (t.title || '').toLowerCase().includes(searchLower)
+        );
+        
+        const serializedTrainings = result.items.map(t => serializeTrainingTimestamps(t));
+        
+        return successResponse('Eğitimler başarıyla getirildi', {
+          trainings: serializedTrainings,
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          hasMore: result.hasMore,
         });
       }
       
-      // Sayfalama
-      const total = trainings.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedTrainings = trainings.slice(startIndex, endIndex);
+      // Server-side pagination - Note: Using 'order' field as primary sort
+      query = query.orderBy('order', 'asc').orderBy('createdAt', 'desc');
       
-      const serializedTrainings = paginatedTrainings.map(t => serializeTrainingTimestamps(t));
+      const paginatedResult = await paginateHybrid(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }) as Training,
+        'order'
+      );
+      
+      const serializedTrainings = paginatedResult.items.map(t => serializeTrainingTimestamps(t));
       
       return successResponse(
         'Eğitimler başarıyla getirildi',
         {
           trainings: serializedTrainings,
-          total,
-          page,
-          limit,
+          total: paginatedResult.total,
+          page: paginatedResult.page,
+          limit: paginatedResult.limit,
+          hasMore: paginatedResult.hasMore,
+          nextCursor: paginatedResult.nextCursor,
         }
       );
   });
@@ -86,7 +99,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       

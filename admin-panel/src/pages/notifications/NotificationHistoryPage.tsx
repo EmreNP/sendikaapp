@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { Bell, Search, CheckCircle, XCircle, Building2, X } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import NotificationDetailModal from '@/components/notifications/NotificationDetailModal';
+import Pagination from '@/components/common/Pagination';
 import { notificationService } from '@/services/api/notificationService';
 import type { NotificationHistory } from '@/services/api/notificationService';
 import { NOTIFICATION_TYPE } from '@shared/constants/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormatter';
 
 interface Branch {
   id: string;
@@ -20,8 +23,8 @@ export default function NotificationHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [limit] = useState(20);
+  const [_totalPages, setTotalPages] = useState(0);
+  const [limit] = useState(25);
   const [filterType, setFilterType] = useState<'all' | 'announcement' | 'news'>('all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filterBranchId, setFilterBranchId] = useState<string>('');
@@ -34,17 +37,27 @@ export default function NotificationHistoryPage() {
   }, [page, filterType, filterBranchId, searchTerm]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchBranches();
+    } else if (user?.role === 'branch_manager') {
+      // Şube yöneticileri yalnızca kendi şubelerinin bildirimlerini görmelidir
+      setFilterBranchId(user.branchId || '');
     }
   }, [user]);
 
   const fetchBranches = async () => {
     try {
-      const data = await apiRequest<{ branches: Branch[] }>('/api/branches');
+      const data = await apiRequest<{ 
+        branches: Branch[];
+        total?: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>('/api/branches');
       setBranches(data.branches || []);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     }
   };
 
@@ -57,73 +70,20 @@ export default function NotificationHistoryPage() {
         page,
         limit,
         type: filterType === 'all' ? undefined : filterType,
-        branchId: filterBranchId || undefined,
+        // Branch manager için backend'e kendi şubesi gönderilsin, diğerleri seçime göre
+        branchId: user?.role === 'branch_manager' ? (user.branchId || undefined) : (filterBranchId || undefined),
+        search: searchTerm || undefined,
       });
 
-      let filteredNotifications = data.notifications || [];
-      
-      // Client-side search filtering
-      if (searchTerm) {
-        filteredNotifications = filteredNotifications.filter(notification => 
-          notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          notification.body.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-
-      setNotifications(filteredNotifications);
+      setNotifications(data.notifications || []);
       setTotal(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 0);
     } catch (error: any) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
       setError(error.message || 'Bildirim geçmişi yüklenirken bir hata oluştu');
       setNotifications([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const formatDate = (date: any): string => {
-    if (!date) return '-';
-    
-    try {
-      let dateObj: Date;
-      
-      if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'string') {
-        // ISO string from backend
-        dateObj = new Date(date);
-      } else if (typeof date === 'object' && date.seconds !== undefined) {
-        // Firestore Timestamp object
-        dateObj = new Date(date.seconds * 1000);
-      } else if (typeof date === 'object' && date._seconds !== undefined) {
-        // Firestore Timestamp alternative format
-        dateObj = new Date(date._seconds * 1000);
-      } else if (typeof date === 'object' && date.toDate) {
-        // Firestore Timestamp with toDate method
-        dateObj = date.toDate();
-      } else if (typeof date === 'number') {
-        dateObj = new Date(date);
-      } else {
-        console.warn('Unknown date format:', date);
-        return '-';
-      }
-      
-      if (isNaN(dateObj.getTime())) {
-        console.warn('Invalid date:', date);
-        return '-';
-      }
-      
-      return new Intl.DateTimeFormat('tr-TR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(dateObj);
-    } catch (error) {
-      console.error('Date formatting error:', error, date);
-      return '-';
     }
   };
 
@@ -221,22 +181,24 @@ export default function NotificationHistoryPage() {
               </button>
             </div>
 
-            {/* Şube Filtresi */}
-            <select
-              value={filterBranchId}
-              onChange={(e) => {
-                setFilterBranchId(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
-            >
-              <option value="">Tüm Şubeler</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
+            {/* Şube Filtresi (sadece admin/superadmin) */}
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <select
+                value={filterBranchId}
+                onChange={(e) => {
+                  setFilterBranchId(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
+              >
+                <option value="">Tüm Şubeler</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -359,7 +321,7 @@ export default function NotificationHistoryPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-600">
-                            {formatDate(notification.createdAt)}
+                            {formatDate(notification.createdAt, true, 'short')}
                           </div>
                         </td>
                       </tr>
@@ -369,29 +331,13 @@ export default function NotificationHistoryPage() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Toplam {total} bildirim, Sayfa {page} / {totalPages}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Önceki
-                    </button>
-                    <button
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === totalPages}
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Sonraki
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Pagination
+                currentPage={page}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
             </>
           )}
         </div>

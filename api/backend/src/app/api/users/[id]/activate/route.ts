@@ -10,6 +10,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/activate - Kullanıcıyı aktif et
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -58,10 +59,10 @@ export const PATCH = asyncHandler(async (
         await auth.updateUser(targetUserId, {
           disabled: false,
         });
-        console.log(`✅ Firebase Auth user enabled: ${targetUserId}`);
+        logger.log(`✅ Firebase Auth user enabled: ${targetUserId}`);
       } catch (authError: unknown) {
         const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-        console.error('⚠️ Firebase Auth enable error:', errorMessage);
+        logger.error('⚠️ Firebase Auth enable error:', errorMessage);
         // Auth'da yoksa devam et
       }
       
@@ -71,7 +72,7 @@ export const PATCH = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      console.log(`✅ User ${targetUserId} activated`);
+      logger.log(`✅ User ${targetUserId} activated`);
       
       return successResponse(
         'Kullanıcı başarıyla aktif edildi',

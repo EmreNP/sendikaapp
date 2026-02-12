@@ -15,10 +15,11 @@ import {
   authenticationError,
   validationError,
   serverError,
-  notFoundError
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET /api/activities - List activities (filtered by role)
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -30,11 +31,15 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
 
+    const url = new URL(request.url);
+    const paginationParams = parsePaginationParams(url);
+    const search = url.searchParams.get('search');
+    
     let query: FirebaseFirestore.Query = db.collection('activities');
 
     // Filter based on user role
-    if (currentUserData.role === USER_ROLE.ADMIN) {
-      // Admin can see all activities
+    if (currentUserData.role === USER_ROLE.ADMIN || currentUserData.role === USER_ROLE.SUPERADMIN) {
+      // Admin/Superadmin can see all activities
       query = query.orderBy('createdAt', 'desc');
     } else if (currentUserData.role === USER_ROLE.BRANCH_MANAGER) {
       // Branch managers can see activities from their branch only
@@ -48,19 +53,52 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         .orderBy('createdAt', 'desc');
     }
 
-    const activitiesSnapshot = await query.get();
-    const activities: Activity[] = [];
+    if (search) {
+      const searchLower = search.toLowerCase();
+      
+      const result = await searchInBatches<any>(
+        query,
+        paginationParams,
+        (doc) => ({ id: doc.id, ...doc.data() }),
+        (a) => (a.name || '').toLowerCase().includes(searchLower) ||
+               (a.description || '').toLowerCase().includes(searchLower)
+      );
 
-    activitiesSnapshot.forEach(doc => {
-      const data = doc.data();
-      const activity = {
-        id: doc.id,
-        ...data
-      };
-      activities.push(serializeActivityTimestamps(activity));
+      const serializedActivities = result.items.map(serializeActivityTimestamps);
+
+      return successResponse('Aktiviteler başarıyla getirildi', {
+        activities: serializedActivities,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil((result.total || 0) / result.limit)
+      });
+    }
+
+    // Server-side pagination with Firestore
+    const paginatedResult = await paginateHybrid(
+      query,
+      paginationParams,
+      (doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data
+        };
+      },
+      'createdAt'
+    );
+
+    const serializedActivities = paginatedResult.items.map(serializeActivityTimestamps);
+
+    return successResponse('Aktiviteler başarıyla getirildi', {
+      activities: serializedActivities,
+      total: paginatedResult.total,
+      page: paginatedResult.page,
+      limit: paginatedResult.limit,
+      hasMore: paginatedResult.hasMore,
+      nextCursor: paginatedResult.nextCursor,
     });
-
-    return successResponse('Aktiviteler başarıyla getirildi', { activities });
   });
 });
 
@@ -75,7 +113,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     }
 
     // Check permissions
-    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
+    if (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN && currentUserData.role !== USER_ROLE.BRANCH_MANAGER) {
       throw new AppAuthorizationError('Bu işlem için yeterli yetkiniz yok');
     }
 
@@ -145,6 +183,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       id: docRef.id,
       ...activityData
     };
+
+    // Audit log
+    const categoryName = categoryDoc.data()?.name || '';
+    createAuditLog({
+      action: 'activity_created',
+      category: 'activity',
+      performedBy: user.uid,
+      performedByName: `${currentUserData.firstName || ''} ${currentUserData.lastName || ''}`.trim(),
+      performedByRole: currentUserData.role,
+      branchId: branchId,
+      targetId: docRef.id,
+      targetName: body.name.trim(),
+      details: { categoryId: body.categoryId, categoryName, isPublished: activityData.isPublished },
+      message: `"${body.name.trim()}" aktivitesi oluşturuldu (${categoryName})`,
+    });
 
     return successResponse('Aktivite başarıyla oluşturuldu', 
       { activity: serializeActivityTimestamps(activity) }, 

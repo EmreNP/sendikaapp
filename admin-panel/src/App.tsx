@@ -1,141 +1,176 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
-import AdminDashboard from './pages/dashboard/AdminDashboard';
-import BranchDashboard from './pages/dashboard/BranchDashboard';
-import UsersPage from './pages/users/UsersPage';
-import BranchesPage from './pages/branches/BranchesPage';
-import NewsPage from './pages/news/NewsPage';
-import BranchNewsPage from './pages/news/BranchNewsPage';
-import ActivitiesPage from './pages/activities/ActivitiesPage';
-import TrainingsPage from './pages/trainings/TrainingsPage';
-import TrainingDetailPage from './pages/trainings/TrainingDetailPage';
-import LessonDetailPage from './pages/trainings/LessonDetailPage';
-import ContactMessagesPage from './pages/contact-messages/ContactMessagesPage';
-import FAQPage from './pages/faq/FAQPage';
-import NotificationHistoryPage from './pages/notifications/NotificationHistoryPage';
+
+// Lazy load pages for code splitting
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const UnauthorizedPage = lazy(() => import('./pages/UnauthorizedPage'));
+const UsersPage = lazy(() => import('./pages/users/UsersPage'));
+const BranchesPage = lazy(() => import('./pages/branches/BranchesPage'));
+const NewsPage = lazy(() => import('./pages/news/NewsPage'));
+const ActivitiesPage = lazy(() => import('./pages/activities/ActivitiesPage'));
+const TrainingsPage = lazy(() => import('./pages/trainings/TrainingsPage'));
+const TrainingDetailPage = lazy(() => import('./pages/trainings/TrainingDetailPage'));
+const LessonDetailPage = lazy(() => import('./pages/trainings/LessonDetailPage'));
+const ContactMessagesPage = lazy(() => import('./pages/contact-messages/ContactMessagesPage'));
+const FAQPage = lazy(() => import('./pages/faq/FAQPage'));
+const NotificationHistoryPage = lazy(() => import('./pages/notifications/NotificationHistoryPage'));
+const PerformanceDashboardPage = lazy(() => import('./pages/performance/PerformanceDashboardPage'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-4 text-gray-600">Yükleniyor...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          
-          {/* Admin Routes */}
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
-                <UsersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/branches"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <BranchesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/news"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <NewsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/trainings"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <TrainingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/activities"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
-                <ActivitiesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/trainings/detail"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <TrainingDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/lessons/detail"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <LessonDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/contact-messages"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
-                <ContactMessagesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/faq"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <FAQPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/notifications"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
-                <NotificationHistoryPage />
-              </ProtectedRoute>
-            }
-          />
-          
-          {/* Branch Manager Routes */}
-          <Route
-            path="/branch/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['branch_manager']}>
-                <BranchDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/branch/news"
-            element={
-              <ProtectedRoute allowedRoles={['branch_manager']}>
-                <BranchNewsPage />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+            
+            {/* Admin Routes */}
+            {/* Dashboard removed — redirect legacy routes to Users list */}
+            <Route path="/admin/dashboard" element={<Navigate to="/admin/users" replace />} />
+            <Route path="/branch/dashboard" element={<Navigate to="/admin/users" replace />} />
+            <Route
+              path="/admin/users"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                    <UsersPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/branches"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <BranchesPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/news"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                    <NewsPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/trainings"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <TrainingsPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/activities"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                    <ActivitiesPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/trainings/:trainingId"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <TrainingDetailPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/trainings/:trainingId/lessons/:lessonId"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <LessonDetailPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/contact-messages"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                    <ContactMessagesPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/faq"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <FAQPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
+                    <NotificationHistoryPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            
+            <Route
+              path="/admin/performance"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <PerformanceDashboardPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            
+            {/* Legacy branch routes - redirect to admin equivalents */}
+            <Route path="/branch/news" element={<Navigate to="/admin/news" replace />} />
+            
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

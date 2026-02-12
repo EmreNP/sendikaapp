@@ -27,9 +27,9 @@ export const GET = asyncHandler(async (
 
     const topicData = topicDoc.data();
 
-    // Admin olmayan kullanıcılar sadece aktif konuları görebilir
+    // Admin/Superadmin olmayan kullanıcılar sadece aktif konuları görebilir
     const { error, user: currentUserData } = await getCurrentUser(user.uid);
-    const isAdmin = !error && currentUserData?.role === USER_ROLE.ADMIN;
+    const isAdmin = !error && (currentUserData?.role === USER_ROLE.ADMIN || currentUserData?.role === USER_ROLE.SUPERADMIN);
 
     if (!isAdmin && !topicData?.isActive) {
       throw new AppNotFoundError('Konu');
@@ -58,7 +58,7 @@ export const PUT = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
 
-    if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+    if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 
@@ -135,7 +135,7 @@ export const DELETE = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
 
-    if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+    if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
     }
 

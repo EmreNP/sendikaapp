@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { DocumentContent, CreateDocumentContentRequest } from '@shared/types/training';
 import { validateCreateDocumentContent } from '@/lib/utils/validation/documentContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeDocumentContentTimestamps
@@ -14,6 +15,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin dökümanlarını listele
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -53,7 +55,15 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as DocumentContent[];
       
-      const serializedDocuments = documents.map(d => serializeDocumentContentTimestamps(d));
+      // Generate public URLs (files are already public via makePublic)
+      const documentsWithUrls = documents.map((doc) => {
+        if (doc.documentPath) {
+          return { ...doc, documentUrl: generatePublicUrl(doc.documentPath) };
+        }
+        return doc;
+      });
+      
+      const serializedDocuments = documentsWithUrls.map(d => serializeDocumentContentTimestamps(d));
       
       return successResponse(
         'Dökümanlar başarıyla getirildi',
@@ -73,7 +83,7 @@ export const POST = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -111,11 +121,18 @@ export const POST = asyncHandler(async (
         finalOrder = await getNextContentOrder(lessonId, 'document');
       }
       
+      // Use documentPath if provided, otherwise fall back to documentUrl (backward compatibility)
+      const documentPath = documentData.documentPath || documentData.documentUrl;
+      
+      if (!documentPath) {
+        throw new AppValidationError('documentPath veya documentUrl gerekli');
+      }
+      
       const contentData = {
         lessonId: documentData.lessonId,
         title: documentData.title.trim(),
         description: documentData.description?.trim() || null,
-        documentUrl: documentData.documentUrl.trim(),
+        documentPath: documentPath.trim(), // Store path, not URL
         documentType: 'pdf', // Sadece PDF
         fileSize: documentData.fileSize || null,
         order: finalOrder,
@@ -138,6 +155,11 @@ export const POST = asyncHandler(async (
         type: 'document',
         ...docData,
       } as DocumentContent;
+      
+      // Generate public URL for response
+      if (document.documentPath) {
+        document.documentUrl = generatePublicUrl(document.documentPath);
+      }
       
       const serializedDocument = serializeDocumentContentTimestamps(document);
       

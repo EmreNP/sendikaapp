@@ -3,7 +3,8 @@ import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
-import type { Content, ContentType } from '@shared/types/training';
+import type { Content, ContentType, VideoContent, DocumentContent } from '@shared/types/training';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeContentTimestamps
@@ -11,6 +12,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin tüm içeriklerini listele (video, document, test birleştirilmiş)
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -99,7 +101,33 @@ export const GET = asyncHandler(async (
       // Order'a göre sırala (tüm tipler birleştirildikten sonra)
       contents.sort((a, b) => a.order - b.order);
       
-      const serializedContents = contents.map(c => serializeContentTimestamps(c));
+      // Generate public URLs for all contents (files are already public via makePublic)
+      const contentsWithUrls = contents.map((content) => {
+        const result: Record<string, any> = { ...content };
+        
+        // Handle video content
+        if (content.type === 'video') {
+          const videoContent = content as VideoContent;
+          if (videoContent.videoSource === 'uploaded' && videoContent.videoPath) {
+            result.videoUrl = generatePublicUrl(videoContent.videoPath);
+          }
+          if (videoContent.thumbnailPath) {
+            result.thumbnailUrl = generatePublicUrl(videoContent.thumbnailPath);
+          }
+        }
+        
+        // Handle document content
+        if (content.type === 'document') {
+          const docContent = content as DocumentContent;
+          if (docContent.documentPath) {
+            result.documentUrl = generatePublicUrl(docContent.documentPath);
+          }
+        }
+        
+        return result;
+      });
+      
+      const serializedContents = contentsWithUrls.map(c => serializeContentTimestamps(c));
       
       return successResponse(
         'İçerikler başarıyla getirildi',

@@ -62,9 +62,6 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         } else if (status === USER_STATUS.PENDING_BRANCH_REVIEW) {
           acc.pending++;
           acc.byStatus.pending_branch_review++;
-        } else if (status === USER_STATUS.PENDING_ADMIN_APPROVAL) {
-          acc.pending++;
-          acc.byStatus.pending_admin_approval++;
         } else if (status === USER_STATUS.ACTIVE) {
           acc.byStatus.active++;
         } else if (status === USER_STATUS.REJECTED) {
@@ -76,6 +73,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         const role = user.role;
         if (role === USER_ROLE.ADMIN) {
           acc.byRole.admin++;
+        } else if (role === 'superadmin') {
+          acc.byRole.superadmin = (acc.byRole.superadmin || 0) + 1;
         } else if (role === USER_ROLE.BRANCH_MANAGER) {
           acc.byRole.branch_manager++;
         } else if (role === USER_ROLE.USER) {
@@ -91,13 +90,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         rejected: 0,
         byRole: {
           admin: 0,
+          superadmin: 0,
           branch_manager: 0,
           user: 0,
         },
         byStatus: {
           pending_details: 0,
           pending_branch_review: 0,
-          pending_admin_approval: 0,
           active: 0,
           rejected: 0,
         },

@@ -5,6 +5,7 @@ import { authenticationError, notFoundError, emailVerificationError } from '../u
 import { USER_ROLE } from '@shared/constants/roles';
 import type { User } from '@shared/types/user';
 
+import { logger } from '../../lib/utils/logger';
 export interface AuthenticatedRequest extends NextRequest {
   user?: {
     uid: string;
@@ -40,7 +41,7 @@ export async function authenticateUser(request: NextRequest): Promise<{
       }
     };
   } catch (error: unknown) {
-    console.error('Auth middleware error:', error);
+    logger.error('Auth middleware error:', error);
     return {
       authenticated: false,
       error: 'Geçersiz token'
@@ -60,38 +61,8 @@ export async function withAuth(
     return authenticationError(authResult.error || 'Kimlik doğrulaması gerekli');
   }
   
-  // Email doğrulama kontrolü (opsiyonel olarak bypass edilebilir)
-  if (!options?.skipEmailVerification) {
-    try {
-      // Önce kullanıcının rolünü kontrol et
-      // Admin ve Branch Manager için email doğrulama zorunlu değil
-      const userDoc = await db.collection('users').doc(authResult.user.uid).get();
-      
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        const userRole = userData?.role;
-        
-        // Admin ve Branch Manager için email doğrulama kontrolünü bypass et
-        if (userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER) {
-          // Admin panel kullanıcıları için email doğrulama gerekmez
-          return handler(request, authResult.user);
-        }
-      }
-      
-      // Normal kullanıcılar için email doğrulama kontrolü
-      const userRecord = await auth.getUser(authResult.user.uid);
-      
-      if (!userRecord.emailVerified) {
-        return emailVerificationError(
-          'Bu işlem için e-posta adresinizi doğrulamanız gerekiyor. Lütfen e-posta kutunuzu kontrol edin.'
-        );
-      }
-    } catch (error: unknown) {
-      console.error('Email verification check error:', error);
-      // Hata durumunda güvenli tarafta kal, email doğrulama kontrolü başarısız olursa erişim verme
-      return emailVerificationError('E-posta doğrulama durumu kontrol edilemedi');
-    }
-  }
+  // Email doğrulama kontrolü: kaldırıldı (tüm doğrulanmış kullanıcılar erişebilir)
+  // (Önceden burada "emailVerified" kontrolü vardı ve doğrulanmamış kullanıcılara erişim engelleniyordu.)
   
   return handler(request, authResult.user);
 }
@@ -118,7 +89,7 @@ export async function getCurrentUser(uid: string): Promise<{
       user: { uid, ...userDoc.data() } as User
     };
   } catch (error: unknown) {
-    console.error('Get current user error:', error);
+    logger.error('Get current user error:', error);
     return { 
       error: notFoundError('Kullanıcı'), 
       user: null 

@@ -12,65 +12,72 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError, AppInternalServerError, AppBadGatewayError } from '@/lib/utils/errors/AppError';
 import { isErrorWithMessage } from '@/lib/utils/response';
 
+import { logger } from '../../../../../lib/utils/logger';
 // İzin verilen kategoriler
 const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
+function isAdminOrSuperadmin(role: string): boolean {
+  return role === USER_ROLE.ADMIN || role === USER_ROLE.SUPERADMIN;
+}
+
 function getCategoryPermissions(category: string, userRole: string): {
   canUpload: boolean;
   error?: string;
 } {
   switch (category) {
     case 'news':
-      // News: Sadece admin
+      // News: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'announcements':
-      // Announcements: Sadece admin
+      // Announcements: Admin, Superadmin veya branch_manager
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER)
+          ? 'Bu işlem için admin veya branch manager yetkisi gerekli'
+          : undefined,
       };
     
     case 'user-documents':
-      // User documents: Admin ve branch_manager
+      // User documents: Admin, Superadmin ve branch_manager
       return {
-        canUpload: userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER,
-        error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
       };
     
     case 'videos':
-      // Videos: Sadece admin
+      // Videos: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'video-thumbnails':
-      // Video thumbnails: Sadece admin
+      // Video thumbnails: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'lesson-documents':
-      // Lesson documents: Sadece admin
+      // Lesson documents: Admin veya Superadmin
       return {
-        canUpload: userRole === USER_ROLE.ADMIN,
-        error: userRole !== USER_ROLE.ADMIN ? 'Bu işlem için admin yetkisi gerekli' : undefined,
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     case 'activity-images':
-      // Activity images: Admin ve branch_manager
+      // Activity images: Admin, Superadmin ve branch_manager
       return {
-        canUpload: userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.BRANCH_MANAGER,
-        error: (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.BRANCH_MANAGER) 
+        canUpload: isAdminOrSuperadmin(userRole) || userRole === USER_ROLE.BRANCH_MANAGER,
+        error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
       };
@@ -213,11 +220,11 @@ export const POST = asyncHandler(async (
         
         if (bucketName) {
           bucket = storage.bucket(bucketName);
-          console.log(`✅ Using storage bucket from env: ${bucketName}`);
+          logger.log(`✅ Using storage bucket from env: ${bucketName}`);
         } else {
           // Default bucket'ı kullan (Firebase Admin SDK initialize edilirken belirtilen bucket)
           bucket = storage.bucket();
-          console.log(`✅ Using default storage bucket: ${bucket.name}`);
+          logger.log(`✅ Using default storage bucket: ${bucket.name}`);
         }
         
         if (!bucket) {
@@ -232,7 +239,7 @@ export const POST = asyncHandler(async (
         
     } catch (bucketError: unknown) {
       const errorMessage = isErrorWithMessage(bucketError) ? bucketError.message : 'Bilinmeyen hata';
-      console.error('❌ Bucket initialization error:', bucketError);
+      logger.error('❌ Bucket initialization error:', bucketError);
       
       // 404 hatası için özel mesaj
       if (errorMessage.includes('does not exist') || errorMessage.includes('mevcut değil')) {
@@ -262,21 +269,21 @@ export const POST = asyncHandler(async (
             },
           },
         });
-        console.log(`✅ File saved to storage: ${storagePath}`);
+        logger.log(`✅ File saved to storage: ${storagePath}`);
     } catch (saveError: unknown) {
       const errorMessage = isErrorWithMessage(saveError) ? saveError.message : 'Bilinmeyen hata';
-      console.error('❌ Storage save error:', saveError);
+      logger.error('❌ Storage save error:', saveError);
       throw new AppInternalServerError(`Dosya storage'a kaydedilemedi: ${errorMessage}`);
     }
 
       // Public URL al
       try {
         await fileRef.makePublic();
-        console.log(`✅ File made public: ${storagePath}`);
+        logger.log(`✅ File made public: ${storagePath}`);
       } catch (publicError: unknown) {
         // makePublic başarısız olsa bile dosya yüklendi, URL'i manuel oluştur
         const errorMessage = isErrorWithMessage(publicError) ? publicError.message : 'Bilinmeyen hata';
-        console.warn('⚠️ makePublic failed, using manual URL:', errorMessage);
+        logger.warn('⚠️ makePublic failed, using manual URL:', errorMessage);
         // Devam et, dosya yüklendi
       }
       
@@ -302,11 +309,12 @@ export const POST = asyncHandler(async (
       return successResponse(
         message,
         {
-          imageUrl: publicUrl, // Backward compatibility için
-          documentUrl: publicUrl, // Documents için
-          videoUrl: publicUrl, // Videos için
-          thumbnailUrl: publicUrl, // Thumbnails için
-          fileUrl: publicUrl, // Generic
+          imageUrl: publicUrl, // Backward compatibility için (deprecated)
+          documentUrl: publicUrl, // Documents için (deprecated)
+          videoUrl: publicUrl, // Videos için (deprecated)
+          thumbnailUrl: publicUrl, // Thumbnails için (deprecated)
+          fileUrl: publicUrl, // Generic (deprecated)
+          storagePath: storagePath, // Storage path (NEW - use this)
           fileName: fileName,
           size: fileObj.size,
           contentType: fileObj.type,

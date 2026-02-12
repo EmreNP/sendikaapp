@@ -22,7 +22,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 
@@ -42,25 +42,17 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppValidationError('Maksimum 100 haber için toplu işlem yapılabilir');
       }
 
-      const results: BulkNewsActionResult = {
-        success: true,
-        successCount: 0,
-        failureCount: 0,
-        errors: [],
-      };
-
       // Her haber için işlemi yap
       const promises = newsIds.map(async (newsId: string) => {
         try {
           const newsDoc = await db.collection('news').doc(newsId).get();
 
           if (!newsDoc.exists) {
-            results.failureCount++;
-            results.errors?.push({
+            return {
+              success: false,
               newsId,
               error: 'Haber bulunamadı',
-            });
-            return;
+            };
           }
 
           const newsData = newsDoc.data();
@@ -69,8 +61,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
             case 'delete':
               // Hard delete
               await db.collection('news').doc(newsId).delete();
-              results.successCount++;
-              break;
+              return { success: true, newsId };
 
             case 'publish':
               // Yayınla
@@ -80,8 +71,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, newsId };
 
             case 'unpublish':
               // Yayından kaldır
@@ -91,28 +81,49 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, newsId };
 
             default:
-              results.failureCount++;
-              results.errors?.push({
+              return {
+                success: false,
                 newsId,
                 error: 'Geçersiz işlem tipi',
-              });
+              };
           }
         } catch (error: unknown) {
-          results.failureCount++;
           const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-          results.errors?.push({
+          return {
+            success: false,
             newsId,
             error: errorMessage,
-          });
+          };
         }
       });
 
-      // Tüm işlemleri bekle
-      await Promise.all(promises);
+      // Tüm işlemleri bekle ve sonuçları topla
+      const operationResults = await Promise.all(promises);
+
+      // Sonuçları reduce ile say (race condition yok)
+      const results: BulkNewsActionResult = operationResults.reduce(
+        (acc, result) => {
+          if (result.success) {
+            acc.successCount++;
+          } else {
+            acc.failureCount++;
+            acc.errors?.push({
+              newsId: result.newsId,
+              error: result.error || 'Bilinmeyen hata',
+            });
+          }
+          return acc;
+        },
+        {
+          success: true,
+          successCount: 0,
+          failureCount: 0,
+          errors: [] as Array<{ newsId: string; error: string }>,
+        } as BulkNewsActionResult
+      );
 
       // Sonuçları belirle
       results.success = results.failureCount === 0;

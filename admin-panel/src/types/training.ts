@@ -28,9 +28,11 @@ export type {
 
 export interface TrainingListResponse {
   trainings: Training[];
-  total: number;
+  total?: number;
   page: number;
   limit: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface LessonListResponse {

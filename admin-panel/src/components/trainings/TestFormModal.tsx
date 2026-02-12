@@ -3,6 +3,8 @@ import { X, Plus, Trash2, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { contentService } from '@/services/api/contentService';
 import type { TestContent, CreateTestContentRequest, UpdateTestContentRequest, TestQuestion, TestOption } from '@/types/training';
+import { generateUniqueId } from '@/utils/idGenerator';
+import { logger } from '@/utils/logger';
 
 interface TestFormModalProps {
   test: TestContent | null;
@@ -40,7 +42,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
         setQuestions(test.questions.map(q => ({
           question: q.question,
           options: q.options || Array(5).fill(null).map((_, i) => ({
-            id: `opt_${Date.now()}_${i}`,
+            id: `opt_${generateUniqueId("opt")}_${i}`,
             text: '',
             isCorrect: false,
           })),
@@ -64,7 +66,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
     setQuestions([...questions, {
       question: '',
       options: Array(5).fill(null).map((_, i) => ({
-        id: `opt_${Date.now()}_${i}`,
+        id: `opt_${generateUniqueId("opt")}_${i}`,
         text: '',
         isCorrect: false,
       })),
@@ -117,7 +119,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
           for (let j = 1; j <= 5; j++) {
             const optionText = row[j]?.toString().trim() || '';
             options.push({
-              id: `opt_${Date.now()}_${i}_${j}`,
+              id: `opt_${generateUniqueId("opt")}_${i}_${j}`,
               text: optionText,
               isCorrect: false,
             });
@@ -165,7 +167,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
           fileInputRef.current.value = '';
         }
       } catch (err: any) {
-        console.error('Excel import error:', err);
+        logger.error('Excel import error:', err);
         setError('Excel dosyası okunurken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
       }
     };
@@ -273,7 +275,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Save test error:', err);
+      logger.error('Save test error:', err);
       setError(err.message || 'Test kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

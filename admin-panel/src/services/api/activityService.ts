@@ -13,8 +13,29 @@ export const activityService = {
   /**
    * Aktivite listesini getir
    */
-  async getActivities() {
-    return apiRequest<{ activities: Activity[] }>('/api/activities');
+  async getActivities(params?: {
+    page?: number;
+    limit?: number;
+    cursor?: string;
+    search?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.cursor) queryParams.append('cursor', params.cursor);
+    if (params?.search) queryParams.append('search', params.search);
+
+    const queryString = queryParams.toString();
+    const endpoint = `/api/activities${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<{ 
+      activities: Activity[];
+      total?: number;
+      page: number;
+      limit: number;
+      hasMore: boolean;
+      nextCursor?: string;
+    }>(endpoint);
   },
 
   /**

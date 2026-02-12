@@ -52,15 +52,27 @@ export const validateCreateVideoContent = (
     errors.title = titleValidation.error || 'Geçersiz başlık';
   }
   
-  if (!data.videoUrl || data.videoUrl.trim() === '') {
-    errors.videoUrl = 'Video URL zorunludur';
+  // Validate videoSource
+  if (!data.videoSource || !['youtube', 'vimeo', 'uploaded'].includes(data.videoSource)) {
+    errors.videoSource = 'Geçersiz video kaynağı';
   } else {
-    if (!data.videoSource || !['youtube', 'vimeo', 'uploaded'].includes(data.videoSource)) {
-      errors.videoSource = 'Geçersiz video kaynağı';
+    // For uploaded videos, require videoPath; for YouTube/Vimeo, require videoUrl
+    if (data.videoSource === 'uploaded') {
+      const hasVideoPath = data.videoPath && data.videoPath.trim() !== '';
+      const hasVideoUrl = data.videoUrl && data.videoUrl.trim() !== '';
+      
+      if (!hasVideoPath && !hasVideoUrl) {
+        errors.videoPath = 'Yüklenen videolar için video path zorunludur';
+      }
     } else {
-      const videoValidation = validateVideoUrl(data.videoUrl, data.videoSource);
-      if (!videoValidation.valid) {
-        errors.videoUrl = videoValidation.error || 'Geçersiz video URL';
+      // YouTube or Vimeo - require videoUrl
+      if (!data.videoUrl || data.videoUrl.trim() === '') {
+        errors.videoUrl = 'Video URL zorunludur';
+      } else {
+        const videoValidation = validateVideoUrl(data.videoUrl, data.videoSource);
+        if (!videoValidation.valid) {
+          errors.videoUrl = videoValidation.error || 'Geçersiz video URL';
+        }
       }
     }
   }

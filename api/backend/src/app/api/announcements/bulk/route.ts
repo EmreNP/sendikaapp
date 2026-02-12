@@ -22,7 +22,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
 
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
 
@@ -42,25 +42,17 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppValidationError('Maksimum 100 duyuru için toplu işlem yapılabilir');
       }
 
-      const results: BulkAnnouncementActionResult = {
-        success: true,
-        successCount: 0,
-        failureCount: 0,
-        errors: [],
-      };
-
       // Her duyuru için işlemi yap
       const promises = announcementIds.map(async (announcementId: string) => {
         try {
           const announcementDoc = await db.collection('announcements').doc(announcementId).get();
 
           if (!announcementDoc.exists) {
-            results.failureCount++;
-            results.errors?.push({
+            return {
+              success: false,
               announcementId,
               error: 'Duyuru bulunamadı',
-            });
-            return;
+            };
           }
 
           const announcementData = announcementDoc.data();
@@ -69,8 +61,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
             case 'delete':
               // Hard delete
               await db.collection('announcements').doc(announcementId).delete();
-              results.successCount++;
-              break;
+              return { success: true, announcementId };
 
             case 'publish':
               // Yayınla
@@ -80,8 +71,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, announcementId };
 
             case 'unpublish':
               // Yayından kaldır
@@ -91,28 +81,49 @@ export const POST = asyncHandler(async (request: NextRequest) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: user.uid,
               });
-              results.successCount++;
-              break;
+              return { success: true, announcementId };
 
             default:
-              results.failureCount++;
-              results.errors?.push({
+              return {
+                success: false,
                 announcementId,
                 error: 'Geçersiz işlem tipi',
-              });
+              };
           }
         } catch (error: unknown) {
-          results.failureCount++;
           const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
-          results.errors?.push({
+          return {
+            success: false,
             announcementId,
             error: errorMessage,
-          });
+          };
         }
       });
 
-      // Tüm işlemleri bekle
-      await Promise.all(promises);
+      // Tüm işlemleri bekle ve sonuçları topla
+      const operationResults = await Promise.all(promises);
+
+      // Sonuçları reduce ile say (race condition yok)
+      const results: BulkAnnouncementActionResult = operationResults.reduce(
+        (acc, result) => {
+          if (result.success) {
+            acc.successCount++;
+          } else {
+            acc.failureCount++;
+            acc.errors?.push({
+              announcementId: result.announcementId,
+              error: result.error || 'Bilinmeyen hata',
+            });
+          }
+          return acc;
+        },
+        {
+          success: true,
+          successCount: 0,
+          failureCount: 0,
+          errors: [] as Array<{ announcementId: string; error: string }>,
+        } as BulkAnnouncementActionResult
+      );
 
       // Sonuçları belirle
       results.success = results.failureCount === 0;

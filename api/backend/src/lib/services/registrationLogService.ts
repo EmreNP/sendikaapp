@@ -2,12 +2,13 @@ import { db } from '@/lib/firebase/admin';
 import admin from 'firebase-admin';
 import type { UserRegistrationLog } from '@shared/types/user';
 
+import { logger } from '../../lib/utils/logger';
 export async function createRegistrationLog(
   logData: Omit<UserRegistrationLog, 'id' | 'timestamp'>
 ): Promise<void> {
   try {
-    console.log(`📝 Creating registration log - Action: ${logData.action}, User: ${logData.userId}, PerformedBy: ${logData.performedBy}, Role: ${logData.performedByRole}`);
-    console.log(`📋 Log data details:`, {
+    logger.log(`📝 Creating registration log - Action: ${logData.action}, User: ${logData.userId}, PerformedBy: ${logData.performedBy}, Role: ${logData.performedByRole}`);
+    logger.log(`📋 Log data details:`, {
       userId: logData.userId,
       action: logData.action,
       performedBy: logData.performedBy,
@@ -23,16 +24,16 @@ export async function createRegistrationLog(
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
     
-    console.log(`💾 Adding log to Firestore collection: user_registration_logs`);
+    logger.log(`💾 Adding log to Firestore collection: user_registration_logs`);
     const docRef = await db.collection('user_registration_logs').add(log);
-    console.log(`✅ Registration log created successfully - ID: ${docRef.id}, Action: ${logData.action} for user ${logData.userId}`);
-    console.log(`✅ Log document path: user_registration_logs/${docRef.id}`);
+    logger.log(`✅ Registration log created successfully - ID: ${docRef.id}, Action: ${logData.action} for user ${logData.userId}`);
+    logger.log(`✅ Log document path: user_registration_logs/${docRef.id}`);
   } catch (error) {
-    console.error('❌ CRITICAL: Failed to create registration log:', error);
+    logger.error('❌ CRITICAL: Failed to create registration log:', error);
     if (error instanceof Error) {
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      console.error('❌ Error name:', error.name);
+      logger.error('❌ Error message:', error.message);
+      logger.error('❌ Error stack:', error.stack);
+      logger.error('❌ Error name:', error.name);
     }
     // Hata durumunda throw edelim ki üstteki kod hatayı yakalayabilsin
     throw error;
@@ -44,7 +45,7 @@ export async function getUserRegistrationLogs(
   userId: string
 ): Promise<UserRegistrationLog[]> {
   try {
-    console.log(`📡 Fetching logs for user: ${userId}`);
+    logger.log(`📡 Fetching logs for user: ${userId}`);
     
     // Önce timestamp ile sıralanmış sorguyu dene
     let snapshot;
@@ -54,10 +55,10 @@ export async function getUserRegistrationLogs(
         .where('userId', '==', userId)
         .orderBy('timestamp', 'desc')
         .get();
-      console.log(`✅ Logs fetched with timestamp orderBy`);
+      logger.log(`✅ Logs fetched with timestamp orderBy`);
     } catch (orderByError: any) {
       // Eğer index yoksa veya timestamp null ise, sadece where ile çek ve client-side sırala
-      console.warn(`⚠️ Could not orderBy timestamp, fetching without orderBy:`, orderByError.message);
+      logger.warn(`⚠️ Could not orderBy timestamp, fetching without orderBy:`, orderByError.message);
       snapshot = await db
         .collection('user_registration_logs')
         .where('userId', '==', userId)
@@ -80,20 +81,20 @@ export async function getUserRegistrationLogs(
       return bTime - aTime; // Descending order
     });
     
-    console.log(`✅ Found ${logs.length} logs for user ${userId}`);
+    logger.log(`✅ Found ${logs.length} logs for user ${userId}`);
     logs.forEach((log, index) => {
       const statusInfo = log.previousStatus && log.newStatus 
         ? `${log.previousStatus} → ${log.newStatus}`
         : log.newStatus || log.previousStatus || 'no status';
-      console.log(`  Log ${index + 1}: ${log.action} - ${log.performedByRole} - ${statusInfo} - ID: ${log.id}`);
+      logger.log(`  Log ${index + 1}: ${log.action} - ${log.performedByRole} - ${statusInfo} - ID: ${log.id}`);
     });
     
     return logs;
   } catch (error) {
-    console.error('❌ Failed to get registration logs:', error);
+    logger.error('❌ Failed to get registration logs:', error);
     if (error instanceof Error) {
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
+      logger.error('❌ Error message:', error.message);
+      logger.error('❌ Error stack:', error.stack);
     }
     return [];
   }

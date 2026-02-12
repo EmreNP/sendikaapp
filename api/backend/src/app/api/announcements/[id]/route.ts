@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../lib/utils/logger';
 // GET - Tek duyuru detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -43,6 +44,16 @@ export const GET = asyncHandler(async (
       if (userRole === USER_ROLE.USER || userRole === USER_ROLE.BRANCH_MANAGER) {
         if (!announcementData?.isPublished) {
         throw new AppNotFoundError('Duyuru');
+        }
+      }
+
+      // Branch manager sadece kendi şubesinin duyurusunu görebilir
+      if (userRole === USER_ROLE.BRANCH_MANAGER) {
+        if (!currentUserData?.branchId) {
+          throw new AppAuthorizationError('Şube bilgisi bulunamadı');
+        }
+        if (announcementData?.branchId !== currentUserData.branchId) {
+          throw new AppNotFoundError('Duyuru');
         }
       }
       
@@ -76,7 +87,7 @@ export const PUT = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -187,7 +198,7 @@ export const DELETE = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
       }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -200,7 +211,7 @@ export const DELETE = asyncHandler(async (
       // Hard delete - belgeyi tamamen sil
       await db.collection('announcements').doc(announcementId).delete();
       
-      console.log(`✅ Announcement ${announcementId} deleted`);
+      logger.log(`✅ Announcement ${announcementId} deleted`);
       
       return successResponse(
         'Duyuru başarıyla silindi',

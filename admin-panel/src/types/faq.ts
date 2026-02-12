@@ -27,9 +27,11 @@ export interface UpdateFAQRequest {
 
 export interface FAQListResponse {
   faqs: FAQ[];
-  total: number;
+  total?: number;
   page: number;
   limit: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export type BulkFAQAction = 'delete' | 'publish' | 'unpublish';

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { contactService } from '@/services/api/contactService';
 import type { Topic } from '@/types/contact';
+import { logger } from '@/utils/logger';
 
 interface TopicFormModalProps {
   topic: Topic | null;
@@ -57,7 +58,7 @@ export default function TopicFormModal({ topic, isOpen, onClose, onSuccess }: To
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error saving topic:', err);
+      logger.error('Error saving topic:', err);
       setError(err.message || 'Konu kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);

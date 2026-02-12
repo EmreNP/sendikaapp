@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { X, Building2, MapPin, Phone, Mail, Clock, Calendar, Users, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
+import { formatDate } from '@/utils/dateFormatter';
+import { logger } from '@/utils/logger';
 
 interface Branch {
   id: string;
@@ -61,7 +63,7 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
       const data = await apiRequest<{ branch: Branch }>(`/api/branches/${branchId}`);
       setBranch(data.branch);
     } catch (err: any) {
-      console.error('Error fetching branch details:', err);
+      logger.error('Error fetching branch details:', err);
       setError(err.message || 'Şube detayları yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -73,38 +75,6 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
     
     const { latitude, longitude } = branch.location;
     window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
-  };
-
-  const formatDate = (date: Date | string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined) => {
-    if (!date) return '-';
-    
-    let dateObj: Date;
-    
-    // Firestore Timestamp formatını kontrol et ({ seconds, nanoseconds } veya { _seconds, _nanoseconds })
-    if (typeof date === 'object' && 'seconds' in date) {
-      dateObj = new Date(date.seconds * 1000);
-    } else if (typeof date === 'object' && '_seconds' in date) {
-      dateObj = new Date(date._seconds * 1000);
-    } else if (date instanceof Date) {
-      dateObj = date;
-    } else if (typeof date === 'string') {
-      dateObj = new Date(date);
-    } else {
-      return '-';
-    }
-    
-    // Geçerli bir tarih kontrolü
-    if (isNaN(dateObj.getTime())) {
-      return '-';
-    }
-    
-    return new Intl.DateTimeFormat('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(dateObj);
   };
 
   if (!isOpen) return null;

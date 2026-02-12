@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/firebase/admin';
 
+import { logger } from '../../lib/utils/logger';
 /**
  * Firestore 'in' operatörü için chunk helper
  * Firestore max 10 item destekler
@@ -64,7 +65,7 @@ export async function getLessonsContentsBatch(
         });
       })
       .catch(error => {
-        console.warn('Error fetching video contents batch:', error);
+        logger.warn('Error fetching video contents batch:', error);
       }),
 
     // Document contents
@@ -80,7 +81,7 @@ export async function getLessonsContentsBatch(
         });
       })
       .catch(error => {
-        console.warn('Error fetching document contents batch:', error);
+        logger.warn('Error fetching document contents batch:', error);
       }),
 
     // Test contents
@@ -96,7 +97,7 @@ export async function getLessonsContentsBatch(
         });
       })
       .catch(error => {
-        console.warn('Error fetching test contents batch:', error);
+        logger.warn('Error fetching test contents batch:', error);
       }),
   ]);
 
@@ -142,7 +143,7 @@ export async function deleteLessonsContentsBatch(lessonIds: string[]): Promise<v
         deletePromises.push(doc.ref.delete());
       });
     } catch (error) {
-      console.warn('Error in batch delete for chunk:', error);
+      logger.warn('Error in batch delete for chunk:', error);
       // Devam et, diğer chunk'ları işle
     }
   }

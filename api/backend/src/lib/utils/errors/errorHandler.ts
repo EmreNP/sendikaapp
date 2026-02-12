@@ -9,6 +9,7 @@ import {
   handleFirestoreError as existingHandleFirestoreError,
 } from '../response';
 
+import { logger } from '../../../lib/utils/logger';
 /**
  * Structured Logging Utility
  * Şu an console'a yazıyor, ileride Firebase Logging/Winston entegre edilebilir
@@ -32,9 +33,9 @@ function logError(error: unknown, context?: Record<string, unknown>): void {
   
   // JSON format'ta log (structured logging)
   if (logData.level === 'error') {
-    console.error(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
+    logger.error(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
   } else {
-    console.warn(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
+    logger.warn(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
   }
   
   // TODO: İleride Firebase Logging veya Winston entegre edilebilir

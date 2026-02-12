@@ -39,11 +39,17 @@ export const api = {
     
     // Base URL'den trailing slash'i kaldır
     const baseUrl = API_BASE_URL.replace(/\/$/, '');
-    
+
     // Endpoint'ten leading slash'i kaldır
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    
-    return `${baseUrl}/${cleanEndpoint}`;
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+
+    // If baseUrl already ends with '/api' (e.g. Firebase Hosting rewrite proxy) and
+    // endpoint also starts with 'api/...', avoid generating '/api/api/...'.
+    if (baseUrl.endsWith('/api') && (cleanEndpoint === 'api' || cleanEndpoint.startsWith('api/'))) {
+      cleanEndpoint = cleanEndpoint === 'api' ? '' : cleanEndpoint.slice('api/'.length);
+    }
+
+    return cleanEndpoint.length > 0 ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
   },
   
   /**
@@ -52,10 +58,15 @@ export const api = {
   fetch: async (endpoint: string, options?: RequestInit): Promise<Response> => {
     const url = api.url(endpoint);
     
-    // Default headers
-    const defaultHeaders: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    // Default headers - FormData ise Content-Type set etme
+    const defaultHeaders: HeadersInit = {};
+    
+    if (!(options?.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
+    
+    // CSRF koruması: Custom header ekle
+    defaultHeaders['X-Requested-With'] = 'XMLHttpRequest';
     
     // Token varsa ekle
     const { authService } = await import('@/services/auth/authService');

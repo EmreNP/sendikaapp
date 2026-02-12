@@ -43,7 +43,7 @@ export const miscPaths = {
           in: 'path',
           required: true,
           schema: { type: 'string', enum: ['news', 'announcements', 'user-documents'] },
-          description: 'Dosya kategorisi. news: Haber görselleri (Admin), announcements: Duyuru görselleri (Admin), user-documents: PDF belgeleri (Admin, Branch Manager)',
+          description: 'Dosya kategorisi. news: Haber görselleri (Admin), announcements: Duyuru görselleri (Admin, Branch Manager), user-documents: PDF belgeleri (Admin, Branch Manager)',
         },
       ],
       requestBody: {

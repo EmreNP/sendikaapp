@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Tag } from 'lucide-react';
 import Button from '@/components/common/Button';
 import type { ActivityCategory, CreateActivityCategoryRequest, UpdateActivityCategoryRequest } from '@/types/activity';
+import { logger } from '@/utils/logger';
 
 interface CategoryFormModalProps {
   category?: ActivityCategory | null;
@@ -62,7 +63,7 @@ export default function CategoryFormModal({
 
       await onSubmit(submitData);
     } catch (error) {
-      console.error('Form submission error:', error);
+      logger.error('Form submission error:', error);
     }
   };
 

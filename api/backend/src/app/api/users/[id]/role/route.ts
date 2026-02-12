@@ -4,14 +4,15 @@ import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import type { UserRole, UserRoleUpdateData } from '@shared/types/user';
+import { createRegistrationLog } from '@/lib/services/registrationLogService';
 import { 
   successResponse, 
-  notFoundError,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // PATCH /api/users/[id]/role - Kullanıcı rolünü güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,
@@ -29,7 +30,9 @@ export const PATCH = asyncHandler(async (
       
       // Role geçerli mi kontrol et
       const validRoles = Object.values(USER_ROLE);
+      logger.log('🔍 Role validation:', { newRole, validRoles, includes: validRoles.includes(newRole as UserRole) });
       if (!validRoles.includes(newRole as UserRole)) {
+      logger.error('❌ Invalid role received:', `${newRole} - Valid roles: ${validRoles.join(', ')}`);
       throw new AppValidationError('Geçersiz rol değeri');
       }
       
@@ -42,8 +45,8 @@ export const PATCH = asyncHandler(async (
       
       const userRole = currentUserData!.role;
       
-      // Sadece Admin rol güncelleyebilir
-      if (userRole !== USER_ROLE.ADMIN) {
+      // Sadece Admin veya Superadmin rol güncelleyebilir
+      if (userRole !== USER_ROLE.ADMIN && userRole !== USER_ROLE.SUPERADMIN) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -56,6 +59,16 @@ export const PATCH = asyncHandler(async (
       
       const targetUserData = targetUserDoc.data();
       const currentRole = targetUserData?.role;
+      
+      // Admin kısıtlamaları - sadece admin için geçerli (superadmin tüm rolleri değiştirebilir)
+      if (userRole === USER_ROLE.ADMIN) {
+        if (currentRole === USER_ROLE.ADMIN || currentRole === USER_ROLE.SUPERADMIN) {
+        throw new AppAuthorizationError('Admin, diğer admin veya superadmin kullanıcıların rolünü değiştiremez');
+        }
+        if (newRole === USER_ROLE.ADMIN || newRole === USER_ROLE.SUPERADMIN) {
+        throw new AppAuthorizationError('Admin rolü sadece superadmin tarafından atanabilir');
+        }
+      }
       
       // Branch Manager rolü için branchId zorunlu
       if (newRole === USER_ROLE.BRANCH_MANAGER && !branchId) {
@@ -90,7 +103,19 @@ export const PATCH = asyncHandler(async (
       
       await db.collection('users').doc(targetUserId).update(updateData as any);
       
-      console.log(`✅ User ${targetUserId} role updated: ${currentRole} → ${newRole}`);
+      logger.log(`✅ User ${targetUserId} role updated: ${currentRole} → ${newRole}`);
+      
+      // Log oluştur
+      await createRegistrationLog({
+        userId: targetUserId,
+        action: 'role_update',
+        performedBy: user.uid,
+        performedByRole: userRole as any,
+        metadata: {
+          previousRole: currentRole,
+          newRole: newRole,
+        },
+      });
       
       return successResponse(
         'Kullanıcı rolü başarıyla güncellendi',

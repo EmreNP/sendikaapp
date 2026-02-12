@@ -6,6 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { VideoContent, CreateVideoContentRequest } from '@shared/types/training';
 import { validateCreateVideoContent } from '@/lib/utils/validation/videoContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
+import { generatePublicUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeVideoContentTimestamps
@@ -14,6 +15,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError, AppInternalServerError } from '@/lib/utils/errors/AppError';
 
+import { logger } from '../../../../../lib/utils/logger';
 // GET - Dersin videolarını listele
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -53,7 +55,19 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as VideoContent[];
       
-      const serializedVideos = videos.map(v => serializeVideoContentTimestamps(v));
+      // Generate public URLs (files are already public via makePublic)
+      const videosWithUrls = videos.map((video) => {
+        const result = { ...video };
+        if (video.videoSource === 'uploaded' && video.videoPath) {
+          result.videoUrl = generatePublicUrl(video.videoPath);
+        }
+        if (video.thumbnailPath) {
+          result.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
+        }
+        return result;
+      });
+      
+      const serializedVideos = videosWithUrls.map(v => serializeVideoContentTimestamps(v));
       
       return successResponse(
         'Videolar başarıyla getirildi',
@@ -73,7 +87,7 @@ export const POST = asyncHandler(async (
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
       
-      if (!currentUserData || currentUserData.role !== USER_ROLE.ADMIN) {
+      if (!currentUserData || (currentUserData.role !== USER_ROLE.ADMIN && currentUserData.role !== USER_ROLE.SUPERADMIN)) {
       throw new AppAuthorizationError('Bu işlem için admin yetkisi gerekli');
       }
       
@@ -111,13 +125,12 @@ export const POST = asyncHandler(async (
         finalOrder = await getNextContentOrder(lessonId, 'video');
       }
       
-      const contentData = {
+      // For uploaded videos, use videoPath; for YouTube/Vimeo, use videoUrl
+      const contentData: any = {
         lessonId: videoData.lessonId,
         title: videoData.title.trim(),
         description: videoData.description?.trim() || null,
-        videoUrl: videoData.videoUrl.trim(),
         videoSource: videoData.videoSource,
-        thumbnailUrl: videoData.thumbnailUrl?.trim() || null,
         duration: videoData.duration || null,
         order: finalOrder,
         isActive: videoData.isActive !== undefined ? videoData.isActive : true,
@@ -125,6 +138,31 @@ export const POST = asyncHandler(async (
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         createdBy: user.uid,
       };
+      
+      // Add video URL or path based on source
+      if (videoData.videoSource === 'uploaded') {
+        contentData.videoPath = videoData.videoPath?.trim() || videoData.videoUrl?.trim();
+        if (!contentData.videoPath) {
+          throw new AppValidationError('videoPath gerekli (uploaded videos için)');
+        }
+      } else {
+        // YouTube or Vimeo
+        contentData.videoUrl = videoData.videoUrl?.trim();
+        if (!contentData.videoUrl) {
+          throw new AppValidationError('videoUrl gerekli (YouTube/Vimeo için)');
+        }
+      }
+      
+      // Add thumbnail path if provided
+      if (videoData.thumbnailPath) {
+        contentData.thumbnailPath = videoData.thumbnailPath.trim();
+      } else if (videoData.thumbnailUrl && !videoData.thumbnailUrl.startsWith('http')) {
+        // If thumbnailUrl is actually a path (backward compatibility)
+        contentData.thumbnailPath = videoData.thumbnailUrl.trim();
+      } else if (videoData.thumbnailUrl) {
+        // If it's an external URL (YouTube/Vimeo thumbnail)
+        contentData.thumbnailUrl = videoData.thumbnailUrl.trim();
+      }
       
       const videoRef = await db.collection('video_contents').add(contentData);
       const videoDoc = await videoRef.get();
@@ -139,6 +177,15 @@ export const POST = asyncHandler(async (
         type: 'video',
         ...docData,
       } as VideoContent;
+      
+      // Generate public URLs for response
+      if (video.videoSource === 'uploaded' && video.videoPath) {
+        video.videoUrl = generatePublicUrl(video.videoPath);
+      }
+      
+      if (video.thumbnailPath) {
+        video.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
+      }
       
       const serializedVideo = serializeVideoContentTimestamps(video);
       
