@@ -90,19 +90,31 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           switch (action) {
             case 'delete':
               // Hard delete - sadece admin
+              logger.log(`🗑️ Starting bulk deletion for user: ${targetUserId}`);
+              let authDeleteSuccess = false;
               try {
                 // Firebase Auth'dan sil
                 await auth.deleteUser(targetUserId);
-                logger.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
+                logger.log(`✅ Firebase Auth user deleted successfully: ${targetUserId}`);
+                authDeleteSuccess = true;
               } catch (authError: unknown) {
                 const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-                logger.error('⚠️ Firebase Auth delete error:', errorMessage);
-                // Auth'da yoksa devam et
+                const errorCode = (authError as any)?.code || 'unknown';
+                logger.error(`⚠️ Firebase Auth delete error for ${targetUserId}:`, { errorMessage, errorCode });
+                
+                // Eğer kullanıcı Auth'da yoksa (auth/user-not-found), bu normal olabilir
+                if (errorCode === 'auth/user-not-found') {
+                  logger.log(`ℹ️ User not found in Auth (already deleted?): ${targetUserId}`);
+                } else {
+                  // Diğer hatalarda warning ver ama devam et
+                  logger.warn(`⚠️ Auth deletion failed but continuing with Firestore deletion`);
+                }
               }
 
               // Firestore'dan sil
               await db.collection('users').doc(targetUserId).delete();
-              logger.log(`✅ Firestore user document deleted: ${targetUserId}`);
+              logger.log(`✅ Firestore user document deleted successfully: ${targetUserId}`);
+              logger.log(`✨ Bulk user deletion completed: ${targetUserId} (Auth: ${authDeleteSuccess ? 'deleted' : 'not found or error'}, Firestore: deleted)`);
               return {
                 userId: targetUserId,
                 success: true,

@@ -133,19 +133,35 @@ export const DELETE = asyncHandler(async (
       throw new AppValidationError('Kendi hesabınızı silemezsiniz');
       }
       
+      logger.log(`🗑️ Starting user deletion for: ${targetUserId}`);
+      logger.log(`📋 User data:`, { role: targetUserData?.role, branchId: targetUserData?.branchId });
+      
       // Firebase Auth'dan sil
+      let authDeleteSuccess = false;
       try {
         await auth.deleteUser(targetUserId);
-        logger.log(`✅ Firebase Auth user deleted: ${targetUserId}`);
+        logger.log(`✅ Firebase Auth user deleted successfully: ${targetUserId}`);
+        authDeleteSuccess = true;
       } catch (authError: unknown) {
         const errorMessage = isErrorWithMessage(authError) ? authError.message : 'Bilinmeyen hata';
-        logger.error('⚠️ Firebase Auth delete error:', errorMessage);
-        // Auth'da yoksa devam et
+        const errorCode = (authError as any)?.code || 'unknown';
+        logger.error(`⚠️ Firebase Auth delete error for ${targetUserId}:`, { errorMessage, errorCode });
+        logger.error('Full auth error:', authError);
+        
+        // Eğer kullanıcı Auth'da yoksa (auth/user-not-found), bu normal olabilir
+        if (errorCode === 'auth/user-not-found') {
+          logger.log(`ℹ️ User not found in Auth (already deleted?): ${targetUserId}`);
+        } else {
+          // Diğer hatalarda warning ver ama devam et
+          logger.warn(`⚠️ Auth deletion failed but continuing with Firestore deletion`);
+        }
       }
       
       // Firestore'dan sil
       await db.collection('users').doc(targetUserId).delete();
-      logger.log(`✅ Firestore user document deleted: ${targetUserId}`);
+      logger.log(`✅ Firestore user document deleted successfully: ${targetUserId}`);
+      
+      logger.log(`✨ User deletion completed: ${targetUserId} (Auth: ${authDeleteSuccess ? 'deleted' : 'not found or error'}, Firestore: deleted)`);
       
       return successResponse(
         'Kullanıcı kalıcı olarak silindi',

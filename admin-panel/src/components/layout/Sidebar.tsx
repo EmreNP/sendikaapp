@@ -140,7 +140,7 @@ export default function Sidebar() {
 
   return (
     <aside 
-      className={`bg-white border-r border-gray-200 flex flex-col py-4 transition-all duration-300 ${
+      className={`bg-white border-r border-gray-200 flex flex-col py-4 transition-all duration-300 fixed left-0 top-0 h-screen overflow-y-auto z-50 ${
         isExpanded ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => setIsExpanded(true)}
@@ -154,7 +154,7 @@ export default function Sidebar() {
           </div>
           {isExpanded && (
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 truncate">SendikaApp</h2>
+              <h2 className="text-lg font-semibold text-gray-900 truncate">TDV Konya</h2>
               <p className="text-xs text-gray-500 truncate">
                 {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin Paneli' : 'Şube Paneli'}
               </p>

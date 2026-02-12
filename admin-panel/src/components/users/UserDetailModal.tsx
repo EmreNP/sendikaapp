@@ -596,9 +596,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                       <div className="text-gray-900 flex items-center gap-2">
                         <Mail className="w-4 h-4 text-gray-400" />
                         {user.email}
-                        {user.emailVerified && (
-                          <span className="text-xs text-green-600 font-medium">✓ Doğrulanmış</span>
-                        )}
                       </div>
                     </div>
                     {user.phone && (
