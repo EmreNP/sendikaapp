@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
+import { PDFDocument } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 
 interface UserData {
   firstName?: string;
@@ -27,168 +27,155 @@ interface BranchData {
 }
 
 /**
- * Format date for PDF display
+ * Format date for PDF display (DD.MM.YYYY)
  */
 function formatDate(dateString?: string): string {
-  if (!dateString) return '-';
+  if (!dateString) return '';
   try {
     const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR');
+    if (isNaN(date.getTime())) return dateString;
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
   } catch {
     return dateString;
   }
 }
 
 /**
- * Get gender label in Turkish
+ * Generate user registration form PDF by filling the official template (kayitformu.pdf)
+ * Uses fontkit + Roboto font for Turkish character support (ğ, ı, ş, ö, ç, ü)
  */
-function getGenderLabel(gender?: 'male' | 'female' | ''): string {
-  if (gender === 'male') return 'Erkek';
-  if (gender === 'female') return 'Kadın';
-  return '-';
-}
-
-/**
- * Get education label in Turkish
- */
-function getEducationLabel(education?: string): string {
-  if (!education) return '-';
-  return (EDUCATION_LEVEL_LABELS as Record<string, string>)[education] || education;
-}
-
-/**
- * Generate user registration form PDF
- */
-export function generateUserRegistrationPDF(
+export async function generateUserRegistrationPDF(
   userData: UserData,
-  branch?: BranchData
-): void {
-  const doc = new jsPDF();
-  
-  // Page settings
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  let yPos = margin;
-  const lineHeight = 7;
-  
-  // Helper function to add field
-  const addField = (label: string, value: string) => {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text(label + ':', margin, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value, margin + 60, yPos);
-    yPos += lineHeight;
-  };
-  
-  // Header
-  doc.setFillColor(51, 65, 85); // slate-700
-  doc.rect(0, 0, pageWidth, 30, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('ÜYELİK KAYIT FORMU', pageWidth / 2, 18, { align: 'center' });
-  
-  // Reset text color
-  doc.setTextColor(0, 0, 0);
-  yPos = 45;
-  
-  // Section 1: Kişisel Bilgiler
-  doc.setFillColor(239, 246, 255); // blue-50
-  doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 10, 'F');
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('KİŞİSEL BİLGİLER', margin, yPos);
-  yPos += 12;
-  
-  addField('Ad', userData.firstName || '-');
-  addField('Soyad', userData.lastName || '-');
-  addField('TC Kimlik No', userData.tcKimlikNo || '-');
-  addField('Doğum Tarihi', formatDate(userData.birthDate));
-  addField('Doğum Yeri', userData.birthPlace || '-');
-  addField('Cinsiyet', getGenderLabel(userData.gender));
-  addField('Baba Adı', userData.fatherName || '-');
-  addField('Anne Adı', userData.motherName || '-');
-  
-  yPos += 5;
-  
-  // Section 2: İletişim Bilgileri
-  doc.setFillColor(239, 246, 255);
-  doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 10, 'F');
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('İLETİŞİM BİLGİLERİ', margin, yPos);
-  yPos += 12;
-  
-  addField('E-posta', userData.email || '-');
-  addField('Telefon', userData.phone || '-');
-  
-  yPos += 5;
-  
-  // Section 3: Görev Bilgileri
-  doc.setFillColor(239, 246, 255);
-  doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 10, 'F');
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('GÖREV BİLGİLERİ', margin, yPos);
-  yPos += 12;
-  
-  addField('Şube', branch?.name || '-');
-  addField('Görev İlçesi', userData.district || '-');
-  addField('Kadro Ünvanı', userData.kadroUnvani || '-');
-  addField('Kadro Ünvan Kodu', userData.kadroUnvanKodu || '-');
-  addField('Kurum Sicil', userData.kurumSicil || '-');
-  addField('Öğrenim Durumu', getEducationLabel(userData.education));
-  
-  yPos += 5;
-  
-  // Section 4: Diğer Bilgiler
-  doc.setFillColor(239, 246, 255);
-  doc.rect(margin - 5, yPos - 5, pageWidth - 2 * margin + 10, 10, 'F');
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DİĞER BİLGİLER', margin, yPos);
-  yPos += 12;
-  
-  const unionMembership = userData.isMemberOfOtherUnion === true 
-    ? 'Evet' 
-    : userData.isMemberOfOtherUnion === false 
-    ? 'Hayır' 
-    : '-';
-  addField('Başka Sendikaya Üyelik', unionMembership);
-  
-  yPos += 15;
-  
-  // Signature section
-  if (yPos > pageHeight - 50) {
-    doc.addPage();
-    yPos = margin;
+  _branch?: BranchData
+): Promise<void> {
+  try {
+    // 1. Fetch template PDF and Turkish-supporting font in parallel
+    const [templateResponse, fontResponse] = await Promise.all([
+      fetch('/templates/kayitformu.pdf'),
+      fetch('/fonts/Roboto-Regular.ttf'),
+    ]);
+
+    if (!templateResponse.ok) {
+      throw new Error(`Template PDF yüklenemedi (HTTP ${templateResponse.status})`);
+    }
+    if (!fontResponse.ok) {
+      throw new Error(`Font dosyası yüklenemedi (HTTP ${fontResponse.status})`);
+    }
+
+    const [templateBytes, fontBytes] = await Promise.all([
+      templateResponse.arrayBuffer(),
+      fontResponse.arrayBuffer(),
+    ]);
+
+    // 2. Load PDF and register fontkit for custom font embedding
+    const pdfDoc = await PDFDocument.load(templateBytes);
+    pdfDoc.registerFontkit(fontkit);
+
+    // 3. Embed Roboto font (supports Turkish chars: ğ, ı, ş, ö, ç, ü, İ, Ğ, Ü, Ş, Ö, Ç)
+    const turkishFont = await pdfDoc.embedFont(fontBytes);
+
+    const form = pdfDoc.getForm();
+
+    // 4. Helper: set a text field value and update its appearance with Turkish font
+    const setField = (fieldName: string, value: string) => {
+      try {
+        const field = form.getTextField(fieldName);
+        if (field && value) {
+          field.setText(value);
+          field.updateAppearances(turkishFont);
+        }
+      } catch (e) {
+        console.warn(`PDF alan '${fieldName}' doldurulamadı:`, e);
+      }
+    };
+
+    // Helper: check a checkbox field (for gender & education)
+    const checkBox = (fieldName: string) => {
+      try {
+        const cb = form.getCheckBox(fieldName);
+        if (cb) {
+          cb.check();
+        }
+      } catch (e) {
+        console.warn(`PDF checkbox '${fieldName}' işaretlenemedi:`, e);
+      }
+    };
+
+    // ── Default values ──────────────────────────────
+    setField('ilname', 'Konya');
+    setField('text_12sfgt', '42'); // İl Kodu
+
+    // ── User personal info ──────────────────────────
+    setField('ad', userData.firstName || '');
+    setField('soyad', userData.lastName || '');
+    setField('tc', userData.tcKimlikNo || '');
+    setField('babaadi', userData.fatherName || '');
+    setField('anneadi', userData.motherName || '');
+    setField('dt', formatDate(userData.birthDate));
+    setField('dy', userData.birthPlace || '');
+
+    // ── Work / position info ────────────────────────
+    setField('ilcename', userData.district || '');
+    setField('kurumsicil', userData.kurumSicil || '');
+    setField('kadrounvan', userData.kadroUnvani || '');
+    setField('unvancode', userData.kadroUnvanKodu || '');
+
+    // ── Today's date (üyelik başvuru tarihi) ────────
+    const today = new Date();
+    setField('day', today.getDate().toString().padStart(2, '0'));
+    setField('month', (today.getMonth() + 1).toString().padStart(2, '0'));
+    setField('year', today.getFullYear().toString().slice(-2));
+
+    // ── Gender (checkboxes: male/female) ─────────
+    if (userData.gender === 'male') {
+      checkBox('male');
+    } else if (userData.gender === 'female') {
+      checkBox('female');
+    }
+
+    // ── Education (checkboxes: ilkogretim/lise/yuksekokul) ───
+    if (userData.education === 'ilkogretim') {
+      checkBox('ilkogretim');
+    } else if (userData.education === 'lise') {
+      checkBox('lise');
+    } else if (userData.education === 'on_lisans' || userData.education === 'lisans' || 
+               userData.education === 'yuksek_lisans' || userData.education === 'doktora') {
+      checkBox('yuksekokul');
+    }
+
+    // 5. Some templates contain widgets without /N appearance (e.g. signature widget),
+    // so `form.flatten()` throws `Unexpected N type: undefined`.
+    // Instead of flattening, make all fields read-only.
+    const fields = form.getFields();
+    for (const field of fields) {
+      try {
+        field.enableReadOnly();
+      } catch {
+        // ignore fields that don't support read-only
+      }
+    }
+
+    // 6. Save and download
+    // We already updated appearances for the fields we set, so skip global refresh.
+    const pdfBytes = await pdfDoc.save({ updateFieldAppearances: false });
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    const fileName = `${userData.firstName || 'Kullanici'}_${userData.lastName || 'Bilgileri'}_Kayit_Formu.pdf`
+      .replace(/[^a-zA-Z0-9_ığüşöçİĞÜŞÖÇ.]/g, '_');
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('PDF oluşturulurken hata:', error);
+    throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
   }
-  
-  yPos += 10;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPos, margin + 60, yPos);
-  doc.line(pageWidth - margin - 60, yPos, pageWidth - margin, yPos);
-  yPos += 5;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'italic');
-  doc.text('Üye İmzası', margin + 15, yPos);
-  doc.text('Şube Yetkilisi İmzası', pageWidth - margin - 45, yPos);
-  
-  // Footer
-  yPos = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(128, 128, 128);
-  const today = new Date().toLocaleDateString('tr-TR');
-  doc.text(`Oluşturulma Tarihi: ${today}`, margin, yPos);
-  doc.text(`Sayfa 1/1`, pageWidth - margin - 20, yPos);
-  
-  // Generate filename
-  const fileName = `${userData.firstName || 'Kullanici'}_${userData.lastName || 'Bilgileri'}_Kayit_Formu.pdf`
-    .replace(/[^a-zA-Z0-9_ığüşöçİĞÜŞÖÇ]/g, '_');
-  
-  // Save PDF
-  doc.save(fileName);
 }

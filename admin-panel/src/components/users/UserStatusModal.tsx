@@ -60,14 +60,19 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
     }
   };
 
-  const handleGeneratePDF = () => {
+  const handleGeneratePDF = async () => {
     if (!userData) {
       setError('Kullanıcı bilgileri yüklenemedi');
       return;
     }
     
-    const userBranch = branches.find(b => b.id === userData.branchId);
-    generateUserRegistrationPDF(userData, userBranch);
+    try {
+      setError(null);
+      const userBranch = branches.find(b => b.id === userData.branchId);
+      await generateUserRegistrationPDF(userData, userBranch);
+    } catch (err: any) {
+      setError(err?.message || 'PDF oluşturulurken bir hata oluştu');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
