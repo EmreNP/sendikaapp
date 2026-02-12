@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Bell, Calendar, LogOut, User as UserIcon, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -81,8 +81,11 @@ export default function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Kullanıcının rolüne göre menü öğelerini filtrele (superadmin tüm öğeleri görür)
-  const filteredItems = sidebarItems.filter((item) =>
-    user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
+  const filteredItems = useMemo(() =>
+    sidebarItems.filter((item) =>
+      user?.role === 'superadmin' || item.roles.includes(user?.role as 'admin' | 'branch_manager' | 'superadmin')
+    ),
+    [user?.role]
   );
 
   // Okunmamış mesaj sayısını al

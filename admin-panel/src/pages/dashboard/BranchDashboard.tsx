@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Users, FileText, CheckCircle, XCircle } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 export default function BranchDashboard() {
   const { user } = useAuth();
@@ -18,9 +20,6 @@ export default function BranchDashboard() {
 
   const fetchStats = async () => {
     try {
-      const { apiRequest } = await import('@/utils/api');
-
-import { logger } from '@/utils/logger';      
       const data = await apiRequest<{ stats: { 
         total: number; 
         byStatus: { 

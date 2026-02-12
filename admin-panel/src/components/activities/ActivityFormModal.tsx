@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Calendar, Upload, Trash2 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import { fileUploadService } from '@/services/api/fileUploadService';
+import { apiRequest } from '@/utils/api';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
@@ -75,8 +76,7 @@ export default function ActivityFormModal({
 
       // Fall back to fetching single branch from API
       try {
-        const { apiRequest } = await import('@/utils/api');
-
+        const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${branchIdToLookup}`);
         setBranchName(data.branch?.name || branchIdToLookup);
       } catch (e) {
         setBranchName(branchIdToLookup);

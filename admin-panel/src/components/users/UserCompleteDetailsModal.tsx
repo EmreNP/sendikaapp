@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { X, Upload, FileText } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
+import { api } from '@/config/api';
+import { authService } from '@/services/auth/authService';
 import { useAuth } from '@/context/AuthContext';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import { logger } from '@/utils/logger';
@@ -143,9 +145,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       formData.append('userId', userId);
       
       // Backend API'ye yükle
-      const { api } = await import('@/config/api');
-      const { authService } = await import('@/services/auth/authService');
-
       const token = await authService.getIdToken();
       const url = api.url('/api/files/user-documents/upload');
       

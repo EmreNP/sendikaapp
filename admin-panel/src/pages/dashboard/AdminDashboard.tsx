@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Shield, Users, FileText, Building2 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { apiRequest } from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -18,9 +20,6 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const { apiRequest } = await import('@/utils/api');
-
-import { logger } from '@/utils/logger';      
       // Kullanıcı istatistikleri
       const usersData = await apiRequest<{ stats: { total: number; active: number; pending: number } }>('/api/users/stats');
       

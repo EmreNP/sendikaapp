@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 
 // Lazy load pages for code splitting
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const UnauthorizedPage = lazy(() => import('./pages/UnauthorizedPage'));
 const UsersPage = lazy(() => import('./pages/users/UsersPage'));
 const BranchesPage = lazy(() => import('./pages/branches/BranchesPage'));
 const NewsPage = lazy(() => import('./pages/news/NewsPage'));
@@ -159,10 +160,10 @@ function App() {
               }
             />
             
-            {/* Legacy branch routes - redirect to Users list */}
-            <Route path="/branch/dashboard" element={<Navigate to="/admin/users" replace />} />
+            {/* Legacy branch routes - redirect to admin equivalents */}
             <Route path="/branch/news" element={<Navigate to="/admin/news" replace />} />
             
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="*" element={<NotFoundPage />} />
             </Routes>

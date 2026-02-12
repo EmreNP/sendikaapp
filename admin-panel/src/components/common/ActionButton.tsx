@@ -11,6 +11,7 @@ export type ActionButtonVariant =
   | 'role'           // Rol Değiştir
   | 'status'         // Durum Değiştir
   | 'view'           // Detaylara Git
+  | 'info'           // Bilgi / Bildirim
   | 'custom';        // Özel stil
 
 interface ActionButtonProps {
@@ -65,6 +66,9 @@ export default function ActionButton({
       
       case 'view':
         return `${baseStyles} text-blue-600 hover:bg-blue-50 hover:text-blue-700`;
+      
+      case 'info':
+        return `${baseStyles} text-sky-600 hover:bg-sky-50 hover:text-sky-700`;
       
       case 'custom':
         return baseStyles;

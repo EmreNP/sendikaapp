@@ -317,20 +317,34 @@ export async function paginateHybrid<T>(
  * - Respects Firestore read costs
  * 
  * @param baseQuery - Base Firestore query with filters and orderBy
- * @param params - Pagination parameters (page, limit)
- * @param mapper - Function to transform document snapshot to desired type
- * @param filterFn - In-memory filter function for search
- * @param batchSize - Number of docs to fetch per batch (default: 100)
- * @param maxDocs - Maximum total docs to scan (default: 500)
- * @returns Paginated response with search results
+/**
+ * Server-side search with batched Firestore scanning.
+ *
+ * Firestore does not support native full-text search. This helper fetches
+ * documents in batches and applies an in-memory filter. It works well for
+ * small-to-medium collections (< 10 000 docs). For large-scale search,
+ * integrate Algolia, Elasticsearch, or Typesense.
+ *
+ * Optimisation notes:
+ *  - Consider adding a `titleLower` field at write-time so Firestore
+ *    `>=` / `<` prefix queries can replace the in-memory scan.
+ *  - `maxDocs` caps the total documents scanned per request to prevent
+ *    runaway reads.
+ *
+ * @param baseQuery   – Pre-filtered & ordered Firestore query.
+ * @param params      – Pagination parameters (page, limit).
+ * @param mapper      – Snapshot → domain model transformer.
+ * @param filterFn    – In-memory predicate (e.g. title includes search term).
+ * @param batchSize   – Docs fetched per Firestore read (default 200).
+ * @param maxDocs     – Hard cap on total docs scanned (default 1000).
  */
 export async function searchInBatches<T>(
   baseQuery: Query,
   params: { page: number; limit: number },
   mapper: (doc: QueryDocumentSnapshot) => T,
   filterFn: (item: T) => boolean,
-  batchSize: number = 100,
-  maxDocs: number = 500
+  batchSize: number = 200,
+  maxDocs: number = 1000
 ): Promise<PaginatedResponse<T>> {
   const page = Math.max(1, params.page);
   const limit = Math.min(100, params.limit);

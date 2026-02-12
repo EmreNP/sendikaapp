@@ -9,6 +9,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal';
 import CategoryFormModal from '@/components/activities/CategoryFormModal';
 import { activityService } from '@/services/api/activityService';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/utils/api';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
 import { formatDate } from '@/utils/dateFormatter';
 
@@ -84,7 +85,6 @@ export default function ActivitiesPage() {
     const loadBranchesIfNeeded = async () => {
       try {
         if (user?.role !== 'admin' && user?.role !== 'superadmin') return;
-        const { apiRequest } = await import('@/utils/api');
         const data = await apiRequest<{ 
           branches: BranchOption[];
           total?: number;

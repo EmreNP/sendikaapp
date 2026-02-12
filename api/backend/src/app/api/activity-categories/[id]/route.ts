@@ -7,14 +7,9 @@ import type { UpdateActivityCategoryRequest } from '@shared/types/activity-categ
 import { 
   successResponse, 
   serializeActivityCategoryTimestamps,
-  unauthorizedError,
-  authenticationError,
-  validationError,
-  serverError,
-  notFoundError
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
-import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 // GET /api/activity-categories/[id] - Get single category (admin only)
 export const GET = asyncHandler(async (
@@ -32,7 +27,7 @@ export const GET = asyncHandler(async (
     const categoryDoc = await db.collection('activity_categories').doc(params.id).get();
     
     if (!categoryDoc.exists) {
-      return notFoundError('Kategori');
+      throw new AppNotFoundError('Kategori');
     }
 
     const category = {
@@ -71,7 +66,7 @@ export const PUT = asyncHandler(async (
     // Check if category exists
     const categoryDoc = await db.collection('activity_categories').doc(params.id).get();
     if (!categoryDoc.exists) {
-      return notFoundError('Kategori');
+      throw new AppNotFoundError('Kategori');
     }
 
     // Check for duplicate name (if name is being updated)
@@ -125,7 +120,7 @@ export const DELETE = asyncHandler(async (
     // Check if category exists
     const categoryDoc = await db.collection('activity_categories').doc(params.id).get();
     if (!categoryDoc.exists) {
-      return notFoundError('Kategori');
+      throw new AppNotFoundError('Kategori');
     }
 
     // Check if category is being used by any activities

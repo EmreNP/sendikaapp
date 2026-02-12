@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Calendar, Tag, Building2, FileText, User, Clock } from 'lucide-react';
 import type { Activity, ActivityCategory } from '@/types/activity';
 import { batchFetchUserNames, formatUserName } from '@/services/api/userNameService';
+import { apiRequest } from '@/utils/api';
 import { formatDate } from '@/utils/dateFormatter';
 
 interface ActivityDetailModalProps {
@@ -29,7 +30,6 @@ export default function ActivityDetailModal({ activity, categories, branches, on
       }
 
       try {
-        const { apiRequest } = await import('@/utils/api');
         const data = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${activity.branchId}`);
         setBranchName(data.branch?.name || 'Merkez Şube');
       } catch (error) {

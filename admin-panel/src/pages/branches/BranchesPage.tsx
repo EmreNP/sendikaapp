@@ -7,6 +7,7 @@ import Pagination from '@/components/common/Pagination';
 import BranchFormModal from '@/components/branches/BranchFormModal';
 import BranchDetailModal from '@/components/branches/BranchDetailModal';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/utils/api';
 import { logger } from '@/utils/logger';
 
 interface Branch {
@@ -78,8 +79,6 @@ export default function BranchesPage() {
       setLoading(true);
       setError(null);
 
-      const { apiRequest } = await import('@/utils/api');
-      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '25',
@@ -114,7 +113,6 @@ export default function BranchesPage() {
   const handleDeleteBranch = async (branchId: string) => {
     try {
       setProcessing(true);
-      const { apiRequest } = await import('@/utils/api');
       await apiRequest(`/api/branches/${branchId}`, { method: 'DELETE' });
       
       // State'den direkt kaldır
@@ -130,7 +128,6 @@ export default function BranchesPage() {
   const handleToggleActive = async (branchId: string, currentActive: boolean) => {
     try {
       setProcessing(true);
-      const { apiRequest } = await import('@/utils/api');
 
       await apiRequest(`/api/branches/${branchId}`, {
         method: 'PUT',

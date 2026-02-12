@@ -7,14 +7,9 @@ import type { UpdateActivityRequest } from '@shared/types/activity';
 import { 
   successResponse, 
   serializeActivityTimestamps,
-  unauthorizedError,
-  authenticationError,
-  validationError,
-  serverError,
-  notFoundError
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
-import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET /api/activities/[id] - Get single activity
@@ -33,7 +28,7 @@ export const GET = asyncHandler(async (
     const activityDoc = await db.collection('activities').doc(params.id).get();
     
     if (!activityDoc.exists) {
-      return notFoundError('Aktivite');
+      throw new AppNotFoundError('Aktivite');
     }
 
     const activityData = activityDoc.data();
@@ -42,7 +37,7 @@ export const GET = asyncHandler(async (
     if (currentUserData.role === USER_ROLE.USER) {
       // Users can only see published activities
       if (!activityData?.isPublished) {
-        return notFoundError('Aktivite');
+        throw new AppNotFoundError('Aktivite');
       }
     } else if (currentUserData.role === USER_ROLE.BRANCH_MANAGER) {
       // Branch managers can only see activities from their branch
@@ -93,7 +88,7 @@ export const PUT = asyncHandler(async (
     // Check if activity exists
     const activityDoc = await db.collection('activities').doc(params.id).get();
     if (!activityDoc.exists) {
-      return notFoundError('Aktivite');
+      throw new AppNotFoundError('Aktivite');
     }
 
     const activityData = activityDoc.data();
@@ -181,7 +176,7 @@ export const DELETE = asyncHandler(async (
     // Check if activity exists
     const activityDoc = await db.collection('activities').doc(params.id).get();
     if (!activityDoc.exists) {
-      return notFoundError('Aktivite');
+      throw new AppNotFoundError('Aktivite');
     }
 
     const activityData = activityDoc.data();
