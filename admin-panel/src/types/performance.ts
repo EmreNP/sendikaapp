@@ -205,11 +205,13 @@ export interface LogEntry {
   date: string;
   message: string;
   type: string; // 'user' | 'activity' | 'notification' | 'news' | 'announcement'
+  actor?: string;
 }
 
 export interface ActivityItem {
   id: string;
   name: string;
+  description?: string;
   categoryName: string;
   activityDate: string;
   createdAt: string;
