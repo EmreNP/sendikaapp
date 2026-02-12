@@ -22,6 +22,7 @@ import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import admin from 'firebase-admin';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 import { logger } from '../../../lib/utils/logger';
 // GET /api/users - Kullanıcı listesi
@@ -270,6 +271,20 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       logger.log(`✅ User document created: ${userRecord.uid}`);
       
+      // Audit log
+      createAuditLog({
+        action: 'user_created',
+        category: 'user',
+        performedBy: user.uid,
+        performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+        performedByRole: currentUserData!.role,
+        branchId: userData.branchId || currentUserData!.branchId,
+        targetId: userRecord.uid,
+        targetName: `${firstName} ${lastName}`,
+        details: { role: userData.role, status: userData.status, email },
+        message: `"${firstName} ${lastName}" kullanıcısı oluşturuldu`,
+      });
+
       // Email verification is disabled: no verification email sent.
       
       return successResponse(

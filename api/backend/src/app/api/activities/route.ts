@@ -19,6 +19,7 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET /api/activities - List activities (filtered by role)
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -182,6 +183,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       id: docRef.id,
       ...activityData
     };
+
+    // Audit log
+    const categoryName = categoryDoc.data()?.name || '';
+    createAuditLog({
+      action: 'activity_created',
+      category: 'activity',
+      performedBy: user.uid,
+      performedByName: `${currentUserData.firstName || ''} ${currentUserData.lastName || ''}`.trim(),
+      performedByRole: currentUserData.role,
+      branchId: branchId,
+      targetId: docRef.id,
+      targetName: body.name.trim(),
+      details: { categoryId: body.categoryId, categoryName, isPublished: activityData.isPublished },
+      message: `"${body.name.trim()}" aktivitesi oluşturuldu (${categoryName})`,
+    });
 
     return successResponse('Aktivite başarıyla oluşturuldu', 
       { activity: serializeActivityTimestamps(activity) }, 

@@ -15,6 +15,7 @@ import {
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET /api/activities/[id] - Get single activity
 export const GET = asyncHandler(async (
@@ -133,6 +134,20 @@ export const PUT = asyncHandler(async (
 
     await db.collection('activities').doc(params.id).update(updateData);
 
+    // Audit log
+    createAuditLog({
+      action: 'activity_updated',
+      category: 'activity',
+      performedBy: user.uid,
+      performedByName: `${currentUserData.firstName || ''} ${currentUserData.lastName || ''}`.trim(),
+      performedByRole: currentUserData.role,
+      branchId: activityData?.branchId,
+      targetId: params.id,
+      targetName: updateData.name || activityData?.name || '',
+      details: { updatedFields: Object.keys(updateData).filter(k => k !== 'updatedAt' && k !== 'updatedBy') },
+      message: `"${updateData.name || activityData?.name || ''}" aktivitesi güncellendi`,
+    });
+
     const updatedActivityDoc = await db.collection('activities').doc(params.id).get();
     const updatedActivity = {
       id: updatedActivityDoc.id,
@@ -181,6 +196,19 @@ export const DELETE = asyncHandler(async (
 
     // Hard delete
     await db.collection('activities').doc(params.id).delete();
+
+    // Audit log
+    createAuditLog({
+      action: 'activity_deleted',
+      category: 'activity',
+      performedBy: user.uid,
+      performedByName: `${currentUserData.firstName || ''} ${currentUserData.lastName || ''}`.trim(),
+      performedByRole: currentUserData.role,
+      branchId: activityData?.branchId,
+      targetId: params.id,
+      targetName: activityData?.name || '',
+      message: `"${activityData?.name || ''}" aktivitesi silindi`,
+    });
 
     return successResponse('Aktivite başarıyla silindi');
   });

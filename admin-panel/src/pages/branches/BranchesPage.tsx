@@ -38,7 +38,7 @@ export default function BranchesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [_totalPages, setTotalPages] = useState(1);
   const [totalBranches, setTotalBranches] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);

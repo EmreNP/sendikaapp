@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET - Tüm haberleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -155,7 +156,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Timestamp'leri serialize et
       const serializedNews = serializeNewsTimestamps(news);
-      
+
+      // Audit log
+      createAuditLog({
+        action: 'news_created',
+        category: 'news',
+        performedBy: user.uid,
+        performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+        performedByRole: currentUserData!.role,
+        branchId: currentUserData!.branchId,
+        targetId: newsDoc.id,
+        targetName: title.trim(),
+        details: { isPublished: newsData.isPublished, isFeatured: newsData.isFeatured },
+        message: `"${title.trim()}" haberi oluşturuldu`,
+      });
+
       return successResponse(
         'Haber başarıyla oluşturuldu',
         { news: serializedNews },

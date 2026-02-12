@@ -14,6 +14,7 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody, validateBodySize, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
+import { createAuditLog } from '@/lib/services/auditLogService';
 
 // GET - Tüm duyuruları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
@@ -196,7 +197,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Timestamp'leri serialize et
       const serializedAnnouncement = serializeAnnouncementTimestamps(announcement);
-      
+
+      // Audit log
+      createAuditLog({
+        action: 'announcement_created',
+        category: 'announcement',
+        performedBy: user.uid,
+        performedByName: `${currentUserData!.firstName || ''} ${currentUserData!.lastName || ''}`.trim(),
+        performedByRole: currentUserData!.role,
+        branchId: finalBranchId || currentUserData!.branchId,
+        targetId: announcementDoc.id,
+        targetName: title.trim(),
+        details: { isPublished: announcementData.isPublished, branchId: finalBranchId },
+        message: `"${title.trim()}" duyurusu oluşturuldu`,
+      });
+
       return successResponse(
         'Duyuru başarıyla oluşturuldu',
         { announcement: serializedAnnouncement },
