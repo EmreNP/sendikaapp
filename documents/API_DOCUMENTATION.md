@@ -70,7 +70,7 @@ Hata response'ları:
 
 ### 2. Register - Basic (Temel Kayıt)
 **Endpoint:** `POST /api/auth/register/basic`  
-**Auth:** Gerekmez  
+**Auth:** Gerekmez (Admin/Branch Manager authenticated olarak gönderirse branchId ile şube ataması yapabilir)  
 **Açıklama:** Kullanıcının temel bilgileriyle kayıt olmasını sağlar.
 
 **Request Body:**
@@ -78,20 +78,28 @@ Hata response'ları:
 {
   "firstName": "Ahmet",
   "lastName": "Yılmaz",
+  "phone": "05551234567",
   "email": "ahmet@example.com",
   "password": "SecurePass123",
   "birthDate": "1990-01-01",
-  "gender": "male"
+  "district": "Selçuklu",
+  "kadroUnvani": "Memur",
+  "gender": "male",
+  "branchId": "branch-id-123"
 }
 ```
 
 **Validation Kuralları:**
 - `firstName`: Zorunlu, en az 2 karakter, en fazla 50 karakter, sadece harf ve Türkçe karakterler
 - `lastName`: Zorunlu, en az 2 karakter, en fazla 50 karakter, sadece harf ve Türkçe karakterler
-- `email`: Zorunlu, geçerli email formatı
+- `phone`: Zorunlu, 10-11 haneli numara (boşluklar otomatik temizlenir)
+- `email`: Zorunlu, geçerli email formatı, benzersiz olmalı
 - `password`: Zorunlu, en az 8 karakter, en az 1 büyük harf, en az 1 küçük harf, en az 1 rakam
 - `birthDate`: Zorunlu, ISO format (YYYY-MM-DD), en az 18 yaşında, en fazla 120 yaşında
+- `district`: Zorunlu, görev ilçesi (Konya ilçeleri)
+- `kadroUnvani`: Zorunlu, kadro ünvanı
 - `gender`: Zorunlu, sadece `"male"` veya `"female"`
+- `branchId`: Opsiyonel, admin/branch_manager tarafından şube ataması için
 
 **Response (201):**
 ```json
@@ -110,7 +118,7 @@ Hata response'ları:
 ### 3. Register - Details (Detaylı Bilgiler)
 **Endpoint:** `POST /api/auth/register/details`  
 **Auth:** Gerekli (Bearer token)  
-**Açıklama:** Kullanıcının detaylı bilgilerini ekler.
+**Açıklama:** Kullanıcının detaylı bilgilerini ekler (2. adım). Admin kullanıcılar `userId` parametresiyle başka kullanıcının detaylarını tamamlayabilir.
 
 **Request Body:**
 ```json
@@ -119,23 +127,45 @@ Hata response'ları:
   "tcKimlikNo": "12345678901",
   "fatherName": "Mehmet",
   "motherName": "Ayşe",
-  "birthPlace": "İstanbul",
-  "education": "lise",
+  "birthPlace": "Konya",
+  "education": "lisans",
   "kurumSicil": "12345",
-  "kadroUnvani": "Memur",
   "kadroUnvanKodu": "M001",
-  "phone": "05551234567",
-  "address": "Örnek Mahalle, Örnek Sokak No:1",
-  "city": "İstanbul",
-  "district": "Kadıköy"
+  "isMemberOfOtherUnion": false
+}
+```
+
+**Admin Kullanım Örneği:**
+```json
+{
+  "userId": "user-uid-456",
+  "branchId": "branch-id-123",
+  "tcKimlikNo": "12345678901",
+  "fatherName": "Mehmet",
+  "motherName": "Ayşe",
+  "birthPlace": "Konya",
+  "education": "lisans",
+  "kurumSicil": "12345",
+  "kadroUnvanKodu": "M001",
+  "isMemberOfOtherUnion": false,
+  "firstName": "Ahmet",
+  "lastName": "Yılmaz",
+  "email": "ahmet@example.com"
 }
 ```
 
 **Validation Kuralları:**
 - `branchId`: Zorunlu, geçerli branch ID olmalı, branch aktif olmalı
-- `tcKimlikNo`: Opsiyonel, 11 haneli, TC Kimlik algoritma kontrolü, başka kullanıcıda kullanılmamalı
-- `phone`: Opsiyonel, Türkiye telefon formatı (`+90` veya `0` ile başlayan 10 haneli)
-- `education`: Opsiyonel, sadece `"ilkögretim"`, `"lise"`, `"yüksekokul"`
+- `tcKimlikNo`: Zorunlu, 11 haneli, TC Kimlik algoritma kontrolü, başka kullanıcıda kullanılmamalı
+- `fatherName`: Zorunlu, baba adı
+- `motherName`: Zorunlu, anne adı
+- `birthPlace`: Zorunlu, doğum yeri
+- `education`: Zorunlu, sadece `"ilkogretim"`, `"lise"`, `"on_lisans"`, `"lisans"`, `"yuksek_lisans"`, `"doktora"`
+- `kurumSicil`: Zorunlu, kurum sicil numarası
+- `kadroUnvanKodu`: Zorunlu, kadro ünvan kodu
+- `isMemberOfOtherUnion`: Opsiyonel, boolean
+- `userId`: Opsiyonel, sadece admin/superadmin kullanabilir - hedef kullanıcı ID
+- `firstName`, `lastName`, `email`: Opsiyonel, sadece admin override için
 
 **Response (200):**
 ```json
@@ -1287,6 +1317,137 @@ veya dış link için:
   "message": "Şube başarıyla silindi"
 }
 ```
+
+---
+
+## Reports / Rapor Endpoints
+
+> Not: Bu endpoint'ler sadece **Admin** ve **Superadmin** yetkisine sahip kullanıcılar tarafından kullanılabilir. Daha detaylı JSON şema için `/api/openapi` (Redoc UI: `/api-docs`) sayfasına bakınız.
+
+### GET /api/reports/generate — Rapor verisi oluştur (PDF için)
+**Endpoint:** `GET /api/reports/generate`  
+**Auth:** Gerekli (Bearer token) — **Admin / Superadmin**  
+**Query parameters:** `startDate` (YYYY-MM-DD), `endDate` (YYYY-MM-DD), `branchId`, `managerId`, `type` (`branch` | `manager`, default=`branch`)
+
+**Açıklama:** Seçili tarih/filtrelere göre PDF oluşturmak için kullanılan veri payload'ını döner. `type=branch` ise `BranchReport` listesi, `type=manager` ise `ManagerReport` listesi döner.
+
+**Response (200) — özet:**
+```json
+{
+  "success": true,
+  "data": {
+    "reportType": "branch",
+    "generatedAt": "2026-02-12T10:00:00.000Z",
+    "period": { "startDate": "2026-01-01", "endDate": "2026-01-31" },
+    "reports": [ /* BranchReport[] veya ManagerReport[] */ ]
+  }
+}
+```
+
+**BranchReport (kısa örnek):**
+```json
+{
+  "branchId": "b-123",
+  "branchName": "Selçuklu",
+  "summary": {
+    "totalMembers": 1200,
+    "activeMembers": 980,
+    "newMembers": 12,
+    "totalActivities": 45,
+    "notificationsSent": 7
+  },
+  "logEntries": [ { "date":"...","message":"...","type":"activity","actor":"Ali" } ],
+  "activities": [ { "id":"a-1","name":"Etkinlik X","createdAt":"..." } ]
+}
+```
+
+---
+
+### GET /api/reports/performance — Performans dashboard özeti
+**Endpoint:** `GET /api/reports/performance`  
+**Auth:** Gerekli (Bearer token) — **Admin / Superadmin**  
+**Query parameters:** `period` (`monthly|weekly|yearly|quarterly`) veya `startDate`/`endDate` (opsiyonel)
+
+**Açıklama:** Dashboard için overview, topBranches, topManagers, activityTrend ve branchComparison gibi özet verileri döner.
+
+**Response (200) — örnek:**
+```json
+{
+  "success": true,
+  "data": {
+    "overview": { "totalBranches": 42, "totalManagers": 35, "totalActivities": 1245, "totalMembers": 54000 },
+    "topBranches": [ { "branchId":"b-1","branchName":"Selçuklu","performanceScore":92 } ],
+    "topManagers": [ { "uid":"m-1","fullName":"Ayşe Y.","activityCount":45 } ],
+    "activityTrend": [ { "period":"2026-01","count":300 } ],
+    "branchComparison": [ { "branchId":"b-1","branchName":"Selçuklu","activityCount":300 } ],
+    "timeGranularity": "monthly"
+  }
+}
+```
+
+---
+
+### GET /api/reports/performance/branches — Şube bazlı performans raporu
+**Endpoint:** `GET /api/reports/performance/branches`  
+**Auth:** Gerekli (Bearer token) — **Admin / Superadmin**  
+**Query parameters:** `branchId` (opsiyonel), `startDate`, `endDate`
+
+**Açıklama:** Her bir şube için detaylı metrikler (aktivite sayıları, kategori dağılımları, üye istatistikleri, performans skoru) döner.
+
+**Response (200) — örnek yapı:**
+```json
+{
+  "success": true,
+  "data": {
+    "branches": [
+      {
+        "branchId": "b-123",
+        "branchName": "Selçuklu",
+        "activities": { "total": 45, "byCategory": [{"categoryName":"Eğitim","count":10}] },
+        "members": { "total": 1200, "active": 980, "newThisPeriod": 12 },
+        "performanceScore": 78
+      }
+    ],
+    "summary": { "totalActivities": 1245, "totalMembers": 54000, "averageScore": 64 },
+    "timeGranularity": "monthly"
+  }
+}
+```
+
+---
+
+### GET /api/reports/performance/managers — Yönetici bazlı performans raporu
+**Endpoint:** `GET /api/reports/performance/managers`  
+**Auth:** Gerekli (Bearer token) — **Admin / Superadmin**  
+**Query parameters:** `branchId` (opsiyonel), `managerId` (opsiyonel), `startDate`, `endDate`
+
+**Açıklama:** İlçe yöneticileri için detaylı performans metrikleri, son aktiviteler ve yönetilen üye özetleri döner.
+
+**Response (200) — örnek yapı:**
+```json
+{
+  "success": true,
+  "data": {
+    "managers": [
+      {
+        "uid": "m-123",
+        "fullName": "Mehmet D.",
+        "branchName": "Selçuklu",
+        "activities": { "total": 45, "recentActivities": [{"name":"Etkinlik X"}] },
+        "managedMembers": { "total": 320, "active": 300 }
+      }
+    ],
+    "summary": { "totalActivities": 1245, "averageScore": 68 },
+    "timeGranularity": "monthly"
+  }
+}
+```
+
+---
+
+### Notes
+- Tüm reports endpoint'leri PDF üretimi veya admin raporlama için kullanılır; frontend raporlama UI'sı (`admin-panel`) bu endpoint'leri kullanır.
+- Daha detaylı schema / örnekler için `/api/openapi` veya `/api-docs` sayfasını kontrol edin.
 
 ---
 
@@ -2919,9 +3080,12 @@ const response = await fetch('http://localhost:3001/api/auth/register/basic', {
   body: JSON.stringify({
     firstName: 'Ahmet',
     lastName: 'Yılmaz',
+    phone: '05551234567',
     email: 'ahmet@example.com',
     password: 'SecurePass123',
     birthDate: '1990-01-01',
+    district: 'Selçuklu',
+    kadroUnvani: 'Memur',
     gender: 'male'
   })
 });
@@ -2967,9 +3131,12 @@ api.interceptors.request.use((config) => {
 const registerResponse = await api.post('/auth/register/basic', {
   firstName: 'Ahmet',
   lastName: 'Yılmaz',
+  phone: '05551234567',
   email: 'ahmet@example.com',
   password: 'SecurePass123',
   birthDate: '1990-01-01',
+  district: 'Selçuklu',
+  kadroUnvani: 'Memur',
   gender: 'male'
 });
 

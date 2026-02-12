@@ -105,6 +105,59 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const allNews = newsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
     const allAnnouncements = announcementsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
+    const userNameMap = new Map<string, string>();
+    allUsers.forEach((u: any) => {
+      userNameMap.set(u.uid, `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || u.uid);
+    });
+
+    const actorNameFromId = (uid?: string): string => {
+      if (!uid) return '';
+      return userNameMap.get(uid) || 'Kullanıcı bulunamadı';
+    };
+
+    const uniqueActorLabel = (names: Array<string | undefined>, fallback = 'Belirsiz'): string => {
+      const cleaned = names
+        .map((n) => (n || '').trim())
+        .filter(Boolean);
+      const uniq = Array.from(new Set(cleaned));
+      return uniq.length > 0 ? uniq.join(', ') : fallback;
+    };
+
+    const userDisplayNameFromId = (uid?: string): string => {
+      if (!uid) return 'Bilinmeyen kullanıcı';
+      return userNameMap.get(uid) || 'Kullanıcı bulunamadı';
+    };
+
+    const registrationActionLabel = (action: string): string => {
+      switch (action) {
+        case 'register_basic':
+          return 'Temel kayıt oluşturuldu';
+        case 'register_details':
+          return 'Detaylı kayıt tamamlandı';
+        case 'branch_manager_approval':
+        case 'admin_approval':
+          return 'Üye başvurusu onaylandı';
+        case 'branch_manager_rejection':
+        case 'admin_rejection':
+          return 'Üye başvurusu reddedildi';
+        case 'admin_return':
+        case 'branch_manager_return':
+          return 'Başvuru revize edilmek üzere geri gönderildi';
+        case 'user_update':
+          return 'Üye bilgileri güncellendi';
+        case 'role_update':
+          return 'Kullanıcı rolü güncellendi';
+        case 'status_update':
+          return 'Kullanıcı durumu güncellendi';
+        default:
+          return action || 'Kullanıcı işlemi';
+      }
+    };
+
+    const resolveEventDate = (obj: any): string => {
+      return toISOString(obj?.createdAt || obj?.timestamp || obj?.date || obj?.updatedAt);
+    };
+
     // Audit logs — tarih aralığına göre filtrele
     const auditLogs = auditLogsSnap.docs
       .map((doc: any) => ({ id: doc.id, ...doc.data() }))
@@ -172,6 +225,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           .map((a: any) => ({
             id: a.id,
             name: a.name || '',
+            description: a.description || '',
             categoryName: categoryMap.get(a.categoryId) || '',
             activityDate: toISOString(a.activityDate),
             createdAt: toISOString(a.createdAt),
@@ -210,63 +264,70 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           (a: any) => (branchManagerUids.includes(a.createdBy) || a.branchId === branchId) && isInRange(a.createdAt, startDate, endDate)
         ).length;
 
-        // Log satırları (kronolojik)
-        const logEntries: Array<{ date: string; message: string; type: string }> = [];
+        // Log satırları (detaylı, gerçek tarih-saat)
+        const logEntries: Array<{ date: string; message: string; type: string; actor: string }> = [];
+        const branchDefaultActor = uniqueActorLabel(branchManagers.map((m: any) => m.fullName), 'Şube yöneticileri');
 
-        // Üye logları
-        if (newMembers.length > 0) {
+        // Üye işlemleri (tek tek)
+        for (const log of branchRegLogs) {
+          const targetUser = userDisplayNameFromId(log.userId);
           logEntries.push({
-            date: toISOString(startDate),
-            message: `${newMembers.length} yeni üye kaydedildi`,
+            date: resolveEventDate(log),
+            message: `${registrationActionLabel(log.action)} (${targetUser})`,
             type: 'user',
+            actor: actorNameFromId(log.performedBy || log.actorId || log.userId) || branchDefaultActor,
           });
         }
-        if (updatedMemberCount > 0) {
-          logEntries.push({
-            date: toISOString(startDate),
-            message: `${updatedMemberCount} üye bilgisi güncellendi`,
-            type: 'user',
-          });
-        }
-        if (statusChanges.length > 0) {
-          const approvals = statusChanges.filter((l: any) => l.action.includes('approval')).length;
-          const rejections = statusChanges.filter((l: any) => l.action.includes('rejection')).length;
-          if (approvals > 0) {
-            logEntries.push({ date: toISOString(startDate), message: `${approvals} üye başvurusu onaylandı`, type: 'user' });
-          }
-          if (rejections > 0) {
-            logEntries.push({ date: toISOString(startDate), message: `${rejections} üye başvurusu reddedildi`, type: 'user' });
-          }
-        }
 
-        // Bildirim logları
-        if (branchNotifs.length > 0) {
+        // Bildirim işlemleri (tek tek)
+        for (const n of branchNotifs) {
+          const title = (n.title || n.subject || n.notificationTitle || 'Bildirim gönderildi').toString();
           logEntries.push({
-            date: toISOString(startDate),
-            message: `${branchNotifs.length} bildirim gönderildi`,
+            date: resolveEventDate(n),
+            message: `Bildirim: ${title}`,
             type: 'notification',
+            actor: actorNameFromId(n.sentBy || n.createdBy || n.userId) || branchDefaultActor,
           });
         }
 
-        // Aktivite logları
-        if (periodActivities.length > 0) {
-          const catSummary = Object.values(catCounts)
-            .map((c: any) => `${c.count} ${c.name}`)
-            .join(', ');
+        // Aktivite işlemleri (tek tek)
+        for (const a of periodActivities) {
+          const categoryName = categoryMap.get(a.categoryId) || 'Bilinmeyen';
           logEntries.push({
-            date: toISOString(startDate),
-            message: `${periodActivities.length} aktivite oluşturuldu (${catSummary})`,
+            date: resolveEventDate(a),
+            message: `Aktivite oluşturuldu: ${a.name || 'Adsız aktivite'} (${categoryName})`,
             type: 'activity',
+            actor: actorNameFromId(a.createdBy) || branchDefaultActor,
           });
         }
 
-        // Haber/Duyuru logları
-        if (branchNewsCount > 0) {
-          logEntries.push({ date: toISOString(startDate), message: `${branchNewsCount} haber oluşturuldu`, type: 'news' });
+        // Haber işlemleri (tek tek)
+        const branchNews = allNews.filter(
+          (n: any) => branchManagerUids.includes(n.createdBy) && isInRange(n.createdAt, startDate, endDate)
+        );
+        for (const n of branchNews) {
+          logEntries.push({
+            date: resolveEventDate(n),
+            message: `Haber oluşturuldu: ${n.title || n.name || 'Başlıksız haber'}`,
+            type: 'news',
+            actor: actorNameFromId(n.createdBy) || branchDefaultActor,
+          });
         }
-        if (branchAnnouncementCount > 0) {
-          logEntries.push({ date: toISOString(startDate), message: `${branchAnnouncementCount} duyuru oluşturuldu`, type: 'announcement' });
+
+        // Duyuru işlemleri (tek tek)
+        const branchAnnouncements = allAnnouncements.filter(
+          (a: any) => (branchManagerUids.includes(a.createdBy) || a.branchId === branchId) && isInRange(a.createdAt, startDate, endDate)
+        );
+        for (const a of branchAnnouncements) {
+          logEntries.push({
+            date: resolveEventDate(a),
+            message: `Duyuru oluşturuldu: ${a.title || a.name || 'Başlıksız duyuru'}`,
+            type: 'announcement',
+            actor: actorNameFromId(a.createdBy) || branchDefaultActor,
+          });
         }
+
+        logEntries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         // Toplam üyeler
         const totalMembers = allUsers.filter(
@@ -336,10 +397,15 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         .map((a: any) => ({
           id: a.id,
           name: a.name || '',
+          description: a.description || '',
           categoryName: categoryMap.get(a.categoryId) || '',
           activityDate: toISOString(a.activityDate),
           createdAt: toISOString(a.createdAt),
           isPublished: a.isPublished === true,
+          createdByName: (() => {
+            const creator = allUsers.find((u: any) => u.uid === a.createdBy);
+            return creator ? `${creator.firstName || ''} ${creator.lastName || ''}`.trim() : '';
+          })(),
         }));
 
       // Yönetici kayıt logları
@@ -370,34 +436,65 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         (u: any) => u.branchId === m.branchId && u.role === USER_ROLE.USER && isInRange(u.createdAt, startDate, endDate)
       ).length;
 
-      // Log satırları
-      const logEntries: Array<{ date: string; message: string; type: string }> = [];
+      // Log satırları (detaylı, gerçek tarih-saat)
+      const logEntries: Array<{ date: string; message: string; type: string; actor: string }> = [];
+      const managerActor = `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email || m.uid;
 
-      if (newMembers > 0) {
-        logEntries.push({ date: '', message: `${newMembers} yeni üye kaydedildi`, type: 'user' });
+      for (const log of managerRegLogs) {
+        const targetUser = userDisplayNameFromId(log.userId);
+        logEntries.push({
+          date: resolveEventDate(log),
+          message: `${registrationActionLabel(log.action)} (${targetUser})`,
+          type: 'user',
+          actor: actorNameFromId(log.performedBy || log.actorId || log.userId) || managerActor,
+        });
       }
-      if (updatedMemberCount > 0) {
-        logEntries.push({ date: '', message: `${updatedMemberCount} üye bilgisi güncellendi`, type: 'user' });
+
+      for (const n of managerNotifs) {
+        const title = (n.title || n.subject || n.notificationTitle || 'Bildirim gönderildi').toString();
+        logEntries.push({
+          date: resolveEventDate(n),
+          message: `Bildirim: ${title}`,
+          type: 'notification',
+          actor: actorNameFromId(n.sentBy || n.createdBy || n.userId) || managerActor,
+        });
       }
-      if (approvals > 0) {
-        logEntries.push({ date: '', message: `${approvals} üye başvurusu onaylandı`, type: 'user' });
+
+      for (const a of periodActivities) {
+        const categoryName = categoryMap.get(a.categoryId) || 'Bilinmeyen';
+        logEntries.push({
+          date: resolveEventDate(a),
+          message: `Aktivite oluşturuldu: ${a.name || 'Adsız aktivite'} (${categoryName})`,
+          type: 'activity',
+          actor: actorNameFromId(a.createdBy) || managerActor,
+        });
       }
-      if (rejections > 0) {
-        logEntries.push({ date: '', message: `${rejections} üye başvurusu reddedildi`, type: 'user' });
+
+      const managerNews = allNews.filter(
+        (n: any) => n.createdBy === m.uid && isInRange(n.createdAt, startDate, endDate)
+      );
+      for (const n of managerNews) {
+        logEntries.push({
+          date: resolveEventDate(n),
+          message: `Haber oluşturuldu: ${n.title || n.name || 'Başlıksız haber'}`,
+          type: 'news',
+          actor: actorNameFromId(n.createdBy) || managerActor,
+        });
       }
-      if (managerNotifs.length > 0) {
-        logEntries.push({ date: '', message: `${managerNotifs.length} bildirim gönderildi`, type: 'notification' });
+
+      const managerAnnouncements = allAnnouncements.filter(
+        (a: any) => a.createdBy === m.uid && isInRange(a.createdAt, startDate, endDate)
+      );
+      for (const a of managerAnnouncements) {
+        logEntries.push({
+          date: resolveEventDate(a),
+          message: `Duyuru oluşturuldu: ${a.title || a.name || 'Başlıksız duyuru'}`,
+          type: 'announcement',
+          actor: actorNameFromId(a.createdBy) || managerActor,
+        });
       }
-      if (periodActivities.length > 0) {
-        const catSummary = Object.values(catCounts).map((c: any) => `${c.count} ${c.name}`).join(', ');
-        logEntries.push({ date: '', message: `${periodActivities.length} aktivite oluşturuldu (${catSummary})`, type: 'activity' });
-      }
-      if (newsCount > 0) {
-        logEntries.push({ date: '', message: `${newsCount} haber oluşturuldu`, type: 'news' });
-      }
-      if (announcementCount > 0) {
-        logEntries.push({ date: '', message: `${announcementCount} duyuru oluşturuldu`, type: 'announcement' });
-      }
+
+      logEntries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
       return {
         uid: m.uid,

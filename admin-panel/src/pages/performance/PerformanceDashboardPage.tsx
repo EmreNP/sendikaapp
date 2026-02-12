@@ -1207,273 +1207,580 @@ function MetricBox({
   );
 }
 
-// ==================== PDF OLUŞTURMA (jsPDF) ====================
+// ==================== HTML TABLOSU İLE PDF (Tarayıcı Yazdır) ====================
 async function createPdf(
   reportData: ReportGenerateResponse,
   type: 'branch' | 'manager'
 ) {
-  const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  let y = margin;
-
   const periodStart = formatDate(reportData.period.startDate);
   const periodEnd = formatDate(reportData.period.endDate);
+  const generatedAt = formatDate(reportData.generatedAt);
 
-  function checkPage(neededHeight: number) {
-    if (y + neededHeight > doc.internal.pageSize.getHeight() - margin) {
-      doc.addPage();
-      y = margin;
+  const escapeHtml = (value: unknown): string => {
+    const str = value === null || value === undefined ? '-' : String(value);
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const formatDateTime = (date?: string): string => {
+    if (!date) return '-';
+    return new Date(date).toLocaleString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const numberCell = (val: number) => `<td class="num">${escapeHtml(val)}</td>`;
+
+  const categorySummaryLine = (categories: Array<{ name: string; count: number }>) => {
+    if (!categories || categories.length === 0) {
+      return 'Kategori özeti: Veri yok';
     }
-  }
+    const ordered = [...categories].sort((a, b) => b.count - a.count);
+    const summary = ordered
+      .map((c) => `${c.name}: ${c.count}`)
+      .join(' • ');
+    return `Kategori özeti: ${summary}`;
+  };
 
-  function drawLine() {
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 3;
-  }
-
-  // === BAŞLIK ===
-  doc.setFontSize(18);
-  doc.setTextColor(30, 64, 175);
-  doc.text('Performans Raporu', margin, y);
-  y += 8;
-
-  doc.setFontSize(10);
-  doc.setTextColor(107, 114, 128);
-  doc.text(`Rapor Tarihi: ${formatDate(reportData.generatedAt)}`, margin, y);
-  y += 5;
-  doc.text(`Donem: ${periodStart} - ${periodEnd}`, margin, y);
-  y += 5;
-  doc.text(`Rapor Turu: ${type === 'branch' ? 'Sube Raporu' : 'Yonetici Raporu'}`, margin, y);
-  y += 5;
-  doc.setFontSize(9);
-  doc.setTextColor(220, 38, 38); // red-600
-  doc.text('* Bu rapor sadece secili tarih araligindaki aktiviteleri gosterir', margin, y);
-  y += 6;
-  drawLine();
-  y += 3;
-
-  if (type === 'branch') {
-    const reports = (reportData as any).reports as BranchReportData[];
-    for (let i = 0; i < reports.length; i++) {
-      const r = reports[i];
-      checkPage(60);
-
-      // Şube başlığı
-      doc.setFontSize(14);
-      doc.setTextColor(30, 64, 175);
-      doc.text(`${r.branchName}`, margin, y);
-      y += 6;
-
-      if (r.managers.length > 0) {
-        doc.setFontSize(9);
-        doc.setTextColor(107, 114, 128);
-        doc.text(`Yoneticiler: ${r.managers.map((m: any) => m.fullName).join(', ')}`, margin, y);
-        y += 5;
-      }
-
-      // Özet satırları
-      doc.setFontSize(10);
-      doc.setTextColor(55, 65, 81);
-      y += 2;
-
-      const summaryLines = [
-        `Toplam Uye: ${r.summary.totalMembers} (${r.summary.activeMembers} aktif)`,
-        `Yeni Uye: ${r.summary.newMembers}`,
-        `Guncellenen Uye: ${r.summary.updatedMembers}`,
-        `Toplam Aktivite: ${r.summary.totalActivities}`,
-        `Bildirim Gonderildi: ${r.summary.notificationsSent}`,
-        `Haber: ${r.summary.newsCreated} | Duyuru: ${r.summary.announcementsCreated}`,
-      ];
-
-      for (const line of summaryLines) {
-        checkPage(6);
-        doc.text(`  * ${line}`, margin, y);
-        y += 5;
-      }
-
-      // Log satırları
-      if (r.logEntries.length > 0) {
-        y += 3;
-        checkPage(10);
-        doc.setFontSize(11);
-        doc.setTextColor(30, 64, 175);
-        doc.text('Islem Ozeti:', margin, y);
-        y += 5;
-
-        doc.setFontSize(10);
-        doc.setTextColor(55, 65, 81);
-        for (const log of r.logEntries) {
-          checkPage(6);
-          const icon = logTypeIcon(log.type);
-          doc.text(`  ${icon} ${log.message}`, margin, y);
-          y += 5;
-        }
-      }
-
-      // Aktivite listesi
-      if (r.activities.length > 0) {
-        y += 3;
-        checkPage(10);
-        doc.setFontSize(11);
-        doc.setTextColor(30, 64, 175);
-        doc.text('Aktiviteler:', margin, y);
-        y += 5;
-
-        doc.setFontSize(9);
-        doc.setTextColor(107, 114, 128);
-        checkPage(7);
-        doc.text('Ad', margin + 2, y);
-        doc.text('Kategori', margin + 75, y);
-        doc.text('Tarih', margin + 120, y);
-        doc.text('Durum', margin + 155, y);
-        y += 1;
-        drawLine();
-        y += 2;
-
-        doc.setTextColor(55, 65, 81);
-        for (const act of r.activities.slice(0, 20)) {
-          checkPage(6);
-          const name = act.name.length > 35 ? act.name.substring(0, 35) + '...' : act.name;
-          doc.text(name, margin + 2, y);
-          doc.text(act.categoryName || '-', margin + 75, y);
-          doc.text(act.createdAt ? new Date(act.createdAt).toLocaleDateString('tr-TR') : '-', margin + 120, y);
-          doc.text(act.isPublished ? 'Yayinda' : 'Taslak', margin + 155, y);
-          y += 5;
-        }
-        if (r.activities.length > 20) {
-          doc.setTextColor(107, 114, 128);
-          doc.text(`  ... ve ${r.activities.length - 20} aktivite daha`, margin, y);
-          y += 5;
-        }
-      }
-
-      y += 5;
-      if (i < reports.length - 1) {
-        drawLine();
-        y += 5;
-      }
+  const logTypeLabel = (logType: string): string => {
+    switch (logType) {
+      case 'user':
+        return 'Üye';
+      case 'activity':
+        return 'Aktivite';
+      case 'notification':
+        return 'Bildirim';
+      case 'news':
+        return 'Haber';
+      case 'announcement':
+        return 'Duyuru';
+      default:
+        return 'Diğer';
     }
-  } else {
-    // Manager raporu
-    const reports = (reportData as any).reports as ManagerReportData[];
-    for (let i = 0; i < reports.length; i++) {
-      const r = reports[i];
-      checkPage(60);
+  };
 
-      doc.setFontSize(14);
-      doc.setTextColor(30, 64, 175);
-      doc.text(`${r.fullName}`, margin, y);
-      y += 6;
-
-      doc.setFontSize(9);
-      doc.setTextColor(107, 114, 128);
-      const info = [r.branchName, r.district, r.email].filter(Boolean).join(' | ');
-      doc.text(info, margin, y);
-      y += 6;
-
-      doc.setFontSize(10);
-      doc.setTextColor(55, 65, 81);
-
-      const summaryLines = [
-        `Yonetilen Uye: ${r.summary.managedMembers} (${r.summary.activeMembers} aktif)`,
-        `Yeni Uye: ${r.summary.newMembers}`,
-        `Guncellenen Uye: ${r.summary.updatedMembers}`,
-        `Onaylanan Basvuru: ${r.summary.approvals} | Reddedilen: ${r.summary.rejections}`,
-        `Toplam Aktivite: ${r.summary.totalActivities}`,
-        `Bildirim Gonderildi: ${r.summary.notificationsSent}`,
-        `Haber: ${r.summary.newsCreated} | Duyuru: ${r.summary.announcementsCreated}`,
-      ];
-
-      for (const line of summaryLines) {
-        checkPage(6);
-        doc.text(`  * ${line}`, margin, y);
-        y += 5;
-      }
-
-      // Log satırları
-      if (r.logEntries.length > 0) {
-        y += 3;
-        checkPage(10);
-        doc.setFontSize(11);
-        doc.setTextColor(30, 64, 175);
-        doc.text('Islem Ozeti:', margin, y);
-        y += 5;
-
-        doc.setFontSize(10);
-        doc.setTextColor(55, 65, 81);
-        for (const log of r.logEntries) {
-          checkPage(6);
-          const icon = logTypeIcon(log.type);
-          doc.text(`  ${icon} ${log.message}`, margin, y);
-          y += 5;
-        }
-      }
-
-      // Aktivite listesi
-      if (r.activities.length > 0) {
-        y += 3;
-        checkPage(10);
-        doc.setFontSize(11);
-        doc.setTextColor(30, 64, 175);
-        doc.text('Aktiviteler:', margin, y);
-        y += 5;
-
-        doc.setFontSize(9);
-        doc.setTextColor(107, 114, 128);
-        checkPage(7);
-        doc.text('Ad', margin + 2, y);
-        doc.text('Kategori', margin + 75, y);
-        doc.text('Tarih', margin + 120, y);
-        doc.text('Durum', margin + 155, y);
-        y += 1;
-        drawLine();
-        y += 2;
-
-        doc.setTextColor(55, 65, 81);
-        for (const act of r.activities.slice(0, 20)) {
-          checkPage(6);
-          const name = act.name.length > 35 ? act.name.substring(0, 35) + '...' : act.name;
-          doc.text(name, margin + 2, y);
-          doc.text(act.categoryName || '-', margin + 75, y);
-          doc.text(act.createdAt ? new Date(act.createdAt).toLocaleDateString('tr-TR') : '-', margin + 120, y);
-          doc.text(act.isPublished ? 'Yayinda' : 'Taslak', margin + 155, y);
-          y += 5;
-        }
-        if (r.activities.length > 20) {
-          doc.setTextColor(107, 114, 128);
-          doc.text(`  ... ve ${r.activities.length - 20} aktivite daha`, margin, y);
-          y += 5;
-        }
-      }
-
-      y += 5;
-      if (i < reports.length - 1) {
-        drawLine();
-        y += 5;
-      }
+  const activityRows = (
+    activities: Array<{ name: string; description?: string; categoryName?: string; createdAt: string; createdByName?: string }>
+  ) => {
+    if (!activities || activities.length === 0) {
+      return '<tr><td colspan="5" class="muted">Aktivite bulunamadı</td></tr>';
     }
-  }
+    return activities
+      .map(
+        (act) => `
+          <tr>
+            <td>${escapeHtml(act.name)}</td>
+            <td>${escapeHtml(act.description || '-')}</td>
+            <td>${escapeHtml(act.categoryName || '-')}</td>
+            <td>${escapeHtml(formatDateTime(act.createdAt))}</td>
+            <td>${escapeHtml(act.createdByName || '-')}</td>
+          </tr>
+        `
+      )
+      .join('');
+  };
 
-  // Dosya adı
+  const logRows = (entries: Array<{ date: string; message: string; type: string; actor?: string }>) => {
+    if (!entries || entries.length === 0) {
+      return '<tr><td colspan="4" class="muted">İşlem kaydı bulunamadı</td></tr>';
+    }
+    return entries
+      .map(
+        (log) => `
+          <tr>
+            <td class="log-date">${escapeHtml(formatDateTime(log.date))}</td>
+            <td class="log-type">${escapeHtml(logTypeLabel(log.type))}</td>
+            <td class="log-actor">${escapeHtml(log.actor || '-')}</td>
+            <td class="log-message">${escapeHtml(log.message)}</td>
+          </tr>
+        `
+      )
+      .join('');
+  };
+
+  const reportCardsHtml = type === 'branch'
+    ? ((reportData.reports as BranchReportData[])
+        .map(
+          (r, index) => `
+            <section class="report-card ${index > 0 ? 'page-break' : ''}">
+              <div class="card-head">
+                <h2>${escapeHtml(r.branchName)}</h2>
+                <p>${escapeHtml(r.managers.length > 0 ? `Yöneticiler: ${r.managers.map((m) => m.fullName).join(', ')}` : 'Yönetici bilgisi yok')}</p>
+              </div>
+
+              <h3>Özet</h3>
+              <table>
+                <tbody>
+                  <tr><th>Toplam Üye</th>${numberCell(r.summary.totalMembers)}</tr>
+                  <tr><th>Aktif Üye</th>${numberCell(r.summary.activeMembers)}</tr>
+                  <tr><th>Yeni Üye</th>${numberCell(r.summary.newMembers)}</tr>
+                  <tr><th>Güncellenen Üye</th>${numberCell(r.summary.updatedMembers)}</tr>
+                  <tr><th>Toplam Aktivite</th>${numberCell(r.summary.totalActivities)}</tr>
+                  <tr><th>Gönderilen Bildirim</th>${numberCell(r.summary.notificationsSent)}</tr>
+                </tbody>
+              </table>
+
+              <h3>İşlem Özeti</h3>
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Tür</th>
+                    <th>Yapan</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${logRows(r.logEntries)}
+                </tbody>
+              </table>
+
+              <h3>Aktiviteler</h3>
+              <p class="activity-summary">${escapeHtml(categorySummaryLine(r.summary.activitiesByCategory))}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Aktivite Adı</th>
+                    <th>Açıklama</th>
+                    <th>Kategori</th>
+                    <th>Oluşturulma</th>
+                    <th>Oluşturan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${activityRows(r.activities)}
+                </tbody>
+              </table>
+            </section>
+          `
+        )
+        .join(''))
+    : ((reportData.reports as ManagerReportData[])
+        .map(
+          (r, index) => `
+            <section class="report-card ${index > 0 ? 'page-break' : ''}">
+              <div class="card-head">
+                <h2>${escapeHtml(r.fullName)}</h2>
+                <p>${escapeHtml([r.branchName, r.district, r.email].filter(Boolean).join(' • '))}</p>
+              </div>
+
+              <h3>Özet</h3>
+              <table>
+                <tbody>
+                  <tr><th>Yönetilen Üye</th>${numberCell(r.summary.managedMembers)}</tr>
+                  <tr><th>Aktif Üye</th>${numberCell(r.summary.activeMembers)}</tr>
+                  <tr><th>Yeni Üye</th>${numberCell(r.summary.newMembers)}</tr>
+                  <tr><th>Güncellenen Üye</th>${numberCell(r.summary.updatedMembers)}</tr>
+                  <tr><th>Onaylanan Başvuru</th>${numberCell(r.summary.approvals)}</tr>
+                  <tr><th>Reddedilen Başvuru</th>${numberCell(r.summary.rejections)}</tr>
+                  <tr><th>Toplam Aktivite</th>${numberCell(r.summary.totalActivities)}</tr>
+                  <tr><th>Gönderilen Bildirim</th>${numberCell(r.summary.notificationsSent)}</tr>
+                </tbody>
+              </table>
+
+              <h3>İşlem Özeti</h3>
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Tür</th>
+                    <th>Yapan</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${logRows(r.logEntries)}
+                </tbody>
+              </table>
+
+              <h3>Aktiviteler</h3>
+              <p class="activity-summary">${escapeHtml(categorySummaryLine(r.summary.activitiesByCategory))}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Aktivite Adı</th>
+                    <th>Açıklama</th>
+                    <th>Kategori</th>
+                    <th>Oluşturulma</th>
+                    <th>Oluşturan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${activityRows(r.activities)}
+                </tbody>
+              </table>
+            </section>
+          `
+        )
+        .join(''));
+
+  const reportTitle = type === 'branch' ? 'Şube Performans Raporu' : 'Yönetici Performans Raporu';
+
+  const html = `
+    <!doctype html>
+    <html lang="tr">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${escapeHtml(reportTitle)}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+
+          * { box-sizing: border-box; }
+
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Inter, 'Segoe UI', Roboto, Arial, sans-serif;
+            color: #111827;
+            background: #f8fafc;
+          }
+
+          .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+
+          .page-head {
+            background: #ffffff;
+            border: 1px solid #dbeafe;
+            border-left: 6px solid #1d4ed8;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 14px;
+          }
+
+          .page-head h1 {
+            margin: 0 0 8px;
+            font-size: 22px;
+            color: #1d4ed8;
+          }
+
+          .meta {
+            margin: 0;
+            color: #4b5563;
+            font-size: 13px;
+            line-height: 1.55;
+          }
+
+          .note {
+            margin-top: 8px;
+            color: #b91c1c;
+            font-size: 12px;
+          }
+
+          .report-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            overflow: visible;
+          }
+
+          .card-head {
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 10px;
+          }
+
+          .card-head h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #1e3a8a;
+          }
+
+          .card-head p {
+            margin: 6px 0 0;
+            color: #6b7280;
+            font-size: 12px;
+          }
+
+          h3 {
+            margin: 14px 0 8px;
+            font-size: 13px;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+          }
+
+          .activity-summary {
+            margin: -2px 0 8px;
+            padding: 7px 9px;
+            border: 1px dashed #bfdbfe;
+            border-radius: 6px;
+            background: #f8fbff;
+            color: #1e3a8a;
+            font-size: 11px;
+            line-height: 1.45;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            background: #fff;
+            table-layout: fixed;
+          }
+
+          th, td {
+            border: 1px solid #e5e7eb;
+            padding: 7px 8px;
+            text-align: left;
+            vertical-align: top;
+          }
+
+          thead th {
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-weight: 700;
+          }
+
+          tbody th {
+            width: 48%;
+            background: #f9fafb;
+            font-weight: 600;
+          }
+
+          .num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+          }
+
+          .muted {
+            color: #6b7280;
+            text-align: center;
+            font-style: italic;
+          }
+
+          .log-table .log-date,
+          .log-table th:nth-child(1) {
+            width: 16%;
+          }
+
+          .log-table .log-type,
+          .log-table th:nth-child(2) {
+            width: 12%;
+          }
+
+          .log-table .log-actor,
+          .log-table th:nth-child(3) {
+            width: 20%;
+          }
+
+          .log-table .log-message,
+          .log-table th:nth-child(4) {
+            width: 52%;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+          }
+
+          .page-break {
+            page-break-before: always;
+          }
+
+          @media print {
+            body {
+              background: #ffffff;
+            }
+
+            .container {
+              max-width: none;
+              padding: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <main class="container">
+          <header class="page-head">
+            <h1>${escapeHtml(reportTitle)}</h1>
+            <p class="meta"><strong>Rapor Tarihi:</strong> ${escapeHtml(generatedAt)}</p>
+            <p class="meta"><strong>Dönem:</strong> ${escapeHtml(periodStart)} - ${escapeHtml(periodEnd)}</p>
+            <p class="meta"><strong>Kayıt Sayısı:</strong> ${escapeHtml(reportData.reports.length)}</p>
+            <p class="note">* Bu rapor sadece seçili tarih aralığındaki aktiviteleri gösterir.</p>
+          </header>
+
+          ${reportCardsHtml}
+        </main>
+      </body>
+    </html>
+  `;
+
+  // ===== PDF Oluşturma: Her bölümü ayrı canvas → ayrı sayfa =====
+  const html2canvasModule = await import('html2canvas');
+  const html2canvas = html2canvasModule.default;
+  const jsPDFModule = await import('jspdf');
+  const { jsPDF } = jsPDFModule;
+
   const dateStr = new Date().toISOString().split('T')[0];
   const fileName = type === 'branch'
     ? `sube-performans-raporu-${dateStr}.pdf`
     : `yonetici-performans-raporu-${dateStr}.pdf`;
 
-  doc.save(fileName);
-}
+  // HTML'i iframe ile render et (style isolation)
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '794px';
+  iframe.style.height = '20000px';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
 
-function logTypeIcon(type: string): string {
-  switch (type) {
-    case 'user': return '[Uye]';
-    case 'activity': return '[Aktivite]';
-    case 'notification': return '[Bildirim]';
-    case 'news': return '[Haber]';
-    case 'announcement': return '[Duyuru]';
-    default: return '[+]';
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    throw new Error('iframe oluşturulamadı.');
   }
+
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+
+  await new Promise((resolve) => setTimeout(resolve, 400));
+
+  // Bölümleri topla: header + her report-card ayrı ayrı
+  const cssText = iframeDoc.querySelector('style')?.textContent || '';
+  const headerEl = iframeDoc.querySelector('header.page-head');
+  const sectionEls = iframeDoc.querySelectorAll('section.report-card');
+
+  interface SectionInfo {
+    label: string;
+    el: HTMLElement;
+  }
+
+  const sections: SectionInfo[] = [];
+
+  if (headerEl) {
+    sections.push({ label: 'header', el: headerEl as HTMLElement });
+  }
+  sectionEls.forEach((sec, i) => {
+    sections.push({ label: `section-${i}`, el: sec as HTMLElement });
+  });
+
+  if (sections.length === 0) {
+    // Fallback: tüm body
+    const body = iframeDoc.querySelector('main') || iframeDoc.body;
+    sections.push({ label: 'full', el: body as HTMLElement });
+  }
+
+  // Yardımcı: Bir HTML elementini ekran-dışı div'e koyup canvas'a çevir
+  const renderToCanvas = async (sourceEl: HTMLElement, css: string): Promise<HTMLCanvasElement> => {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.left = '-10000px';
+    wrapper.style.top = '0';
+    wrapper.style.width = '794px';
+    wrapper.style.background = '#ffffff';
+
+    const style = document.createElement('style');
+    style.textContent = css;
+    wrapper.appendChild(style);
+
+    const clone = sourceEl.cloneNode(true) as HTMLElement;
+    clone.classList.remove('page-break');
+    clone.style.margin = '0';
+    wrapper.appendChild(clone);
+
+    document.body.appendChild(wrapper);
+    await new Promise((r) => setTimeout(r, 50));
+
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: 794,
+    });
+
+    document.body.removeChild(wrapper);
+    return canvas;
+  };
+
+  // A4 boyutları (mm)
+  const pageW = 210;
+  const pageH = 297;
+  const margin = 10;
+  const usableW = pageW - margin * 2; // 190mm
+  const usableH = pageH - margin * 2; // 277mm
+
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  let isFirstPage = true;
+
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    const canvas = await renderToCanvas(sec.el, cssText);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+
+    // Canvas'ı usableW'ye sığdır, yüksekliği oranla
+    const imgWmm = usableW;
+    const imgHmm = (canvasH / canvasW) * usableW;
+
+    if (imgHmm <= usableH) {
+      // Tek sayfaya sığıyor
+      if (!isFirstPage) pdf.addPage();
+      isFirstPage = false;
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgWmm, imgHmm);
+    } else {
+      // Birden fazla sayfaya bölünmesi gerekiyor
+      // Canvas'ı sayfa yüksekliğine göre dilimle
+      const pxPerMm = canvasW / usableW;
+      const sliceHeightPx = Math.floor(usableH * pxPerMm);
+      let yOffset = 0;
+      let sliceIndex = 0;
+
+      while (yOffset < canvasH) {
+        const currentSliceH = Math.min(sliceHeightPx, canvasH - yOffset);
+
+        // Bu dilimi ayrı canvas'a çiz
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvasW;
+        sliceCanvas.height = currentSliceH;
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvasW, currentSliceH);
+          ctx.drawImage(
+            canvas,
+            0, yOffset, canvasW, currentSliceH,
+            0, 0, canvasW, currentSliceH,
+          );
+        }
+
+        const sliceImg = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const sliceHmm = (currentSliceH / pxPerMm);
+
+        if (!isFirstPage || sliceIndex > 0) pdf.addPage();
+        isFirstPage = false;
+        pdf.addImage(sliceImg, 'JPEG', margin, margin, imgWmm, sliceHmm);
+
+        yOffset += currentSliceH;
+        sliceIndex++;
+      }
+    }
+  }
+
+  // iframe temizle
+  document.body.removeChild(iframe);
+
+  // PDF'i indir
+  pdf.save(fileName);
 }

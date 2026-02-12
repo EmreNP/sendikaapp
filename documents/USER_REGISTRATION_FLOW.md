@@ -34,7 +34,8 @@ SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. TEMEL KAYIT (Register Basic)                                │
-│  - İsim, Soyisim, Email, Şifre, Doğum Tarihi, Cinsiyet         │
+│  - İsim, Soyisim, Telefon, Email, Şifre, Doğum Tarihi,        │
+│    Görev İlçesi, Kadro Ünvanı, Cinsiyet                        │
 │  └─> Status: PENDING_DETAILS                                    │
 │      └─> Custom Token döner                                     │
 └─────────────────────────────────────────────────────────────────┘
@@ -42,7 +43,8 @@ SendikaApp kullanıcı kayıt süreci, güvenli ve kontrollü bir iki aşamalı 
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  2. DETAYLI BİLGİLER (Register Details)                         │
-│  - TC Kimlik No, Adres, Telefon, Şube seçimi, vb.              │
+│  - TC Kimlik No, Baba Adı, Anne Adı, Doğum Yeri, Öğrenim,     │
+│    Kurum Sicil, Kadro Ünvan Kodu, Şube seçimi                  │
 │  └─> Status: PENDING_BRANCH_REVIEW                              │
 └─────────────────────────────────────────────────────────────────┘
                             │
@@ -75,12 +77,17 @@ Gerekmez (Public endpoint)
 {
   "firstName": "Ahmet",
   "lastName": "Yılmaz",
+  "phone": "05551234567",
   "email": "ahmet@example.com",
   "password": "SecurePass123",
   "birthDate": "1990-01-01",
+  "district": "Selçuklu",
+  "kadroUnvani": "Memur",
   "gender": "male"
 }
 ```
+
+> **Not:** Admin veya Branch Manager authenticated olarak istek gönderirse, `branchId` ekleyerek kullanıcıyı doğrudan şubeye atayabilir.
 
 ### Validation Kuralları
 
@@ -88,21 +95,26 @@ Gerekmez (Public endpoint)
 |------|---------|----------|
 | `firstName` | ✅ | En az 2, en fazla 50 karakter, sadece harf ve Türkçe karakterler |
 | `lastName` | ✅ | En az 2, en fazla 50 karakter, sadece harf ve Türkçe karakterler |
+| `phone` | ✅ | 10-11 haneli numara, benzersiz olmalı |
 | `email` | ✅ | Geçerli email formatı, benzersiz olmalı |
 | `password` | ✅ | En az 8 karakter, en az 1 büyük harf, 1 küçük harf, 1 rakam |
 | `birthDate` | ✅ | ISO format (YYYY-MM-DD), 18-120 yaş arası |
+| `district` | ✅ | Görev ilçesi (Konya ilçeleri) |
+| `kadroUnvani` | ✅ | Kadro ünvanı |
 | `gender` | ✅ | `"male"` veya `"female"` |
+| `branchId` | ❌ | Admin/Branch Manager için opsiyonel şube ataması |
 
 ### İşlem Adımları
 
-1. **Validasyon**: Tüm alanlar validate edilir
+1. **Validasyon**: Tüm alanlar validate edilir (email/telefon benzersizlik kontrolü dahil)
 2. **Firebase Auth**: Kullanıcı Firebase Authentication'da oluşturulur
-   - Email verified: `false` (tüm kullanıcılar email doğrulamalı)
+   - Email verified: `true`
 3. **Firestore Belgesi**: `users` koleksiyonunda kullanıcı belgesi oluşturulur
-   - `status`: `PENDING_DETAILS`
+   - `status`: `PENDING_DETAILS` (admin oluşturursa `ACTIVE`)
    - `role`: `USER`
    - `isActive`: `true`
-4. **Email Doğrulama**: Email doğrulama linki gönderilir
+   - Tüm temel bilgiler (firstName, lastName, phone, email, birthDate, district, kadroUnvani, gender)
+4. **Branch Ataması**: Admin/Branch Manager ise branchId ile şube ataması yapılır
 5. **Custom Token**: Client tarafında kullanılmak üzere custom token oluşturulur
 6. **Registration Log**: İşlem loglanır (`register_basic` action)
 
@@ -146,35 +158,33 @@ POST /api/auth/register/details
   "tcKimlikNo": "12345678901",
   "fatherName": "Mehmet",
   "motherName": "Ayşe",
-  "birthPlace": "İstanbul",
-  "education": "lise",
+  "birthPlace": "Konya",
+  "education": "lisans",
   "kurumSicil": "12345",
-  "kadroUnvani": "Memur",
   "kadroUnvanKodu": "M001",
-  "phone": "05551234567",
-  "address": "Örnek Mahalle, Örnek Sokak No:1",
-  "city": "İstanbul",
-  "district": "Kadıköy"
+  "isMemberOfOtherUnion": false
 }
 ```
+
+> **Admin Kullanımı:** Admin kullanıcılar `userId` ile başka bir kullanıcının detaylarını tamamlayabilir ve `firstName`, `lastName`, `email` ile override yapabilir.
 
 ### Validation Kuralları
 
 | Alan | Zorunlu | Kurallar |
 |------|---------|----------|
 | `branchId` | ✅ | Geçerli branch ID, branch aktif olmalı |
-| `tcKimlikNo` | ❌ | 11 haneli, TC Kimlik algoritma kontrolü, benzersiz olmalı |
-| `fatherName` | ❌ | En az 2 karakter, sadece harf ve Türkçe karakterler |
-| `motherName` | ❌ | En az 2 karakter, sadece harf ve Türkçe karakterler |
-| `birthPlace` | ❌ | Serbest metin |
-| `education` | ❌ | `"ilkögretim"`, `"lise"`, `"yüksekokul"` |
-| `kurumSicil` | ❌ | Serbest metin |
-| `kadroUnvani` | ❌ | Serbest metin |
-| `kadroUnvanKodu` | ❌ | Serbest metin |
-| `phone` | ❌ | Türkiye telefon formatı (`+90` veya `0` ile başlayan 10 haneli) |
-| `address` | ❌ | Serbest metin |
-| `city` | ❌ | Serbest metin |
-| `district` | ❌ | Serbest metin |
+| `tcKimlikNo` | ✅ | 11 haneli, TC Kimlik algoritma kontrolü, benzersiz olmalı |
+| `fatherName` | ✅ | Baba adı |
+| `motherName` | ✅ | Anne adı |
+| `birthPlace` | ✅ | Doğum yeri |
+| `education` | ✅ | `"ilkogretim"`, `"lise"`, `"on_lisans"`, `"lisans"`, `"yuksek_lisans"`, `"doktora"` |
+| `kurumSicil` | ✅ | Kurum sicil numarası |
+| `kadroUnvanKodu` | ✅ | Kadro ünvan kodu |
+| `isMemberOfOtherUnion` | ❌ | Boolean - başka bir sendikaya üye mi? |
+| `userId` | ❌ | Sadece admin/superadmin - hedef kullanıcı ID |
+| `firstName` | ❌ | Admin override için |
+| `lastName` | ❌ | Admin override için |
+| `email` | ❌ | Admin override için |
 
 ### İşlem Adımları
 

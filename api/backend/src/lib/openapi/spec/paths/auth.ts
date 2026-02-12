@@ -2,7 +2,7 @@ export const authPaths = {
   '/api/auth/register/basic': {
     post: {
       summary: 'Temel Kayıt',
-      description: 'Kullanıcının temel bilgileriyle kayıt olmasını sağlar',
+      description: 'Kullanıcının temel bilgileriyle kayıt olmasını sağlar. Admin/branch_manager authenticated ise branchId göndererek kullanıcıyı doğrudan şubeye atayabilir.',
       tags: ['Auth'],
       requestBody: {
         required: true,
@@ -10,14 +10,18 @@ export const authPaths = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['firstName', 'lastName', 'email', 'password', 'birthDate', 'gender'],
+              required: ['firstName', 'lastName', 'phone', 'email', 'password', 'birthDate', 'district', 'kadroUnvani', 'gender'],
               properties: {
                 firstName: { type: 'string', minLength: 2, maxLength: 50, example: 'Ahmet' },
                 lastName: { type: 'string', minLength: 2, maxLength: 50, example: 'Yılmaz' },
+                phone: { type: 'string', pattern: '^[0-9]{10,11}$', description: '10-11 haneli telefon numarası', example: '05551234567' },
                 email: { type: 'string', format: 'email', example: 'ahmet@example.com' },
                 password: { type: 'string', minLength: 8, example: 'SecurePass123' },
-                birthDate: { type: 'string', format: 'date', example: '1990-01-01' },
+                birthDate: { type: 'string', format: 'date', description: 'ISO format (YYYY-MM-DD), en az 18 yaşında', example: '1990-01-01' },
+                district: { type: 'string', description: 'Görev ilçesi (Konya ilçeleri)', example: 'Selçuklu' },
+                kadroUnvani: { type: 'string', description: 'Kadro Ünvanı', example: 'Memur' },
                 gender: { type: 'string', enum: ['male', 'female'], example: 'male' },
+                branchId: { type: 'string', description: 'Opsiyonel - Admin/branch_manager tarafından şube ataması için', example: 'branch-id-123' },
               },
             },
           },
@@ -46,7 +50,7 @@ export const authPaths = {
   '/api/auth/register/details': {
     post: {
       summary: 'Detaylı Bilgiler',
-      description: 'Kullanıcının detaylı bilgilerini ekler',
+      description: 'Kullanıcının detaylı bilgilerini ekler (2. adım). Admin kullanıcılar userId parametresiyle başka kullanıcının detaylarını tamamlayabilir.',
       tags: ['Auth'],
       security: [{ bearerAuth: [] }],
       requestBody: {
@@ -55,21 +59,21 @@ export const authPaths = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['branchId','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani','kadroUnvanKodu','phone','address','city','district'],
+              required: ['branchId', 'tcKimlikNo', 'fatherName', 'motherName', 'birthPlace', 'education', 'kurumSicil', 'kadroUnvanKodu'],
               properties: {
-                branchId: { type: 'string', example: 'branch-id-123' },
-                tcKimlikNo: { type: 'string', pattern: '^[0-9]{11}$', example: '12345678901' },
-                fatherName: { type: 'string', example: 'Mehmet' },
-                motherName: { type: 'string', example: 'Ayşe' },
-                birthPlace: { type: 'string', example: 'İstanbul' },
-                education: { type: 'string', enum: ['ilkokul','ortaokul','lise','on_lisans','lisans','yuksek_lisans','doktora'], example: 'lise' },
-                kurumSicil: { type: 'string', example: '12345' },
-                kadroUnvani: { type: 'string', example: 'Memur' },
-                kadroUnvanKodu: { type: 'string', example: 'M001' },
-                phone: { type: 'string', example: '05551234567' },
-                address: { type: 'string', example: 'Örnek Mahalle, Örnek Sokak No:1' },
-                city: { type: 'string', example: 'İstanbul' },
-                district: { type: 'string', example: 'Kadıköy' },
+                branchId: { type: 'string', description: 'Şube ID (zorunlu, aktif şube olmalı)', example: 'branch-id-123' },
+                tcKimlikNo: { type: 'string', pattern: '^[0-9]{11}$', description: '11 haneli TC Kimlik No, algoritmik doğrulama yapılır', example: '12345678901' },
+                fatherName: { type: 'string', description: 'Baba adı', example: 'Mehmet' },
+                motherName: { type: 'string', description: 'Anne adı', example: 'Ayşe' },
+                birthPlace: { type: 'string', description: 'Doğum yeri', example: 'Konya' },
+                education: { type: 'string', enum: ['ilkogretim', 'lise', 'on_lisans', 'lisans', 'yuksek_lisans', 'doktora'], description: 'Öğrenim seviyesi', example: 'lisans' },
+                kurumSicil: { type: 'string', description: 'Kurum sicil numarası', example: '12345' },
+                kadroUnvanKodu: { type: 'string', description: 'Kadro ünvan kodu', example: 'M001' },
+                isMemberOfOtherUnion: { type: 'boolean', description: 'Başka bir sendikaya üye mi? (opsiyonel)', example: false },
+                userId: { type: 'string', description: 'Admin için: hedef kullanıcı ID (opsiyonel, sadece admin/superadmin)', example: 'user-uid-456' },
+                firstName: { type: 'string', description: 'Admin override: kullanıcı adı (opsiyonel)', example: 'Ahmet' },
+                lastName: { type: 'string', description: 'Admin override: kullanıcı soyadı (opsiyonel)', example: 'Yılmaz' },
+                email: { type: 'string', description: 'Admin override: kullanıcı e-postası (opsiyonel)', example: 'ahmet@example.com' },
               },
             },
           },
