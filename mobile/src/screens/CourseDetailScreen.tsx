@@ -278,8 +278,8 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
                         }
 
                         if (c.type === 'document' && c.url) {
-                          // open document using native PDF viewer screen
-                          navigation.navigate('PDFViewer' as any, { url: c.url, title: c.title });
+                          // open document using WebView-based Document screen (more stable)
+                          navigation.navigate('Document' as any, { url: c.url, title: c.title });
                           return;
                         }
 

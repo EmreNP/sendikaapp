@@ -222,21 +222,41 @@ class ApiService {
 
   // Branches
   async getBranches(): Promise<Branch[]> {
-    const response = await this.request<{ success: boolean; data: Branch[] }>(
+    // Backend may return different shapes:
+    // - { success: true, branches: Branch[], total, page }
+    // - { success: true, data: { branches: Branch[] } }
+    // - { success: true, data: Branch[] }
+    const response = await this.request<any>(
       API_ENDPOINTS.BRANCHES.BASE,
       {},
       true
     );
-    return response.data;
+
+    if (Array.isArray(response.branches)) return response.branches;
+    if (response.data) {
+      if (Array.isArray(response.data.branches)) return response.data.branches;
+      if (Array.isArray(response.data)) return response.data;
+    }
+
+    // Fallback empty list
+    return [];
   }
 
   async getBranch(id: string): Promise<Branch> {
-    const response = await this.request<{ success: boolean; data: Branch }>(
+    const response = await this.request<any>(
       API_ENDPOINTS.BRANCHES.BY_ID(id),
       {},
       true
     );
-    return response.data;
+
+    if (response.branch) return response.branch;
+    if (response.data) {
+      if (response.data.branch) return response.data.branch;
+      // if data itself is the branch object
+      if (typeof response.data === 'object' && !Array.isArray(response.data)) return response.data;
+    }
+
+    throw new Error('Branch not found');
   }
 
   // News

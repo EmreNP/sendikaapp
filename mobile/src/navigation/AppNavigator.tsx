@@ -31,6 +31,8 @@ import {
   DistrictRepresentativeScreen,
   PartnerInstitutionsScreen,
   PartnerDetailScreen,
+  DocumentScreen,
+  // PDFViewerScreen, // Native PDF viewer commented out to avoid crashes
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -120,7 +122,6 @@ export const AppNavigator = () => {
             <Stack.Screen name="MainTabs" component={MainTabs} />
             <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
             <Stack.Screen name="Test" component={TestScreen} />
-            <Stack.Screen name="PDFViewer" component={PDFViewerScreen} />
             <Stack.Screen name="Document" component={DocumentScreen} />
             <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
             <Stack.Screen name="AllNews" component={AllNewsScreen} />
