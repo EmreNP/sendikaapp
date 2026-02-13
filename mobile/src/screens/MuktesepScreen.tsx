@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { calculateMuktesep, MuktesepFormData } from '../utils/muktesepCalculator';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
@@ -62,6 +63,7 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
   const [mbstsScore, setMbstsScore] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [calculatedScore, setCalculatedScore] = useState(0);
+  const [calcResult, setCalcResult] = useState<any /* CalculationResult | null */>(null);
 
   // Front'tan birebir - toggleEducation
   const toggleEducation = (id: string) => {
@@ -79,85 +81,45 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
 
   // Eski uygulamadaki formüle göre güncellendi
   const handleCalculate = () => {
-    // MBSTS validation (0-100 range)
-    const mbsts = parseFloat(mbstsScore) || 0;
-    if (mbsts < 0 || mbsts > 100) {
-      Alert.alert(
-        'Geçersiz MBSTS Puanı',
-        'MBSTS puanı 0 ile 100 arasında olmalıdır.',
-        [{ text: 'Tamam' }]
-      );
+    // Merkezi hesaplayıcıyı kullan
+    const formData = {
+      imamHatipLisesi: selectedEducation.includes('imam-hatip'),
+      onLisans: selectedEducation.includes('ilahiyat-onlisans'),
+      digerLisans: selectedEducation.includes('alan-disi-lisans'),
+      ilahiyatFakultesi: selectedEducation.includes('ilahiyat-fakultesi'),
+      yuksekLisans: selectedEducation.includes('yuksek-lisans'),
+      hafizlik: selectedCertificates.includes('hafizlik'),
+      ihtisasKursu: selectedCertificates.includes('ihtisas'),
+      tashihHuruf: selectedCertificates.includes('tashih'),
+      ydsBelgesi: selectedCertificates.includes('yds'),
+      hizmetYili: serviceYears,
+      mbstsScore: mbstsScore,
+    };
+
+    const result = calculateMuktesep(formData as any);
+    if (!result.ok) {
+      // Hata mesajını kullanıcıya göster
+      if (result.code === 'INVALID_MBSTS') {
+        Alert.alert('Geçersiz MBSTS Puanı', result.message, [{ text: 'Tamam' }]);
+      } else {
+        Alert.alert('Hata', result.message || 'Hesaplama yapılamadı.');
+      }
       return;
     }
 
-    // 1. Education Points
-    const educationPoints = selectedEducation.reduce((total, id) => {
-      const option = educationOptions.find((opt) => opt.id === id);
-      return total + (option?.points || 0);
-    }, 0);
+    const r = result.result;
 
-    // 2. Certificate Points
-    const certificatePoints = selectedCertificates.reduce((total, id) => {
-      const option = certificateOptions.find((opt) => opt.id === id);
-      return total + (option?.points || 0);
-    }, 0);
-
-    // 3. Service Points
-    const years = parseInt(serviceYears) || 0;
-    let servicePoints = 0;
-    if (years <= 10) {
-      servicePoints = years * 3;
-    } else {
-      servicePoints = (10 * 3) + ((years - 10) * 1);
-    }
-
-    // 4. Calculate Müktesep base (education + certificate + service)
-    const muktesepBase = educationPoints + certificatePoints + servicePoints;
-    
-    // 5. Apply 20% weight to Müktesep
-    const muktesepScore = muktesepBase * 0.2;
-    
-    // 6. Apply 40% weight to MBSTS
-    const mbsts40Percent = mbsts * 0.4;
-    
-    // 7. Calculate current total
-    const currentTotal = muktesepScore + mbsts40Percent;
-    
-    // 8. Calculate required oral score (70 is minimum passing score)
-    const requiredOralScore = Math.max(0, 70 - currentTotal);
-    
-    // 9. Calculate required oral percentage (oral is 40% of final score)
-    const sozluYuzde = (requiredOralScore / 0.4);
-
-    // Show warnings based on required oral score
+    // Aynı uyarı mantığını koru
     let warningMessage = '';
-    if (requiredOralScore >= 40) {
+    if (r.requiredOralScore >= 40) {
       warningMessage = '\n\n⚠️ Dikkat: Sözlü puanı %100\'den fazla olamaz. Bu tercih için uygun olmayabilirsiniz.';
-    } else if (sozluYuzde >= 90) {
+    } else if (r.sozluYuzde >= 90) {
       warningMessage = '\n\n⚠️ Dikkat: Çok yüksek sözlü puanı gerekiyor. Başka tercihlere de bakmanızı öneririz.';
     }
 
-    // Display result with breakdown
-    const resultMessage = `
-📊 Hesaplama Detayları:
-
-🎓 Müktesep Puanı: ${muktesepScore.toFixed(2)}
-   (Toplam: ${muktesepBase} × %20)
-
-📝 MBSTS Puanı: ${mbsts40Percent.toFixed(2)}
-   (${mbsts} × %40)
-
-📊 Mevcut Toplam: ${currentTotal.toFixed(2)}
-
-🎤 Gerekli Sözlü Puanı: ${requiredOralScore.toFixed(2)}
-   (Yüzde: %${sozluYuzde.toFixed(0)})
-
-🎯 Toplam (70 üzeri): ${(currentTotal + requiredOralScore).toFixed(2)}${warningMessage}
-    `;
-
-    Alert.alert('Hesaplama Sonucu', resultMessage.trim(), [{ text: 'Tamam' }]);
-
-    setCalculatedScore(currentTotal);
+    // Kaydet ve UI'da göster (Alert kaldırıldı — ekran kartı net biçimde gösterecek)
+    setCalcResult(r);
+    setCalculatedScore(r.currentTotalWithMBSTS);
     setShowResult(true);
 
     // Scroll to top
@@ -195,13 +157,41 @@ export const MuktesepScreen: React.FC<MuktesepScreenProps> = ({ navigation }) =>
 
         <View style={styles.content}>
           {/* Result Card - Front: showResult && ... */}
-          {showResult && (
+          {showResult && calcResult && (
             <View style={styles.resultCard}>
-              <Text style={styles.resultLabel}>Toplam Puanınız</Text>
-              <Text style={styles.resultValue}>{calculatedScore.toFixed(2)}</Text>
+              <Text style={styles.sectionTitle}>Hesaplama Sonuçları</Text>
+
+              <Text style={styles.resultSubtitle}>Sözlüden almanız gereken puan</Text>
+              <Text style={styles.bigPercent}>{Number(calcResult.sozluYuzde).toFixed(1)}</Text>
+              <Text style={styles.smallNote}>Minimum geçer not (70) için gereken sözlü puanı.</Text>
+
+              <View style={{ height: 18 }} />
+              <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Tüm Sonuçlar</Text>
+
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Müktesep Puanınız:</Text>
+                <Text style={styles.breakdownValue}>{Number(calcResult.muktesepScore).toFixed(1)}</Text>
+              </View>
+
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>MBSTS %40:</Text>
+                <Text style={styles.breakdownValue}>{Number(calcResult.mbsts40Percent).toFixed(1)}</Text>
+              </View>
+
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Toplam Puan (MBSTS Dahil):</Text>
+                <Text style={styles.breakdownValue}>{Number(calcResult.currentTotalWithMBSTS).toFixed(1)}</Text>
+              </View>
+
+              { (calcResult.requiredOralScore >= 40 || calcResult.sozluYuzde >= 90) && (
+                <Text style={styles.warningText}>
+                  ⚠️ Dikkat: Hesaplanan sözlü puanı yüksek — alternatif tercihlere bakın.
+                </Text>
+              ) }
+
               <TouchableOpacity
                 style={styles.newCalcButton}
-                onPress={() => setShowResult(false)}
+                onPress={() => { setShowResult(false); setCalcResult(null); setCalculatedScore(0); }}
               >
                 <Text style={styles.newCalcText}>Yeni Hesaplama Yap</Text>
               </TouchableOpacity>
@@ -474,6 +464,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2563eb',
     fontWeight: '500',
+  },
+
+  /* Yeni gösterim stilleri */
+  resultSubtitle: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  bigPercent: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#dc2626',
+    marginTop: 8,
+  },
+  smallNote: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 6,
+    borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
+    marginTop: 6,
+  },
+  breakdownLabel: {
+    fontSize: 15,
+    color: '#475569',
+  },
+  breakdownValue: {
+    fontSize: 15,
+    color: '#1e3a8a',
+    fontWeight: '700',
+  },
+  warningText: {
+    marginTop: 10,
+    color: '#b45309',
+    fontSize: 13,
+    textAlign: 'center',
   },
   // Section
   section: {

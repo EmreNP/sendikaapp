@@ -137,21 +137,12 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       valid = false;
     }
 
-    // Şifre - en az 8 karakter, en az 1 büyük harf, 1 küçük harf, 1 rakam
+    // Şifre validasyonu - backend ile uyumlu (min 6 karakter)
     if (!formData.password) {
       newErrors.password = 'Şifre gereklidir';
       valid = false;
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Şifre en az 8 karakter olmalıdır';
-      valid = false;
-    } else if (!/(?=.*[a-z])/.test(formData.password)) {
-      newErrors.password = 'Şifre en az 1 küçük harf içermelidir';
-      valid = false;
-    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
-      newErrors.password = 'Şifre en az 1 büyük harf içermelidir';
-      valid = false;
-    } else if (!/(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Şifre en az 1 rakam içermelidir';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Şifre en az 6 karakter olmalıdır';
       valid = false;
     }
 
@@ -408,7 +399,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.hintText}>En az 8 karakter, 1 büyük harf, 1 küçük harf ve 1 rakam içermelidir</Text>
+                  <Text style={styles.hintText}>Parolanız en az 6 karakter olmalıdır.</Text>
                   {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                 </View>
 
@@ -485,6 +476,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   <Text style={styles.hintText}>Diyanet İşleri'ndeki görev unvanınızı seçin</Text>
                   {errors.kadroUnvani ? <Text style={styles.errorText}>{errors.kadroUnvani}</Text> : null}
                 </View>
+
+
 
                 {/* Gender Selection */}
                 <View style={styles.inputGroup}>
