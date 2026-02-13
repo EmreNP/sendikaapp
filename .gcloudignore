@@ -27,7 +27,7 @@ documents/
 
 # Logs
 *.log
-logs/
+
 
 # IDE
 .vscode/
