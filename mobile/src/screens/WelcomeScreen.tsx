@@ -356,7 +356,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             <Text style={styles.subtitle}>Konya Şubesi</Text>
 
             <View style={styles.taglineContainer}>
-              <Text style={styles.tagline}>İlkeli Cesur ve Kararlı Sendikacılık</Text>
+              <Text style={styles.tagline}>İlkeli, Cesur, Kararlı</Text>
             </View>
           </Animated.View>
 

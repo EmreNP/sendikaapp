@@ -66,15 +66,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
   ];
 
-  // İlçe temsilcisi menü öğesi
-  if (role === 'branch_manager') {
-    menuItems.splice(3, 0, {
-      icon: 'briefcase',
-      label: 'İlçe İşyeri Temsilcisi',
-      action: () => navigation.navigate('DistrictRepresentative' as never),
-    });
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>

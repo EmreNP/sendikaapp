@@ -121,13 +121,11 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
             <View style={styles.sectionIconBg}>
               <Feather name="star" size={20} color="#2563eb" />
             </View>
-            <Text style={styles.sectionTitle}>Milli ve Manevi Değerlerimiz</Text>
+            <Text style={styles.sectionTitle}>İlkemiz</Text>
           </View>
           <View style={styles.contentCard}>
             <Text style={styles.contentText}>
-              Sendikamız, Türk milletinin binlerce yıllık köklü değerlerini ve İslam'ın evrensel prensiplerine bağlı kalarak hareket eder. Vatan sevgisi, millet bilinci, adalet duygusu, dürüstlük, dayanışma ve merhamet gibi milli ve manevi değerlerimiz, tüm faaliyetlerimizin temelini oluşturur.
-              {"\n\n"}
-              Din görevlileri olarak, toplumumuzun maneviyat kaynağı olma sorumluluğumuzun bilincindeyiz. Bu bilinçle, üyelerimizin ve toplumumuzun milli birlik ve beraberliğine katkı sunmayı, ahlaki değerlerin yaşatılmasını ve gelecek nesillere aktarılmasını en öncelikli görevlerimiz arasında görüyoruz.
+              Hizmet anlayışımızın özünü, medeniyetinden aldığımız köklü miras ve sarsılmaz bir milli şuur oluşturur. Sendikal mücadelemizi, inancımızın emrettiği güzel ahlak ve adalet terazisinden sapmadan, vatanımıza ve manevi değerlerimize sadakatle sürdürüyoruz. Hakkı savunmayı bir ibadet, milletimize hizmeti ise en büyük onur sayarak; Anadolu irfanının ışığında, birleştirici ve vakur bir duruşla geleceğe yürüyoruz.
             </Text>
           </View>
         </View>

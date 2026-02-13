@@ -444,47 +444,16 @@ class ApiService {
   }
 
   async sendContactMessage(data: { 
-    name?: string; 
-    email?: string; 
-    phone?: string; 
-    subject?: string; 
+    topicId: string;
     message: string; 
   }): Promise<void> {
-    // Backend format: { topicId: string, message: string }
-    // Frontend format: { name, email, phone, subject, message }
-    
-    // "Genel İletişim" topic'ini bulmaya çalış, bulamazsan ilk topic'i kullan
-    const topics = await this.getTopics();
-    let topicId = topics.find((t: any) => 
-      t.name.toLowerCase().includes('genel') || 
-      t.name.toLowerCase().includes('iletişim') ||
-      t.name.toLowerCase().includes('destek')
-    )?.id;
-    
-    // Eğer hiç uygun topic yoksa, ilk topic'i kullan
-    if (!topicId && topics.length > 0) {
-      topicId = topics[0].id;
-    }
-    
-    if (!topicId) {
-      throw new Error('Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.');
-    }
-    
-    // Mesajı formatıyla gönder
-    let formattedMessage = '';
-    if (data.name) formattedMessage += `Ad Soyad: ${data.name}\n`;
-    if (data.email) formattedMessage += `E-posta: ${data.email}\n`;
-    if (data.phone) formattedMessage += `Telefon: ${data.phone}\n`;
-    if (data.subject) formattedMessage += `Konu: ${data.subject}\n`;
-    formattedMessage += `\nMesaj:\n${data.message}`;
-    
     await this.request(
       API_ENDPOINTS.CONTACT.BASE,
       {
         method: 'POST',
         body: JSON.stringify({ 
-          topicId, 
-          message: formattedMessage 
+          topicId: data.topicId,
+          message: data.message 
         }),
       },
       true
