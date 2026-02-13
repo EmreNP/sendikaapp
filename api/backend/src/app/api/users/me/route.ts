@@ -5,7 +5,7 @@ import { validateName, validateAge, validateUserPhone, validateTCKimlikNo } from
 import { EDUCATION_LEVEL } from '@shared/constants/education';
 import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
-import { generatePublicUrl } from '@/lib/utils/storage';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
 } from '@/lib/utils/response';
@@ -31,9 +31,14 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         ...userData,
       };
       
-      // Generate public URL for document if path exists
+      // Generate signed URL for document if path exists
       if (userData?.documentPath) {
-        userWithData.documentUrl = generatePublicUrl(userData.documentPath);
+        try {
+          userWithData.documentUrl = await generateSignedUrl(userData.documentPath);
+        } catch (error) {
+          logger.error('Failed to generate signed URL for current user:', error);
+          // documentUrl will remain undefined if generation fails
+        }
       }
       
       return successResponse(

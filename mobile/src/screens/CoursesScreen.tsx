@@ -98,12 +98,31 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
   const [lessonsMap, setLessonsMap] = useState<Record<string, any[]>>({});
   const [loadingLessons, setLoadingLessons] = useState<string | null>(null);
+  
+  // lessonsMap'e ref olarak erişim için
+  const lessonsMapRef = React.useRef<Record<string, any[]>>({});
+  lessonsMapRef.current = lessonsMap;
 
-  const loadLessons = async (trainingId: string) => {
-    if (lessonsMap[trainingId]) return; // already loaded
+  const loadLessons = useCallback(async (trainingId: string) => {
+    // Ref üzerinden senkron kontrol yap
+    if (lessonsMapRef.current[trainingId]) {
+      logger.info(`[loadLessons] Already loaded for training: ${trainingId}`);
+      return;
+    }
+    
     try {
       setLoadingLessons(trainingId);
+      logger.info(`[loadLessons] Fetching lessons for training: ${trainingId}`);
       const lessons = await ApiService.getLessons(trainingId);
+      logger.info(`[loadLessons] Got ${lessons?.length || 0} lessons:`, JSON.stringify(lessons));
+      
+      // Lessons boş ise hemen set et ve çık
+      if (!lessons || lessons.length === 0) {
+        logger.warn(`[loadLessons] No lessons found for training: ${trainingId}`);
+        setLessonsMap(prev => ({ ...prev, [trainingId]: [] }));
+        setLoadingLessons(null);
+        return;
+      }
       
       // Her lesson için içerik sayılarını hesapla - tek API çağrısı ile (all)
       const lessonsWithCounts = await Promise.all(
@@ -137,7 +156,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     } finally {
       setLoadingLessons(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (canAccessTrainings) {
@@ -183,6 +202,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       fetchTrainings(page + 1);
     }
   }, [loadingMore, hasMore, page]);
+
 
   if (!canAccessTrainings) {
     return (
@@ -253,6 +273,9 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       </SafeAreaView>
     );
   }
+
+  const keyExtractor = useCallback((item: Training) => item.id, []);
+
 
   const renderTrainingItem = useCallback(({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
@@ -519,9 +542,58 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         )}
       </View>
     );
-  }, [expandedTrainingId, lessonsMap, loadingLessons, navigation]);
+  }, [expandedTrainingId, lessonsMap, loadingLessons, navigation, loadLessons]);
 
-  const keyExtractor = useCallback((item: Training) => item.id, []);
+  if (!canAccessTrainings) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Eğitimler</Text>
+        </View>
+        <View style={styles.lockedContainer}>
+          <View style={styles.lockedIcon}>
+            <Feather name="lock" size={48} color="#4338ca" />
+          </View>
+          <Text style={styles.lockedTitle}>Eğitimlere Erişim Kısıtlı</Text>
+          <Text style={styles.lockedText}>
+            {isPendingDetails
+              ? 'Eğitimlere erişebilmek için üyelik bilgilerinizi tamamlamanız gerekmektedir.'
+              : 'Üyelik başvurunuz onay bekliyor. Onaylandıktan sonra eğitimlere erişebilirsiniz.'}
+          </Text>
+          {isPendingDetails && (
+            <TouchableOpacity
+              style={styles.membershipButton}
+              onPress={() => navigation.navigate('Membership' as never)}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#4338ca', '#1e40af']}
+                style={styles.membershipButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Feather name="user-plus" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Eğitimler</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4338ca" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

@@ -18,6 +18,13 @@ service firebase.storage {
       allow write: if isAdmin();
     }
     
+    // User registration forms - authenticated users can read
+    // This allows signed URLs to work for authenticated users
+    match /user-registration-forms/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
     // Default: deny all other access
     match /{allPaths=**} {
       allow read, write: if false;

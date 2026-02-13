@@ -29,6 +29,7 @@ export default function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(25);
@@ -57,7 +58,8 @@ export default function ActivitiesPage() {
       const response = await activityService.getActivities({
         page,
         limit,
-        search: searchTerm || undefined
+        search: searchTerm || undefined,
+        branchId: selectedBranchId || undefined
       });
       setActivities(response.activities);
       setTotal(response.total || 0);
@@ -107,7 +109,7 @@ export default function ActivitiesPage() {
     if (activeTab === 'activities') {
       fetchActivities();
     }
-  }, [activeTab, user?.role, page, searchTerm]);
+  }, [activeTab, user?.role, page, searchTerm, selectedBranchId]);
 
   // If a non-admin somehow has `categories` active (e.g., bookmarked URL), force back to activities
   useEffect(() => {
@@ -309,6 +311,20 @@ export default function ActivitiesPage() {
                   </button>
                 )}
               </div>
+              {(user?.role === 'admin' || user?.role === 'superadmin') && branches.length > 0 && (
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm min-w-[200px]"
+                >
+                  <option value="">Tüm Şubeler</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* List Card */}
@@ -332,6 +348,7 @@ export default function ActivitiesPage() {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Aktivite</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Kategori</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Şube</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tarih</th>
                         <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">İşlemler</th>
                       </tr>
@@ -339,6 +356,7 @@ export default function ActivitiesPage() {
                     <tbody className="divide-y divide-gray-200">
                       {activities.map((activity) => {
                         const categoryName = getCategoryName(activity.categoryId);
+                        const branchName = branches.find(b => b.id === activity.branchId)?.name || 'Bilinmeyen Şube';
                         return (
                           <tr 
                             key={activity.id} 
@@ -355,6 +373,9 @@ export default function ActivitiesPage() {
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
                                 {categoryName}
                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-700">{branchName}</span>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2 text-sm text-gray-700">

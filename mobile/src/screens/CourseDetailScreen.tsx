@@ -104,12 +104,15 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
   const loadContents = async (lessonId: string, tab: 'all'|'videos'|'documents'|'tests') => {
     try {
       setLoadingContents(true);
+      logger.info(`Loading contents for lesson ${lessonId}, tab: ${tab}`);
       if (tab === 'all') {
         const data = await ApiService.getLessonContents(lessonId);
+        logger.info(`Loaded ${(data || []).length} contents:`, JSON.stringify(data));
         setContents(data || []);
       } else {
         const type: 'video' | 'document' | 'test' = tab === 'videos' ? 'video' : tab === 'documents' ? 'document' : 'test';
         const data = await ApiService.getLessonContents(lessonId, type);
+        logger.info(`Loaded ${(data || []).length} ${type} contents:`, JSON.stringify(data));
         setContents(data || []);
       }
     } catch (err) {

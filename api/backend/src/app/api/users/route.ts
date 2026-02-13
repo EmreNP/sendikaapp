@@ -7,7 +7,7 @@ import { USER_STATUS } from '@shared/constants/status';
 import type { CreateUserData, User } from '@shared/types/user';
 import { validateEmail } from '@/lib/utils/validation/commonValidation';
 import { validatePassword } from '@/lib/utils/validation/authValidation';
-import { generatePublicUrl } from '@/lib/utils/storage';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   unauthorizedError,
@@ -118,13 +118,21 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
       const paginatedUsers = items;
       
-      // Generate public URLs for documents (files are already public via makePublic)
-      const usersWithUrls = paginatedUsers.map((user) => {
-        if (user.documentPath) {
-          return { ...user, documentUrl: generatePublicUrl(user.documentPath) };
-        }
-        return user;
-      });
+      // Generate signed URLs for documents
+      const usersWithUrls = await Promise.all(
+        paginatedUsers.map(async (user) => {
+          if (user.documentPath) {
+            try {
+              const documentUrl = await generateSignedUrl(user.documentPath);
+              return { ...user, documentUrl };
+            } catch (error) {
+              logger.error('Failed to generate signed URL for user:', user.uid, error);
+              return user;
+            }
+          }
+          return user;
+        })
+      );
       
       return successResponse(
         'Kullanıcılar başarıyla getirildi',

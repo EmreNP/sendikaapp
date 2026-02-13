@@ -146,6 +146,7 @@ export interface PerformanceDashboardSummary {
     fullName: string;
     branchName?: string;
     activityCount: number;
+    memberCount: number;
     performanceScore: number;
   }>;
 

@@ -146,52 +146,6 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     const url = new URL(request.url);
     const paginationParams = parsePaginationParams(url);
 
-      // Branch manager sadece kendi şubesini görebilir
-      if (userData.role === USER_ROLE.BRANCH_MANAGER && userData.branchId) {
-        const branchDoc = await db.collection('branches')
-          .doc(userData.branchId)
-          .get();
-          
-        if (!branchDoc.exists) {
-          return successResponse(
-            'Şubeler başarıyla getirildi',
-            { 
-              branches: [],
-              total: 0,
-              page: 1,
-              limit: paginationParams.limit,
-              hasMore: false,
-            }
-          );
-        }
-        
-        const branchData = branchDoc.data();
-        
-        // Tüm branch bilgilerini tek seferde getir (optimize edilmiş ✅)
-        const { eventCount, educationCount, managers } = await getBranchDetails(branchDoc.id);
-        
-        const branch: Branch = {
-          id: branchDoc.id,
-          ...branchData,
-          eventCount,
-          educationCount,
-        } as Branch;
-        
-        // Branch manager kendi şubesinin manager'larını görebilir
-        const branchWithManagers: BranchWithManagers = { ...branch, managers };
-        
-        return successResponse(
-          'Şubeler başarıyla getirildi',
-          { 
-            branches: [branchWithManagers],
-            total: 1,
-            page: 1,
-            limit: paginationParams.limit,
-            hasMore: false,
-          }
-        );
-      }
-      
       // Admin/Superadmin: Tüm şubeleri görebilir (aktif + pasif)
       if (userData.role === USER_ROLE.ADMIN || userData.role === USER_ROLE.SUPERADMIN) {
         let items: any[] = [];
@@ -269,7 +223,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         );
       }
       
-      // User: Sadece aktif şubeleri görebilir (manager bilgisi yok)
+      // Diğer kullanıcılar (user, branch_manager): Sadece aktif şubeleri görebilir
       const query = db.collection('branches').where('isActive', '==', true);
       
       const paginatedResult = await paginateHybrid(

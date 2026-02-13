@@ -3,6 +3,7 @@ import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'fire
 import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage, ContractedInstitution, InstitutionCategory } from '../types';
 
 class ApiService {
@@ -239,10 +240,12 @@ class ApiService {
   }
 
   async getLessons(trainingId: string): Promise<Lesson[]> {
-    const response = await this.request<{ success: boolean; data: { lessons: Lesson[] } }>(
-      API_ENDPOINTS.TRAININGS.LESSONS(trainingId)
-    );
-    return response.data.lessons;
+    logger.info(`[getLessons] Fetching lessons for trainingId: ${trainingId}`);
+    const endpoint = API_ENDPOINTS.TRAININGS.LESSONS(trainingId);
+    logger.info(`[getLessons] Endpoint: ${endpoint}`);
+    const response = await this.request<{ success: boolean; data: { lessons: Lesson[] } }>(endpoint);
+    logger.info(`[getLessons] Response:`, JSON.stringify(response));
+    return response.data.lessons || [];
   }
 
   async getLesson(trainingId: string, lessonId: string): Promise<Lesson> {
@@ -258,27 +261,34 @@ class ApiService {
     const mapDocument = (d: any) => ({ id: d.id, lessonId: d.lessonId, title: d.title, description: d.description, type: 'document' as const, url: d.documentUrl, order: d.order });
     const mapTest = (t: any) => ({ id: t.id, lessonId: t.lessonId, title: t.title, description: t.description, type: 'test' as const, order: t.order });
 
+    logger.info(`[getLessonContents] lessonId: ${lessonId}, type: ${type}`);
+
     if (type === 'video') {
       const response = await this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId));
+      logger.info(`[getLessonContents] Videos response:`, JSON.stringify(response));
       return (response.data.videos || []).map(mapVideo);
     }
 
     if (type === 'document') {
       const response = await this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId));
+      logger.info(`[getLessonContents] Documents response:`, JSON.stringify(response));
       return (response.data.documents || []).map(mapDocument);
     }
 
     if (type === 'test') {
       const response = await this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId));
+      logger.info(`[getLessonContents] Tests response:`, JSON.stringify(response));
       return (response.data.tests || []).map(mapTest);
     }
 
     // no type: fetch all three in parallel
     const [videosRes, docsRes, testsRes] = await Promise.all([
-      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ success: false, data: { videos: [] } })),
-      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ success: false, data: { documents: [] } })),
-      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ success: false, data: { tests: [] } })),
+      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch((err) => { logger.error('[getLessonContents] Videos fetch error:', err); return { success: false, data: { videos: [] } }; }),
+      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch((err) => { logger.error('[getLessonContents] Documents fetch error:', err); return { success: false, data: { documents: [] } }; }),
+      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch((err) => { logger.error('[getLessonContents] Tests fetch error:', err); return { success: false, data: { tests: [] } }; }),
     ]);
+
+    logger.info(`[getLessonContents] All responses - Videos: ${(videosRes.data.videos || []).length}, Docs: ${(docsRes.data.documents || []).length}, Tests: ${(testsRes.data.tests || []).length}`);
 
     const combined = [
       ...(videosRes.data.videos || []).map(mapVideo),

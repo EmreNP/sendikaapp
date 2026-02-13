@@ -16,7 +16,6 @@ const TrainingsPage = lazy(() => import('./pages/trainings/TrainingsPage'));
 const TrainingDetailPage = lazy(() => import('./pages/trainings/TrainingDetailPage'));
 const LessonDetailPage = lazy(() => import('./pages/trainings/LessonDetailPage'));
 const ContactMessagesPage = lazy(() => import('./pages/contact-messages/ContactMessagesPage'));
-const FAQPage = lazy(() => import('./pages/faq/FAQPage'));
 const NotificationHistoryPage = lazy(() => import('./pages/notifications/NotificationHistoryPage'));
 const PerformanceDashboardPage = lazy(() => import('./pages/performance/PerformanceDashboardPage'));
 const ContractedInstitutionsPage = lazy(() => import('./pages/contracted-institutions/ContractedInstitutionsPage'));
@@ -125,16 +124,6 @@ function App() {
                 <ErrorBoundary>
                   <ProtectedRoute allowedRoles={['admin', 'branch_manager']}>
                     <ContactMessagesPage />
-                  </ProtectedRoute>
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/admin/faq"
-              element={
-                <ErrorBoundary>
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <FAQPage />
                   </ProtectedRoute>
                 </ErrorBoundary>
               }
