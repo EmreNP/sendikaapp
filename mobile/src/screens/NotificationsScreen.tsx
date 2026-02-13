@@ -1,10 +1,10 @@
 // Notifications Screen - Kullanıcı Bildirimleri
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -196,62 +196,53 @@ export const NotificationsScreen: React.FC = () => {
       </LinearGradient>
 
       {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
-        }
-        onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const paddingToBottom = 20;
-          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
-            loadMore();
+      {isLoading && page === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Bildirimler yükleniyor...</Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconBg}>
+            <Feather name={errorMessage ? 'alert-circle' : 'bell-off'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
+          </View>
+          <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Bildirim Yok'}</Text>
+          <Text style={styles.emptySubtitle}>
+            {errorMessage || 'Size gönderilen bildirimler burada görünecek'}
+          </Text>
+          {errorMessage && (
+            <TouchableOpacity onPress={() => fetchNotifications(1)} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => renderNotification(item)}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
           }
-        }}
-        scrollEventThrottle={400}
-      >
-        {isLoading && page === 1 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2563eb" />
-            <Text style={styles.loadingText}>Bildirimler yükleniyor...</Text>
-          </View>
-        ) : notifications.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBg}>
-              <Feather name={errorMessage ? 'alert-circle' : 'bell-off'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
-            </View>
-            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Bildirim Yok'}</Text>
-            <Text style={styles.emptySubtitle}>
-              {errorMessage || 'Size gönderilen bildirimler burada görünecek'}
-            </Text>
-            {errorMessage && (
-              <TouchableOpacity onPress={() => fetchNotifications(1)} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <>
-            {notifications.map(renderNotification)}
-            
-            {isLoading && page > 1 && (
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isLoading && page > 1 ? (
               <View style={styles.loadMoreContainer}>
                 <ActivityIndicator size="small" color="#2563eb" />
               </View>
-            )}
-
-            {!hasMore && notifications.length > 0 && (
+            ) : !hasMore && notifications.length > 0 ? (
               <View style={styles.endContainer}>
                 <View style={styles.endLine} />
                 <Text style={styles.endText}>Tüm bildirimler gösterildi</Text>
                 <View style={styles.endLine} />
               </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+            ) : null
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -294,9 +285,6 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
-  },
-  scrollView: {
-    flex: 1,
   },
   scrollContent: {
     padding: 16,

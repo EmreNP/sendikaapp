@@ -12,7 +12,6 @@ import {
   TextInput,
   Animated,
   Easing,
-  Dimensions,
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,25 +25,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-// Konya ilçeleri
-const KONYA_DISTRICTS = [
-  'Ahırlı', 'Akören', 'Akşehir', 'Altınekin', 'Beyşehir', 'Bozkır', 'Cihanbeyli',
-  'Çeltik', 'Çumra', 'Derbent', 'Derebucak', 'Doğanhisar', 'Emirgazi', 'Ereğli',
-  'Güneysınır', 'Hadim', 'Halkapınar', 'Hüyük', 'Ilgın', 'Kadınhanı', 'Karapınar',
-  'Karatay', 'Kulu', 'Meram', 'Sarayönü', 'Selçuklu', 'Seydişehir', 'Taşkent',
-  'Tuzlukçu', 'Yalıhüyük', 'Yunak',
-];
-
-// Kadro ünvanları
-const POSITIONS = [
-  'Vaiz', 'Şube Müdürü', 'Murakıp', 'Din hizmetleri uzmanı', 'Şef', 'Tekniker',
-  'Kuran Kursu Öğreticisi', 'Teknisyen', 'İmam-Hatip', 'Veri Hazırlama ve Kontrol İşletmeni',
-  'Memur', 'Müezzin Kayyım', 'Bekçi', 'Hizmetli', 'Şöför', 'Manevi Danışman',
-  'Vakıf Çalışanı', 'Diyanet Akademi Aday Görevli', 'Öğrenci', 'Diğer',
-];
-
-const { width } = Dimensions.get('window');
+import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
+import { POSITIONS } from '../../../shared/constants/positions';
 
 type SignupScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;

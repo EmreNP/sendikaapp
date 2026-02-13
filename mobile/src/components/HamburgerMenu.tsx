@@ -1,5 +1,5 @@
 // HamburgerMenu - Frontend ile birebir (front/src/components/HamburgerMenu.tsx)
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,15 @@ import {
   Linking,
   ScrollView,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const MENU_WIDTH = screenWidth * 0.85;
+// StyleSheet fallback için başlangıç değeri
+const _initWidth = Dimensions.get('window').width;
+const _INIT_MENU_WIDTH = _initWidth * 0.85;
 
 interface HamburgerMenuProps {
   onDistrictRepClick?: () => void;
@@ -39,8 +41,10 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   onNotificationsClick,
   onAboutClick,
 }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const MENU_WIDTH = useMemo(() => screenWidth * 0.85, [screenWidth]);
   const [isOpen, setIsOpen] = useState(false);
-  const slideAnim = useRef(new Animated.Value(MENU_WIDTH)).current;
+  const slideAnim = useRef(new Animated.Value(screenWidth * 0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { role, logout, user } = useAuth();
 
@@ -162,7 +166,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
         <Animated.View
           style={[
             styles.menuContainer,
-            { transform: [{ translateX: slideAnim }] },
+            { width: MENU_WIDTH, transform: [{ translateX: slideAnim }] },
           ]}
         >
           <LinearGradient
@@ -458,7 +462,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: MENU_WIDTH,
+    width: _INIT_MENU_WIDTH,
     shadowColor: '#000',
     shadowOffset: { width: -10, height: 0 },
     shadowOpacity: 0.3,

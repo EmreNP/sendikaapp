@@ -24,7 +24,10 @@ interface AuthContextType {
     password: string; 
     firstName: string; 
     lastName: string;
+    phone: string;
     birthDate: string;
+    district: string;
+    kadroUnvani: string;
     gender: 'male' | 'female';
   }) => Promise<void>;
   registerDetails: (data: any) => Promise<void>;
@@ -43,18 +46,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           const userData = await apiService.getCurrentUser();
           setUser(userData);
-
-          // DEBUG: ID token ve kullanıcı status/role bilgilerini yazdır (geçici)
-          try {
-            const token = await auth.currentUser?.getIdToken();
-            const freshToken = await auth.currentUser?.getIdToken(true);
-            console.log('Auth debug - ID token (cached):', token);
-            console.log('Auth debug - ID token (fresh):', freshToken);
-          } catch (tokenErr) {
-            console.warn('Auth debug - token fetch failed:', tokenErr);
-          }
-
-          console.log('Auth debug - User status/role:', userData?.status, userData?.role);
 
         } catch (error) {
           console.error('Failed to get user data:', error);
@@ -95,7 +86,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     password: string; 
     firstName: string; 
     lastName: string;
+    phone: string;
     birthDate: string;
+    district: string;
+    kadroUnvani: string;
     gender: 'male' | 'female';
   }) => {
     const { user: userData } = await apiService.registerBasic(data);

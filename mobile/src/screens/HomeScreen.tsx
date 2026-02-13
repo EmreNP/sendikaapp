@@ -1,5 +1,5 @@
 // Home Screen - Main Dashboard - Birebir Front/React Tasarımından React Native Çevirisi
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  useWindowDimensions,
   RefreshControl,
   FlatList,
   Animated,
@@ -26,17 +27,15 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList, Announcement, News } from '../types';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 // Dinamik Layout Hesaplayıcı - Tüm öğeler ekrana otomatik sığar
-const calculateDynamicLayout = () => {
+const calculateDynamicLayout = (sw: number, sh: number) => {
   const statusBarHeight = 24; // Ortalama status bar
   const tabBarHeight = 60; // Bottom tab bar
   const headerHeight = 84; // Top navigation height
   const safeBottomPadding = 16;
   
   // Kullanılabilir ekran yüksekliği
-  const availableHeight = screenHeight - statusBarHeight - tabBarHeight - headerHeight - safeBottomPadding;
+  const availableHeight = sh - statusBarHeight - tabBarHeight - headerHeight - safeBottomPadding;
   
   // Bileşen oranları (toplam = 100%)
   const sliderRatio = 0.32; // %32 - Hero slider (biraz büyütüldü)
@@ -51,7 +50,7 @@ const calculateDynamicLayout = () => {
     // Quick Access
     quickAccessHeight: Math.floor(availableHeight * quickAccessRatio),
     quickAccessPadding: { vertical: 8, horizontal: 16 },
-    iconSize: Math.floor((screenWidth - 64) / 3 * 0.65), // İkon container boyutu
+    iconSize: Math.floor((sw - 64) / 3 * 0.65), // İkon container boyutu
     iconPadding: 6,
     
     // Announcements
@@ -63,7 +62,10 @@ const calculateDynamicLayout = () => {
   };
 };
 
-const LAYOUT = calculateDynamicLayout();
+// Initial dimensions for StyleSheet (fallback)
+const _initDim = Dimensions.get('window');
+const DEFAULT_LAYOUT = calculateDynamicLayout(_initDim.width, _initDim.height);
+const _initScreenWidth = _initDim.width;
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -180,6 +182,8 @@ const mockNews: News[] = [
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, isPendingDetails } = useAuth();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const LAYOUT = useMemo(() => calculateDynamicLayout(screenWidth, screenHeight), [screenWidth, screenHeight]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [news, setNews] = useState<News[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -298,7 +302,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Front ImageSlider - rounded-2xl, shadow, overlay (Haberlerden)
   const renderSliderItem = ({ item }: { item: News }) => (
     <TouchableOpacity 
-      style={styles.slideContainer}
+      style={[styles.slideContainer, { width: screenWidth - 32, height: LAYOUT.sliderHeight }]}
       onPress={() => navigation.navigate('AllNews' as any)}
       activeOpacity={0.9}
     >
@@ -338,7 +342,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return (
       <TouchableOpacity
         key={item.id}
-        style={styles.quickAccessCard}
+        style={[styles.quickAccessCard, { width: (screenWidth - 32 - 24) / 3 }]}
         onPress={() => handleQuickAccess(item.route)}
         activeOpacity={0.8}
       >
@@ -698,12 +702,12 @@ const styles = StyleSheet.create({
   },
   // Image Slider - Premium Design
   sliderWrapper: {
-    paddingHorizontal: LAYOUT.sliderPadding.horizontal,
-    paddingTop: LAYOUT.sliderPadding.top,
-    paddingBottom: LAYOUT.sliderPadding.bottom,
+    paddingHorizontal: DEFAULT_LAYOUT.sliderPadding.horizontal,
+    paddingTop: DEFAULT_LAYOUT.sliderPadding.top,
+    paddingBottom: DEFAULT_LAYOUT.sliderPadding.bottom,
   },
   sliderContainer: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
@@ -715,13 +719,13 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   sliderLoading: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
   },
   sliderEmpty: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
@@ -731,8 +735,8 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   slideContainer: {
-    width: screenWidth - 32,
-    height: LAYOUT.sliderHeight,
+    width: _initScreenWidth - 32,
+    height: DEFAULT_LAYOUT.sliderHeight,
   },
   slideImage: {
     width: '100%',
@@ -793,8 +797,8 @@ const styles = StyleSheet.create({
   },
   // Quick Access - Premium Grid Design
   quickAccessSection: {
-    paddingHorizontal: LAYOUT.quickAccessPadding.horizontal,
-    paddingVertical: LAYOUT.quickAccessPadding.vertical,
+    paddingHorizontal: DEFAULT_LAYOUT.quickAccessPadding.horizontal,
+    paddingVertical: DEFAULT_LAYOUT.quickAccessPadding.vertical,
   },
   quickAccessGrid: {
     flexDirection: 'row',
@@ -802,18 +806,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickAccessCard: {
-    width: (screenWidth - 32 - 24) / 3, // 3 columns with gap
+    width: (_initScreenWidth - 32 - 24) / 3, // 3 columns with gap
     alignItems: 'center',
-    paddingVertical: LAYOUT.iconPadding,
+    paddingVertical: DEFAULT_LAYOUT.iconPadding,
     paddingHorizontal: 4,
   },
   quickAccessIcon: {
-    width: LAYOUT.iconSize,
-    height: LAYOUT.iconSize,
+    width: DEFAULT_LAYOUT.iconSize,
+    height: DEFAULT_LAYOUT.iconSize,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: LAYOUT.iconPadding,
+    marginBottom: DEFAULT_LAYOUT.iconPadding,
     shadowColor: '#1e40af',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -822,12 +826,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   quickAccessIconDibbys: {
-    width: LAYOUT.iconSize,
-    height: LAYOUT.iconSize,
+    width: DEFAULT_LAYOUT.iconSize,
+    height: DEFAULT_LAYOUT.iconSize,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: LAYOUT.iconPadding,
+    marginBottom: DEFAULT_LAYOUT.iconPadding,
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#e2e8f0',
@@ -838,8 +842,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   dibbysLogo: {
-    width: Math.floor(LAYOUT.iconSize * 0.75),
-    height: Math.floor(LAYOUT.iconSize * 0.75),
+    width: Math.floor(DEFAULT_LAYOUT.iconSize * 0.75),
+    height: Math.floor(DEFAULT_LAYOUT.iconSize * 0.75),
   },
   iconShine: {
     position: 'absolute',
@@ -859,8 +863,8 @@ const styles = StyleSheet.create({
   },
   // Announcements Section - Front birebir
   announcementSection: {
-    paddingHorizontal: LAYOUT.announcementPadding.horizontal,
-    paddingVertical: LAYOUT.announcementPadding.vertical,
+    paddingHorizontal: DEFAULT_LAYOUT.announcementPadding.horizontal,
+    paddingVertical: DEFAULT_LAYOUT.announcementPadding.vertical,
   },
   announcementHeader: {
     flexDirection: 'row',
@@ -907,12 +911,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   announcementLoading: {
-    height: LAYOUT.announcementHeight * 0.8,
+    height: DEFAULT_LAYOUT.announcementHeight * 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   announcementEmpty: {
-    height: LAYOUT.announcementHeight * 0.7,
+    height: DEFAULT_LAYOUT.announcementHeight * 0.7,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -927,7 +931,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
-    minHeight: LAYOUT.announcementHeight * 0.75,
+    minHeight: DEFAULT_LAYOUT.announcementHeight * 0.75,
   },
   announcementContent: {
     flexDirection: 'row',
@@ -977,10 +981,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 11,
-    color: '#6b7280',
-  },
-  emptyText: {
-    fontSize: 14,
     color: '#6b7280',
   },
 });

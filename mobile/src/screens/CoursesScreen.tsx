@@ -104,22 +104,18 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       setLoadingLessons(trainingId);
       const lessons = await ApiService.getLessons(trainingId);
       
-      // Her lesson için içerik sayılarını hesapla
+      // Her lesson için içerik sayılarını hesapla - tek API çağrısı ile (all)
       const lessonsWithCounts = await Promise.all(
         lessons.map(async (lesson: any) => {
           try {
-            // Her lesson için video, document ve test sayılarını al
-            const [videos, documents, tests] = await Promise.all([
-              ApiService.getLessonContents(lesson.id, 'video').catch(() => []),
-              ApiService.getLessonContents(lesson.id, 'document').catch(() => []),
-              ApiService.getLessonContents(lesson.id, 'test').catch(() => []),
-            ]);
+            // Tek çağrıda tüm içerikleri al, type'a göre say
+            const allContents = await ApiService.getLessonContents(lesson.id).catch(() => []);
             
             return {
               ...lesson,
-              videoCount: videos.length,
-              documentCount: documents.length,
-              testCount: tests.length,
+              videoCount: allContents.filter((c: any) => c.type === 'video').length,
+              documentCount: allContents.filter((c: any) => c.type === 'document').length,
+              testCount: allContents.filter((c: any) => c.type === 'test').length,
             };
           } catch (err) {
             console.error(`Error loading contents for lesson ${lesson.id}:`, err);

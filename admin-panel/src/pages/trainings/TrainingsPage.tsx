@@ -27,12 +27,12 @@ export default function TrainingsPage() {
   const limit = 25;
   const [selectedTrainingIds, setSelectedTrainingIds] = useState<Set<string>>(new Set());
   const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
+    isOpen: boolean;
     title: string;
     message: string;
     onConfirm: () => void;
   }>({
-    open: false,
+    isOpen: false,
     title: '',
     message: '',
     onConfirm: () => {},
@@ -65,10 +65,17 @@ export default function TrainingsPage() {
   const handleDelete = async (id: string) => {
     try {
       setProcessing(true);
+      logger.log('🗑️ Deleting training:', id);
       await trainingService.deleteTraining(id);
+      logger.log('✅ Training deleted successfully');
       await loadTrainings();
     } catch (err: any) {
-      logger.error('Delete training error:', err);
+      logger.error('❌ Delete training error:', err);
+      logger.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        status: err.status,
+      });
       alert(err.message || 'Eğitim silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
@@ -243,12 +250,12 @@ export default function TrainingsPage() {
               <button
                 onClick={() => {
                   setConfirmDialog({
-                    open: true,
+                    isOpen: true,
                     title: 'Eğitimleri Sil',
                     message: `${selectedTrainingIds.size} eğitimi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                     onConfirm: () => {
                       handleBulkAction('delete');
-                      setConfirmDialog({ ...confirmDialog, open: false });
+                      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                     },
                   });
                 }}
@@ -374,12 +381,12 @@ export default function TrainingsPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setConfirmDialog({
-                                  open: true,
+                                  isOpen: true,
                                   title: 'Eğitimi Sil',
                                   message: `"${training.title}" eğitimini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                                   onConfirm: () => {
                                     handleDelete(training.id);
-                                    setConfirmDialog({ ...confirmDialog, open: false });
+                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                                   },
                                 });
                               }}
@@ -407,11 +414,11 @@ export default function TrainingsPage() {
 
         {/* Confirm Dialog */}
         <ConfirmDialog
-          open={confirmDialog.open}
+          isOpen={confirmDialog.isOpen}
           title={confirmDialog.title}
           message={confirmDialog.message}
           onConfirm={confirmDialog.onConfirm}
-          onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
         />
 
         {/* Training Form Modal */}
@@ -445,12 +452,12 @@ export default function TrainingsPage() {
             setIsDetailModalOpen(false);
             if (selectedTraining) {
               setConfirmDialog({
-                open: true,
+                isOpen: true,
                 title: 'Eğitimi Sil',
                 message: `"${selectedTraining.title}" eğitimini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                 onConfirm: () => {
                   handleDelete(selectedTraining.id);
-                  setConfirmDialog({ ...confirmDialog, open: false });
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                   setSelectedTraining(null);
                 },
               });

@@ -37,8 +37,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
 
   const fetchBranchDetails = async () => {
     try {
-      const { items: branches } = await ApiService.getBranches({ limit: 100 });
-      const foundBranch = branches.find((b: Branch) => b.id === branchId);
+      const foundBranch = await ApiService.getBranch(branchId);
       setBranch(foundBranch || null);
     } catch (error) {
       console.error('Error fetching branch details:', error);

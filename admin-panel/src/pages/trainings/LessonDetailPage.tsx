@@ -31,12 +31,12 @@ export default function LessonDetailPage() {
   const [selectedTestForQuestions, setSelectedTestForQuestions] = useState<TestContent | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
+    isOpen: boolean;
     title: string;
     message: string;
     onConfirm: () => void;
   }>({
-    open: false,
+    isOpen: false,
     title: '',
     message: '',
     onConfirm: () => {},
@@ -78,6 +78,7 @@ export default function LessonDetailPage() {
 
   const handleDeleteContent = async (content: Content) => {
     try {
+      logger.log('🗑️ Deleting content:', { id: content.id, type: content.type, title: content.title });
       if (content.type === 'video') {
         await contentService.deleteVideo(content.id);
       } else if (content.type === 'document') {
@@ -85,9 +86,15 @@ export default function LessonDetailPage() {
       } else if (content.type === 'test') {
         await contentService.deleteTest(content.id);
       }
+      logger.log('✅ Content deleted successfully');
       await loadContents();
     } catch (err: any) {
-      logger.error('Delete content error:', err);
+      logger.error('❌ Delete content error:', err);
+      logger.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        status: err.status,
+      });
       alert(err.message || 'İçerik silinirken bir hata oluştu');
     }
   };
@@ -340,12 +347,12 @@ export default function LessonDetailPage() {
                           variant="delete"
                           onClick={() => {
                             setConfirmDialog({
-                              open: true,
+                              isOpen: true,
                               title: 'İçeriği Sil',
                               message: `"${content.title}" içeriğini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                               onConfirm: () => {
                                 handleDeleteContent(content);
-                                setConfirmDialog({ ...confirmDialog, open: false });
+                                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                               },
                             });
                           }}
@@ -362,11 +369,11 @@ export default function LessonDetailPage() {
 
         {/* Confirm Dialog */}
         <ConfirmDialog
-          open={confirmDialog.open}
+          isOpen={confirmDialog.isOpen}
           title={confirmDialog.title}
           message={confirmDialog.message}
           onConfirm={confirmDialog.onConfirm}
-          onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
         />
 
         {/* Content Form Modals */}

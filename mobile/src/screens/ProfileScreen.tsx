@@ -51,9 +51,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   const menuItems = [
-    { icon: 'user', label: 'Profil Bilgileri', action: () => {} },
-    { icon: 'bell', label: 'Bildirimler', action: () => {} },
-    { icon: 'file-text', label: 'Belgelerim', action: () => {} },
+    { icon: 'user', label: 'Profil Bilgileri', action: () => navigation.navigate('Membership' as any) },
+    { icon: 'bell', label: 'Bildirimler', action: () => navigation.navigate('Notifications' as any) },
+    { icon: 'file-text', label: 'Belgelerim', action: () => Alert.alert('Belgelerim', 'Bu özellik yakında aktif olacaktır.') },
     { icon: 'calculator', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as any) },
     { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as any) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },

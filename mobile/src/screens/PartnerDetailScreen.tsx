@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, ContractedInstitution } from '../types';
 
 type PartnerDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PartnerDetail'>;
 type PartnerDetailScreenRouteProp = RouteProp<RootStackParamList, 'PartnerDetail'>;
@@ -25,7 +25,47 @@ interface PartnerDetailScreenProps {
 }
 
 export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ navigation, route }) => {
-  const { partner } = route.params;
+  // Support both 'institution' (from PartnerInstitutionsScreen) and legacy 'partner' param
+  const params = route.params as any;
+  const institution: ContractedInstitution | undefined = params.institution;
+  const legacyPartner = params.partner;
+
+  // Normalize to a common shape
+  const partner = institution
+    ? {
+        name: institution.title,
+        category: institution.categoryName || '',
+        logoUrl: institution.logoUrl || '',
+        coverUrl: institution.coverImageUrl || '',
+        discountRate: institution.badgeText || '',
+        description: institution.description || '',
+        howToUseSteps: institution.howToUseSteps || [],
+      }
+    : legacyPartner
+    ? {
+        name: legacyPartner.name,
+        category: legacyPartner.category || '',
+        logoUrl: legacyPartner.logoUrl || '',
+        coverUrl: legacyPartner.coverUrl || legacyPartner.logoUrl || '',
+        discountRate: legacyPartner.discountRate || '',
+        description: legacyPartner.description || '',
+        howToUseSteps: [] as any[],
+      }
+    : null;
+
+  if (!partner) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Feather name="alert-circle" size={48} color="#ef4444" />
+          <Text style={{ fontSize: 18, color: '#0f172a', marginTop: 16 }}>Kurum bulunamadı</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 24 }}>
+            <Text style={{ color: '#4338ca', fontWeight: '600' }}>Geri Dön</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const getCategoryIcon = (category: string): string => {
     switch (category) {
@@ -99,28 +139,44 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Nasıl Yararlanırım?</Text>
             <View style={styles.stepsContainer}>
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>1</Text>
-                </View>
-                <View style={styles.stepContent}>
-                  <Text style={styles.stepTitle}>Üyelik Kartınızı Gösterin</Text>
-                  <Text style={styles.stepDescription}>
-                    Sendika üyelik kartınızı veya mobil uygulamadaki üyelik ekranınızı gösterin
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>2</Text>
-                </View>
-                <View style={styles.stepContent}>
-                  <Text style={styles.stepTitle}>İndiriminizi Alın</Text>
-                  <Text style={styles.stepDescription}>
-                    Ödeme sırasında {partner.discountRate} indiriminiz uygulanacaktır
-                  </Text>
-                </View>
-              </View>
+              {partner.howToUseSteps && partner.howToUseSteps.length > 0 ? (
+                partner.howToUseSteps.map((step: any, index: number) => (
+                  <View key={index} style={styles.step}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>{step.stepNumber || index + 1}</Text>
+                    </View>
+                    <View style={styles.stepContent}>
+                      <Text style={styles.stepTitle}>{step.title}</Text>
+                      <Text style={styles.stepDescription}>{step.description}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <>
+                  <View style={styles.step}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>1</Text>
+                    </View>
+                    <View style={styles.stepContent}>
+                      <Text style={styles.stepTitle}>Üyelik Kartınızı Gösterin</Text>
+                      <Text style={styles.stepDescription}>
+                        Sendika üyelik kartınızı veya mobil uygulamadaki üyelik ekranınızı gösterin
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.step}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>2</Text>
+                    </View>
+                    <View style={styles.stepContent}>
+                      <Text style={styles.stepTitle}>İndiriminizi Alın</Text>
+                      <Text style={styles.stepDescription}>
+                        Ödeme sırasında {partner.discountRate} indiriminiz uygulanacaktır
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         </View>

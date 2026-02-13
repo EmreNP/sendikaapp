@@ -41,8 +41,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
   const fetchNewsDetail = async () => {
     try {
       setErrorMessage(null);
-      const { items: allNews } = await ApiService.getNews({ limit: 100 });
-      const foundNews = allNews.find((n: News) => n.id === newsId);
+      const foundNews = await ApiService.getNewsItem(newsId);
       setNewsItem(foundNews || null);
     } catch (error) {
       console.error('Error fetching news detail:', error);

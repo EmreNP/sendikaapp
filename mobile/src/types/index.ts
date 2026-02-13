@@ -1,34 +1,19 @@
-// Type Definitions
+// Type Definitions - Shared types ile uyumlu
 
-export type UserStatus = 
-  | 'pending_details'
-  | 'pending_branch_review'
-  | 'pending_admin_approval' // Legacy (artık kullanılmuyor)
-  | 'active'
-  | 'rejected';
+// Shared types/constants'dan re-export
+export type { UserStatus } from '../../../shared/constants/status';
+export type { UserRole } from '../../../shared/constants/roles';
+export type { EducationLevel } from '../../../shared/constants/education';
+export type { Gender } from '../../../shared/constants/gender';
+export type { KonyaDistrict } from '../../../shared/constants/districts';
+export type { Position } from '../../../shared/constants/positions';
 
-export type UserRole = 'admin' | 'branch_manager' | 'user';
+// Shared User tipini re-export et ve mobile-specific alanları ekle
+import type { User as SharedUser } from '../../../shared/types/user';
 
-export interface User {
-  uid: string;
-  email: string;
+export interface User extends SharedUser {
+  // Mobile-specific alanlar (backend'den gelebilecek ek alanlar)
   displayName?: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  tcKimlik?: string;
-  branchId?: string;
-  role: UserRole;
-  status: UserStatus;
-  membershipDetails?: {
-    workplace?: string;
-    position?: string;
-    city?: string;
-    district?: string;
-    address?: string;
-  };
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface Training {
@@ -188,7 +173,7 @@ export type RootStackParamList = {
   Muktesep: undefined;
   DistrictRepresentative: undefined;
   PartnerInstitutions: undefined;
-  PartnerDetail: { partner: import('../data/partners').Partner };
+  PartnerDetail: { partner?: import('../data/partners').Partner; institution?: ContractedInstitution };
   Notifications: undefined;
 };
 

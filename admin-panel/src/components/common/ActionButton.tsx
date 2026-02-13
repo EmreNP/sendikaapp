@@ -17,7 +17,7 @@ export type ActionButtonVariant =
 interface ActionButtonProps {
   icon: LucideIcon;
   variant: ActionButtonVariant;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   title: string;
   disabled?: boolean;
   className?: string;

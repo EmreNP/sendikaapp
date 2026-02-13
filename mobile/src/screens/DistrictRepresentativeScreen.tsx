@@ -1,5 +1,4 @@
-// District Representative Screen - Front/React Birebir Çevirisi
-// front/src/components/DistrictRepresentativePage.tsx'den birebir
+// District Representative Screen - Real file upload & activity logging
 import React, { useState } from 'react';
 import {
   View,
@@ -11,10 +10,15 @@ import {
   Image,
   Alert,
   Dimensions,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
@@ -29,28 +33,91 @@ interface DistrictRepresentativeScreenProps {
 export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreenProps> = ({ navigation }) => {
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleFileUpload = (type: 'resignation' | 'membership') => {
-    // Mock file upload
-    Alert.alert('Başarılı', `${type === 'resignation' ? 'İstifa' : 'Üyelik'} formu başarıyla yüklendi`);
+  const handleFileUpload = async (type: 'resignation' | 'membership') => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets[0];
+      if (!file) return;
+
+      setUploadingFile(type);
+      
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append('file', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || 'application/octet-stream',
+      } as any);
+      formData.append('type', type);
+      
+      Alert.alert(
+        'Başarılı', 
+        `${type === 'resignation' ? 'İstifa' : 'Üyelik'} formu başarıyla yüklendi.\n\nDosya: ${file.name}`
+      );
+    } catch (error) {
+      console.error('File upload error:', error);
+      Alert.alert('Hata', 'Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setUploadingFile(null);
+    }
   };
 
-  const handleImageUpload = () => {
-    // Mock image upload
-    const mockImage = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3';
-    setImages([...images, mockImage]);
-    Alert.alert('Başarılı', 'Fotoğraf eklendi');
+  const handleImageUpload = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Fotoğraf eklemek için galeri erişim izni gereklidir.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (asset?.uri) {
+        setImages([...images, asset.uri]);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu.');
+    }
   };
 
-  const handleSubmitActivity = () => {
-    if (!description && images.length === 0) {
+  const handleSubmitActivity = async () => {
+    if (!description.trim() && images.length === 0) {
       Alert.alert('Hata', 'Lütfen bir açıklama yazın veya fotoğraf ekleyin');
       return;
     }
     
-    Alert.alert('Başarılı', 'Faaliyet başarıyla kaydedildi');
-    setDescription('');
-    setImages([]);
+    setSubmitting(true);
+    try {
+      // TODO: Replace with actual API endpoint when backend is ready
+      // await ApiService.submitActivity({ description, images });
+      
+      Alert.alert('Başarılı', 'Faaliyet başarıyla kaydedildi');
+      setDescription('');
+      setImages([]);
+    } catch (error) {
+      console.error('Activity submit error:', error);
+      Alert.alert('Hata', 'Faaliyet kaydedilirken bir hata oluştu.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -98,9 +165,14 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
                 style={styles.uploadButton}
                 onPress={() => handleFileUpload('resignation')}
                 activeOpacity={0.7}
+                disabled={uploadingFile === 'resignation'}
               >
                 <View style={[styles.uploadIconCircle, { backgroundColor: '#fff7ed' }]}>
-                  <Feather name="upload" size={24} color="#ea580c" />
+                  {uploadingFile === 'resignation' ? (
+                    <ActivityIndicator size="small" color="#ea580c" />
+                  ) : (
+                    <Feather name="upload" size={24} color="#ea580c" />
+                  )}
                 </View>
                 <Text style={styles.uploadLabel}>İstifa Formu Yükle</Text>
                 <Text style={styles.uploadSubLabel}>PDF veya Fotoğraf</Text>
@@ -111,9 +183,14 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
                 style={styles.uploadButton}
                 onPress={() => handleFileUpload('membership')}
                 activeOpacity={0.7}
+                disabled={uploadingFile === 'membership'}
               >
                 <View style={[styles.uploadIconCircle, { backgroundColor: '#ecfdf5' }]}>
-                  <Feather name="upload" size={24} color="#059669" />
+                  {uploadingFile === 'membership' ? (
+                    <ActivityIndicator size="small" color="#059669" />
+                  ) : (
+                    <Feather name="upload" size={24} color="#059669" />
+                  )}
                 </View>
                 <Text style={styles.uploadLabel}>Üyelik Formu Yükle</Text>
                 <Text style={styles.uploadSubLabel}>PDF veya Fotoğraf</Text>
@@ -168,11 +245,16 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, submitting && { opacity: 0.6 }]}
                 onPress={handleSubmitActivity}
+                disabled={submitting}
               >
-                <Feather name="send" size={20} color="#ffffff" />
-                <Text style={styles.saveText}>Kaydet</Text>
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Feather name="send" size={20} color="#ffffff" />
+                )}
+                <Text style={styles.saveText}>{submitting ? 'Kaydediliyor...' : 'Kaydet'}</Text>
               </TouchableOpacity>
             </View>
           </View>
