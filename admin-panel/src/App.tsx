@@ -19,6 +19,7 @@ const ContactMessagesPage = lazy(() => import('./pages/contact-messages/ContactM
 const FAQPage = lazy(() => import('./pages/faq/FAQPage'));
 const NotificationHistoryPage = lazy(() => import('./pages/notifications/NotificationHistoryPage'));
 const PerformanceDashboardPage = lazy(() => import('./pages/performance/PerformanceDashboardPage'));
+const ContractedInstitutionsPage = lazy(() => import('./pages/contracted-institutions/ContractedInstitutionsPage'));
 
 // Loading component
 const PageLoader = () => (
@@ -134,6 +135,16 @@ function App() {
                 <ErrorBoundary>
                   <ProtectedRoute allowedRoles={['admin']}>
                     <FAQPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin/contracted-institutions"
+              element={
+                <ErrorBoundary>
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <ContractedInstitutionsPage />
                   </ProtectedRoute>
                 </ErrorBoundary>
               }

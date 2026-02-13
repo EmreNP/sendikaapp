@@ -60,10 +60,26 @@ export async function batchFetchUserNames(
             result[uid] = name;
           }
         }
+
+        // Backend'den gelmeyen (silinmiş/bulunamayan) kullanıcılar için placeholder
+        for (const uid of chunk) {
+          if (!result[uid]) {
+            const placeholder: UserName = { firstName: 'Silinmiş', lastName: 'Kullanıcı' };
+            userNameCache.set(uid, placeholder);
+            result[uid] = placeholder;
+          }
+        }
       }
     } catch (error) {
       logger.error('Error batch fetching user names:', error);
-      // Hata durumunda ID'leri döndür (graceful degradation)
+      // Hata durumunda bulunamayan kullanıcılar için placeholder ekle
+      for (const uid of idsToFetch) {
+        if (!result[uid]) {
+          const placeholder: UserName = { firstName: 'Silinmiş', lastName: 'Kullanıcı' };
+          userNameCache.set(uid, placeholder);
+          result[uid] = placeholder;
+        }
+      }
     }
   }
 

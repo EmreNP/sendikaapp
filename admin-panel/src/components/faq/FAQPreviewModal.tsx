@@ -16,9 +16,31 @@ export default function FAQPreviewModal({ faq, isOpen, onClose }: FAQPreviewModa
 
   useEffect(() => {
     if (faq?.createdBy) {
-      authService.getUserData(faq.createdBy).then((user) => {
-        if (user) setCreatedByUser(user);
-      });
+      authService.getUserData(faq.createdBy)
+        .then((user) => {
+          if (user) {
+            setCreatedByUser(user);
+          } else {
+            setCreatedByUser({
+              firstName: 'Silinmiş',
+              lastName: 'Kullanıcı',
+              email: '',
+              role: '',
+              status: 'deleted',
+              isActive: false,
+            } as any);
+          }
+        })
+        .catch(() => {
+          setCreatedByUser({
+            firstName: 'Silinmiş',
+            lastName: 'Kullanıcı',
+            email: '',
+            role: '',
+            status: 'deleted',
+            isActive: false,
+          } as any);
+        });
     }
   }, [faq?.createdBy]);
 

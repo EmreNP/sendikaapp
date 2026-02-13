@@ -141,8 +141,7 @@ export async function generateUserRegistrationPDF(
       checkBox('ilkogretim');
     } else if (userData.education === 'lise') {
       checkBox('lise');
-    } else if (userData.education === 'on_lisans' || userData.education === 'lisans' || 
-               userData.education === 'yuksek_lisans' || userData.education === 'doktora') {
+    } else if (userData.education === 'yuksekokul') {
       checkBox('yuksekokul');
     }
 

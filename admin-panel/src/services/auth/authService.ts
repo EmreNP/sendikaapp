@@ -4,6 +4,10 @@ import { auth, db } from '@/config/firebase';
 import type { User, UserRole } from '@/types/user';
 import { logger } from '@/utils/logger';
 
+// Kalıcı in-memory cache: Silinmiş/bulunamayan kullanıcıları tekrar sorgulamayı engeller
+// Sayfa yenilenene kadar geçerli (modül seviyesinde)
+const _notFoundUserCache = new Map<string, User>();
+
 export interface SignInResult {
   user: User;
   idToken: string;
@@ -98,10 +102,16 @@ export const authService = {
    * Kullanıcı bilgilerini al
    * - Kendi kullanıcısı için: Firestore (rules izin verir)
    * - Diğer kullanıcılar için: Backend API (Firestore rules'a takılmasın)
+   * - Bulunamayan kullanıcılar kalıcı cache'e eklenir ve tekrar sorgulanmaz
    */
   async getUserData(uid: string): Promise<User | null> {
     const currentUser = auth.currentUser;
     if (!currentUser) return null;
+
+    // Daha önce bulunamayan kullanıcıyı tekrar sorgulama
+    if (_notFoundUserCache.has(uid)) {
+      return _notFoundUserCache.get(uid)!;
+    }
 
     // Own profile can be read via Firestore rules.
     if (currentUser.uid === uid) {
@@ -111,9 +121,27 @@ export const authService = {
     }
 
     // Other users: fetch from backend (admin SDK) to avoid Firestore permission issues.
-    const { apiRequest } = await import('@/utils/api');
-    const data = await apiRequest<{ user: User }>(`/api/users/${uid}`);
-    return data?.user || null;
+    try {
+      const { apiRequest } = await import('@/utils/api');
+      const data = await apiRequest<{ user: User }>(`/api/users/${uid}`);
+      return data?.user || null;
+    } catch (error: any) {
+      // 404 = kullanıcı silinmiş/bulunamıyor — placeholder döndür ve cache'le
+      if (error?.response?.status === 404 || error?.code === 'NOT_FOUND' || error?.message?.includes('bulunamadı')) {
+        const placeholder = {
+          firstName: 'Silinmiş',
+          lastName: 'Kullanıcı',
+          email: '',
+          role: '' as any,
+          status: 'deleted',
+          isActive: false,
+        } as User;
+        _notFoundUserCache.set(uid, placeholder);
+        return placeholder;
+      }
+      // Diğer hatalar (network vb.) yukarı fırlat
+      throw error;
+    }
   },
 };
 

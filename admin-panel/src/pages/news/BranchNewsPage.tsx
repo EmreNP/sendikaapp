@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { newsService } from '@/services/api/newsService';
 import { announcementService } from '@/services/api/announcementService';
-import { authService } from '@/services/auth/authService';
+import { batchFetchUserNames } from '@/services/api/userNameService';
 import SendNotificationSimpleModal from '@/components/notifications/SendNotificationSimpleModal';
 import NewsPreviewModal from '@/components/news/NewsPreviewModal';
 import ActionButton from '@/components/common/ActionButton';
@@ -77,28 +77,15 @@ export default function BranchNewsPage() {
         if (item.createdBy) uniqueUserIds.add(item.createdBy);
       });
 
-      // Cache'de olmayan kullanıcıları getir
+      // Cache'de olmayan kullanıcıları toplu getir (batch - 404 fırlatmaz)
       const userIdsToFetch = Array.from(uniqueUserIds).filter(uid => !userCache[uid]);
       
       if (userIdsToFetch.length > 0) {
-        const userPromises = userIdsToFetch.map(async (uid) => {
-          try {
-            const userData = await authService.getUserData(uid);
-            return userData ? { uid, user: userData } : null;
-          } catch (error) {
-            logger.error(`Error fetching user ${uid}:`, error);
-            return null;
-          }
-        });
-
-        const userResults = await Promise.all(userPromises);
+        const batchNames = await batchFetchUserNames(userIdsToFetch);
         const newUserCache: Record<string, UserType> = {};
-        userResults.forEach((result) => {
-          if (result) {
-            newUserCache[result.uid] = result.user;
-          }
-        });
-
+        for (const [uid, name] of Object.entries(batchNames)) {
+          newUserCache[uid] = { firstName: name.firstName, lastName: name.lastName } as UserType;
+        }
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {
@@ -130,28 +117,15 @@ export default function BranchNewsPage() {
         if (item.createdBy) uniqueUserIds.add(item.createdBy);
       });
 
-      // Cache'de olmayan kullanıcıları getir
+      // Cache'de olmayan kullanıcıları toplu getir (batch - 404 fırlatmaz)
       const userIdsToFetch = Array.from(uniqueUserIds).filter(uid => !userCache[uid]);
       
       if (userIdsToFetch.length > 0) {
-        const userPromises = userIdsToFetch.map(async (uid) => {
-          try {
-            const userData = await authService.getUserData(uid);
-            return userData ? { uid, user: userData } : null;
-          } catch (error) {
-            logger.error(`Error fetching user ${uid}:`, error);
-            return null;
-          }
-        });
-
-        const userResults = await Promise.all(userPromises);
+        const batchNames = await batchFetchUserNames(userIdsToFetch);
         const newUserCache: Record<string, UserType> = {};
-        userResults.forEach((result) => {
-          if (result) {
-            newUserCache[result.uid] = result.user;
-          }
-        });
-
+        for (const [uid, name] of Object.entries(batchNames)) {
+          newUserCache[uid] = { firstName: name.firstName, lastName: name.lastName } as UserType;
+        }
         setUserCache(prev => ({ ...prev, ...newUserCache }));
       }
     } catch (error: any) {

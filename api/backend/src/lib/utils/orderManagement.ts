@@ -99,6 +99,19 @@ export async function getNextFAQOrder(): Promise<number> {
 }
 
 /**
+ * Anlaşmalı kurumlar için mevcut en yüksek order'ı bulur ve yeni order döndürür
+ * Transaction kullanarak race condition'lara karşı güvenli çalışır
+ */
+export async function getNextContractedInstitutionOrder(): Promise<number> {
+  try {
+    return await getNextOrderInTransaction('contracted_institutions');
+  } catch (error) {
+    logger.error('Error getting next contracted institution order:', error);
+    return 1;
+  }
+}
+
+/**
  * Order değiştirildiğinde, belirtilen order ve sonrasındaki tüm order'ları bir sıra yukarı kaydırır
  * @param collectionName - Firestore collection adı
  * @param filterField - Filtreleme için kullanılacak field (örn: 'trainingId', 'lessonId')

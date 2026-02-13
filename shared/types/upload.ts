@@ -1,9 +1,8 @@
 /**
  * Upload types - Generic file upload için type tanımları
- * Şu an sadece 'news' kategorisi destekleniyor
  */
 
-export type UploadCategory = 'news';
+export type UploadCategory = 'news' | 'institution-images';
 
 export interface UploadImageRequest {
   file: File;

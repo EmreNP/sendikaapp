@@ -17,9 +17,33 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
 
   useEffect(() => {
     if (news?.createdBy) {
-      authService.getUserData(news.createdBy).then((user) => {
-        if (user) setCreatedByUser(user);
-      });
+      authService.getUserData(news.createdBy)
+        .then((user) => {
+          if (user) {
+            setCreatedByUser(user);
+          } else {
+            // Kullanıcı bulunamadı - placeholder
+            setCreatedByUser({
+              firstName: 'Silinmiş',
+              lastName: 'Kullanıcı',
+              email: '',
+              role: '',
+              status: 'deleted',
+              isActive: false,
+            } as any);
+          }
+        })
+        .catch(() => {
+          // Hata durumunda placeholder
+          setCreatedByUser({
+            firstName: 'Silinmiş',
+            lastName: 'Kullanıcı',
+            email: '',
+            role: '',
+            status: 'deleted',
+            isActive: false,
+          } as any);
+        });
     }
   }, [news?.createdBy]);
 
