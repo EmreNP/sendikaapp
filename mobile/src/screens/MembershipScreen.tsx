@@ -1,5 +1,5 @@
 // Membership Screen - Step 2 Registration Details
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,7 @@ import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
 import ApiService from '../services/api';
 import { logger } from '../utils/logger';
+import { EDUCATION_LEVEL_OPTIONS } from '../../../shared/constants/education';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch } from '../types';
 
@@ -32,17 +34,26 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
   const { registerDetails, user } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<ScrollView | null>(null);
   const [formData, setFormData] = useState({
-    tcNo: '',
+    tcKimlikNo: '',
+    fatherName: '',
+    motherName: '',
+    birthPlace: '',
     phone: '',
     birthDate: '',
     gender: '',
     education: '',
-    workplace: '',
-    jobTitle: '',
+    kurumSicil: '',
+    kadroUnvanKodu: '',
+    isMemberOfOtherUnion: false,
     branchId: '',
     address: '',
+    city: '',
+    district: '',
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerDate, setDatePickerDate] = useState(new Date());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -58,7 +69,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     }
   };
 
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
     setErrors({ ...errors, [field]: '' });
   };
@@ -67,15 +78,42 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     let valid = true;
     const newErrors: Record<string, string> = {};
 
-    if (!formData.tcNo.trim()) {
-      newErrors.tcNo = 'TC Kimlik No gereklidir';
+    // TC Kimlik No
+    if (!formData.tcKimlikNo || !formData.tcKimlikNo.trim()) {
+      newErrors.tcKimlikNo = 'TC Kimlik No gereklidir';
       valid = false;
     } else {
-      const tcValidation = validateTCKimlikNo(formData.tcNo.trim());
+      const tcValidation = validateTCKimlikNo(formData.tcKimlikNo.trim());
       if (!tcValidation.valid) {
-        newErrors.tcNo = tcValidation.error || 'Geçersiz TC Kimlik No';
+        newErrors.tcKimlikNo = tcValidation.error || 'Geçersiz TC Kimlik No';
         valid = false;
       }
+    }
+
+    // Zorunlu kimlik / iletişim alanları (backend ile uyumlu)
+    if (!formData.fatherName || !formData.fatherName.trim()) {
+      newErrors.fatherName = 'Baba adı gereklidir';
+      valid = false;
+    }
+
+    if (!formData.motherName || !formData.motherName.trim()) {
+      newErrors.motherName = 'Anne adı gereklidir';
+      valid = false;
+    }
+
+    if (!formData.birthPlace || !formData.birthPlace.trim()) {
+      newErrors.birthPlace = 'Doğum yeri gereklidir';
+      valid = false;
+    }
+
+    if (!formData.kurumSicil || !formData.kurumSicil.trim()) {
+      newErrors.kurumSicil = 'Kurum sicil numarası gereklidir';
+      valid = false;
+    }
+
+    if (!formData.kadroUnvanKodu || !formData.kadroUnvanKodu.trim()) {
+      newErrors.kadroUnvanKodu = 'Kadro ünvan kodu gereklidir';
+      valid = false;
     }
 
     if (!formData.phone.trim()) {
@@ -86,6 +124,21 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     if (!formData.birthDate.trim()) {
       newErrors.birthDate = 'Doğum tarihi gereklidir';
       valid = false;
+    } else {
+      // Yaş kontrolü - signup ile tutarlı olmalı
+      const birthDate = new Date(formData.birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
+      if (age < 18) {
+        newErrors.birthDate = 'En az 18 yaşında olmalısınız';
+        valid = false;
+      } else if (age > 120) {
+        newErrors.birthDate = 'Geçerli bir doğum tarihi giriniz';
+        valid = false;
+      }
     }
 
     if (!formData.gender) {
@@ -108,24 +161,34 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const isValid = validateForm();
+    if (!isValid) {
+      // scroll to top so user sees validation errors and show hint
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      Alert.alert('Form Hatası', 'Lütfen kırmızı ile işaretlenmiş zorunlu alanları doldurun.');
+      return;
+    }
 
     setLoading(true);
     try {
       await registerDetails({
-        tcNo: formData.tcNo,
-        phone: formData.phone,
-        birthDate: formData.birthDate,
-        gender: formData.gender,
+        tcKimlikNo: formData.tcKimlikNo,
+        fatherName: formData.fatherName,
+        motherName: formData.motherName,
+        birthPlace: formData.birthPlace,
         education: formData.education,
-        workplace: formData.workplace,
-        jobTitle: formData.jobTitle,
+        kurumSicil: formData.kurumSicil,
+        kadroUnvanKodu: formData.kadroUnvanKodu,
+        isMemberOfOtherUnion: !!formData.isMemberOfOtherUnion,
         branchId: formData.branchId,
+        phone: formData.phone,
         address: formData.address,
+        city: formData.city,
+        district: formData.district,
       });
       Alert.alert(
-        'Başarılı',
-        'Üyelik başvurunuz alındı. Onay sürecinden sonra eğitimlere erişebileceksiniz.',
+        'Başvurunuz alındı',
+        'Başvurunuz başarıyla alınmıştır. Sendika temsilcimiz, üyeliğinizi tamamlamak için en kısa sürede sizinle iletişime geçecektir.',
         [{ text: 'Tamam', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
@@ -158,8 +221,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView          ref={scrollRef}          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -202,12 +264,12 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
           <View style={styles.formContainer}>
             <CustomInput
               label="TC Kimlik No"
-              value={formData.tcNo}
-              onChangeText={(text) => updateField('tcNo', text.replace(/\D/g, ''))}
+              value={formData.tcKimlikNo}
+              onChangeText={(text) => updateField('tcKimlikNo', text.replace(/\D/g, ''))}
               placeholder="Örn: 12345678901"
               keyboardType="numeric"
               maxLength={11}
-              error={errors.tcNo}
+              error={errors.tcKimlikNo}
               hint="Nüfus cüzdanınızdaki 11 haneli TC kimlik numaranız"
               required
             />
@@ -223,13 +285,63 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
               required
             />
 
+            {/* Doğum Tarihi - takvim */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Doğum Tarihi</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                style={[styles.inputWrapper, errors.birthDate ? styles.inputError : null]}
+              >
+                <Feather name="calendar" size={16} color="#94a3b8" style={styles.inputIcon} />
+                <Text style={[styles.datePickerText, !formData.birthDate && styles.datePickerPlaceholder]}>
+                  {formData.birthDate || 'YYYY-AA-GG (Örn: 1990-05-15)'}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={datePickerDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (!selectedDate) return;
+                    setDatePickerDate(selectedDate);
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    updateField('birthDate', `${year}-${month}-${day}`);
+                  }}
+                  maximumDate={new Date()}
+                />
+              )}
+              <Text style={styles.hintText}>18 yaşından büyük olmalısınız. Takvimden tarihinizi seçin</Text>
+              {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
+            </View>
+
             <CustomInput
-              label="Doğum Tarihi"
-              value={formData.birthDate}
-              onChangeText={(text) => updateField('birthDate', text)}
-              placeholder="Örn: 15/03/1980"
-              error={errors.birthDate}
-              hint="Gün/Ay/Yıl formatında yazın (Örn: 15/03/1980)"
+              label="Doğum Yeri"
+              value={formData.birthPlace}
+              onChangeText={(text) => updateField('birthPlace', text)}
+              placeholder="Örn: Konya"
+              error={errors.birthPlace}
+              required
+            />
+
+            <CustomInput
+              label="Baba Adı"
+              value={formData.fatherName}
+              onChangeText={(text) => updateField('fatherName', text)}
+              placeholder="Baba adınızı girin"
+              error={errors.fatherName}
+              required
+            />
+
+            <CustomInput
+              label="Anne Adı"
+              value={formData.motherName}
+              onChangeText={(text) => updateField('motherName', text)}
+              placeholder="Anne adınızı girin"
+              error={errors.motherName}
               required
             />
 
@@ -245,7 +357,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
                   <Picker.Item label="Seçiniz..." value="" />
                   <Picker.Item label="Erkek" value="male" />
                   <Picker.Item label="Kadın" value="female" />
-                  <Picker.Item label="Belirtmek İstemiyorum" value="other" />
                 </Picker>
               </View>
               {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
@@ -261,33 +372,47 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
                   style={styles.picker}
                 >
                   <Picker.Item label="Seçiniz..." value="" />
-                  <Picker.Item label="İlkokul" value="primary" />
-                  <Picker.Item label="Ortaokul" value="middle" />
-                  <Picker.Item label="Lise" value="high" />
-                  <Picker.Item label="Ön Lisans" value="associate" />
-                  <Picker.Item label="Lisans" value="bachelor" />
-                  <Picker.Item label="Yüksek Lisans" value="master" />
-                  <Picker.Item label="Doktora" value="phd" />
+                  {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                    <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
+                  ))}
                 </Picker>
               </View>
               {errors.education && <Text style={styles.errorText}>{errors.education}</Text>}
             </View>
 
             <CustomInput
-              label="İş Yeri"
-              value={formData.workplace}
-              onChangeText={(text) => updateField('workplace', text)}
-              placeholder="Örn: Fatih Cami, Ankara Müftülüğü"
-              hint="Şu an çalıştığınız kurum/cami adı"
+              label="Kurum Sicil Numarası"
+              value={formData.kurumSicil}
+              onChangeText={(text) => updateField('kurumSicil', text)}
+              placeholder="Örn: 12345"
+              error={errors.kurumSicil}
+              required
             />
 
             <CustomInput
-              label="Ünvan"
-              value={formData.jobTitle}
-              onChangeText={(text) => updateField('jobTitle', text)}
-              placeholder="Örn: Vaiz, Müezzin, İmam"
-              hint="Resmi görev ünvanınız (vaiz, müezzin, imam vb.)"
+              label="Kadro Ünvan Kodu"
+              value={formData.kadroUnvanKodu}
+              onChangeText={(text) => updateField('kadroUnvanKodu', text)}
+              placeholder="Örn: M001"
+              error={errors.kadroUnvanKodu}
+              required
             />
+
+            <View style={styles.pickerContainer}>
+              <Text style={styles.pickerLabel}>Başka sendikaya üye misiniz?</Text>
+              <View style={[styles.pickerWrapper]}>
+                <Picker
+                  selectedValue={String(formData.isMemberOfOtherUnion)}
+                  onValueChange={(value) => updateField('isMemberOfOtherUnion', value === 'true')}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Hayır" value="false" />
+                  <Picker.Item label="Evet" value="true" />
+                </Picker>
+              </View>
+            </View>
+
+
 
             {/* Branch Picker */}
             <View style={styles.pickerContainer}>
@@ -465,8 +590,37 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  inputError: {
+    borderColor: '#ef4444',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+  },
   pickerError: {
     borderColor: '#ef4444',
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  datePickerPlaceholder: {
+    color: '#94a3b8',
   },
   picker: {
     height: 50,

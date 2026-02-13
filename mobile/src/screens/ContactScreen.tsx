@@ -17,6 +17,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -67,6 +68,7 @@ const contactInfo = [
 ];
 
 export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     topicId: '',
     message: '',
@@ -79,16 +81,42 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
 
   useEffect(() => {
     loadTopics();
+    checkBranchId();
   }, []);
+
+  const checkBranchId = () => {
+    // Kullanıcının branchId'si yoksa uyar
+    if (user && !user.branchId) {
+      Alert.alert(
+        'Şube Bilgisi Gerekli',
+        'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
+        [
+          { text: 'Tamam', style: 'cancel' },
+          { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
+        ]
+      );
+    }
+  };
 
   const loadTopics = async () => {
     try {
       setLoadingTopics(true);
       const topicsData = await ApiService.getTopics();
-      setTopics(topicsData.filter((t: Topic) => t.isActive));
-    } catch (error) {
+      const activeTopics = topicsData.filter((t: Topic) => t.isActive);
+      setTopics(activeTopics);
+      
+      if (activeTopics.length === 0) {
+        Alert.alert(
+          'Bilgi', 
+          'Şu anda aktif konu bulunmamaktadır. Lütfen daha sonra tekrar deneyin.'
+        );
+      }
+    } catch (error: any) {
       console.error('Topics yüklenemedi:', error);
-      Alert.alert('Hata', 'Konular yüklenemedi. Lütfen sayfayı yenileyin.');
+      Alert.alert(
+        'Hata', 
+        error?.message || 'Konular yüklenemedi. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.'
+      );
     } finally {
       setLoadingTopics(false);
     }
@@ -126,6 +154,19 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
+    // Şube kontrolü
+    if (!user?.branchId) {
+      Alert.alert(
+        'Şube Bilgisi Gerekli',
+        'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
+        [
+          { text: 'Tamam', style: 'cancel' },
+          { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
+        ]
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       await ApiService.sendContactMessage({
@@ -138,7 +179,24 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
         [{ text: 'Tamam', onPress: () => setFormData({ topicId: '', message: '' }) }]
       );
     } catch (error: any) {
-      Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.'));
+      console.error('Contact message error:', error);
+      
+      // Şube bilgisi hatası için özel mesaj
+      if (error?.message?.includes('Şube bilgisi') || error?.message?.includes('branch')) {
+        Alert.alert(
+          'Şube Bilgisi Gerekli',
+          'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
+          [
+            { text: 'Tamam', style: 'cancel' },
+            { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Hata', 
+          getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.')
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -363,23 +421,6 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-                style={styles.submitButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {loading ? (
-                  <Feather name="loader" size={20} color="#ffffff" />
-                ) : (
-                  <>
-                    <Feather name="send" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                    <Text style={styles.submitButtonText}>Mesaj Gönder</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
