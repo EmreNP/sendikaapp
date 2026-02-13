@@ -9,6 +9,10 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const GET = asyncHandler(async (
   request: NextRequest,
   { params }: { params: { id: string } }

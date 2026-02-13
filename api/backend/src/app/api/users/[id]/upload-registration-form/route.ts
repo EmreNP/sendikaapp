@@ -10,6 +10,11 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { isErrorWithMessage } from '@/lib/utils/response';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // POST /api/users/[id]/upload-registration-form
 export const POST = asyncHandler(async (
   request: NextRequest,
