@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Share,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,6 +33,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
   const { newsId } = route.params;
   const [newsItem, setNewsItem] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +50,13 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
       setErrorMessage(getUserFriendlyErrorMessage(error, 'Haber detayı yüklenemedi.'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchNewsDetail();
   };
 
   const formatDate = (dateString: string) => {
@@ -113,7 +121,12 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
+        }
+      >
         {/* Header Image */}
         {newsItem.imageUrl ? (
           <Image source={{ uri: newsItem.imageUrl }} style={styles.headerImage} />
@@ -240,7 +253,7 @@ const styles = StyleSheet.create({
   },
   headerImage: {
     width: '100%',
-    height: 280,
+    aspectRatio: 16 / 9,
     resizeMode: 'cover',
   },
   placeholderImage: {

@@ -1,4 +1,4 @@
-// Notifications Screen - Kullanıcı Bildirimleri
+// Notifications Screen - Kullanıcı Bildirimleri (Sadece okunmamışlar)
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,12 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import {
+  getReadNotificationIds,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  setUnreadCount,
+} from '../services/notificationStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -35,27 +42,47 @@ interface Notification {
 export const NotificationsScreen: React.FC = () => {
   const navigation = useNavigation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [unreadCount, setUnreadCountState] = useState(0);
 
   useEffect(() => {
-    fetchNotifications();
+    loadReadIds();
   }, []);
 
-  const fetchNotifications = async (pageNum = 1) => {
+  const loadReadIds = async () => {
+    const ids = await getReadNotificationIds();
+    setReadIds(ids);
+    fetchNotifications(1, ids);
+  };
+
+  const filterUnread = (allItems: Notification[], readSet: Set<string>) => {
+    const unread = allItems.filter(n => !readSet.has(n.id));
+    setNotifications(unread);
+    setUnreadCountState(unread.length);
+    setUnreadCount(unread.length);
+  };
+
+  const fetchNotifications = async (pageNum = 1, currentReadIds?: Set<string>) => {
     try {
       setIsLoading(pageNum === 1);
       if (pageNum === 1) setErrorMessage(null);
-      const response = await ApiService.getNotifications({ page: pageNum, limit: 20 });
+      const response = await ApiService.getNotifications({ page: pageNum, limit: 50 });
       
       if (response?.notifications) {
+        const rIds = currentReadIds || readIds;
         if (pageNum === 1) {
-          setNotifications(response.notifications);
+          setAllNotifications(response.notifications);
+          filterUnread(response.notifications, rIds);
         } else {
-          setNotifications(prev => [...prev, ...response.notifications]);
+          const combined = [...allNotifications, ...response.notifications];
+          setAllNotifications(combined);
+          filterUnread(combined, rIds);
         }
         setHasMore(response.pagination.page < response.pagination.totalPages);
         setPage(pageNum);
@@ -73,7 +100,9 @@ export const NotificationsScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchNotifications(1);
+    const ids = await getReadNotificationIds();
+    setReadIds(ids);
+    await fetchNotifications(1, ids);
   };
 
   const loadMore = () => {
@@ -82,7 +111,20 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const handleNotificationPress = (notification: Notification) => {
+  const handleNotificationPress = async (notification: Notification) => {
+    // Mark as read
+    await markNotificationAsRead(notification.id);
+    const newReadIds = new Set(readIds);
+    newReadIds.add(notification.id);
+    setReadIds(newReadIds);
+    
+    // Remove from visible list
+    const updated = notifications.filter(n => n.id !== notification.id);
+    setNotifications(updated);
+    setUnreadCountState(updated.length);
+    setUnreadCount(updated.length);
+
+    // Navigate
     if (notification.type === 'news' && notification.contentId) {
       navigation.navigate('NewsDetail' as any, { newsId: notification.contentId });
     } else if (notification.type === 'news') {
@@ -90,6 +132,31 @@ export const NotificationsScreen: React.FC = () => {
     } else if (notification.type === 'announcement') {
       navigation.navigate('AllAnnouncements' as any);
     }
+  };
+
+  const handleMarkAllAsRead = () => {
+    if (notifications.length === 0) return;
+    
+    Alert.alert(
+      'Tümünü Okundu İşaretle',
+      `${notifications.length} bildirimi okundu olarak işaretlemek istediğinizden emin misiniz?`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Okundu İşaretle',
+          onPress: async () => {
+            const ids = notifications.map(n => n.id);
+            await markAllNotificationsAsRead(ids);
+            const newReadIds = new Set(readIds);
+            ids.forEach(id => newReadIds.add(id));
+            setReadIds(newReadIds);
+            setNotifications([]);
+            setUnreadCountState(0);
+            setUnreadCount(0);
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (date: string) => {
@@ -124,6 +191,9 @@ export const NotificationsScreen: React.FC = () => {
         onPress={() => handleNotificationPress(notification)}
         activeOpacity={0.8}
       >
+        {/* Unread indicator dot */}
+        <View style={styles.unreadDot} />
+        
         <View style={styles.notificationLeft}>
           <View style={[styles.notificationIconBg, { backgroundColor: typeColors.bg }]}>
             <Feather 
@@ -189,10 +259,19 @@ export const NotificationsScreen: React.FC = () => {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Bildirimler</Text>
           {notifications.length > 0 && (
-            <Text style={styles.headerSubtitle}>{notifications.length} bildirim</Text>
+            <Text style={styles.headerSubtitle}>{notifications.length} okunmamış</Text>
           )}
         </View>
-        <View style={styles.headerRight} />
+        {notifications.length > 0 ? (
+          <TouchableOpacity 
+            style={styles.markAllButton}
+            onPress={handleMarkAllAsRead}
+          >
+            <Feather name="check-circle" size={20} color="#2563eb" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerRight} />
+        )}
       </LinearGradient>
 
       {/* Content */}
@@ -206,9 +285,9 @@ export const NotificationsScreen: React.FC = () => {
           <View style={styles.emptyIconBg}>
             <Feather name={errorMessage ? 'alert-circle' : 'bell-off'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
           </View>
-          <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Bildirim Yok'}</Text>
+          <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Okunmamış Bildirim Yok'}</Text>
           <Text style={styles.emptySubtitle}>
-            {errorMessage || 'Size gönderilen bildirimler burada görünecek'}
+            {errorMessage || 'Tüm bildirimlerinizi okudunuz. Yeni bildirimler geldiğinde burada görünecek.'}
           </Text>
           {errorMessage && (
             <TouchableOpacity onPress={() => fetchNotifications(1)} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
@@ -286,6 +365,14 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40,
   },
+  markAllButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     padding: 16,
   },
@@ -340,6 +427,16 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: 'rgba(226, 232, 240, 0.6)',
+    position: 'relative',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2563eb',
   },
   notificationLeft: {
     marginRight: 12,

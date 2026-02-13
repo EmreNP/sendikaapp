@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,6 +34,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
   const [training, setTraining] = useState<Training | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
 
   // Content/tab state
@@ -81,7 +83,13 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       Alert.alert('Hata', 'Eğitim detayları yüklenemedi');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCourseDetails();
   };
 
   const toggleLesson = (lessonId: string) => {
@@ -184,7 +192,12 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
+        }
+      >
         {/* Header Image */}
         {training.imageUrl ? (
           <Image source={{ uri: training.imageUrl }} style={styles.headerImage} />

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +31,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
   const { branchId } = route.params;
   const [branch, setBranch] = useState<Branch | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBranchDetails();
@@ -44,7 +46,13 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
       Alert.alert('Hata', 'Şube detayları yüklenemedi');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBranchDetails();
   };
 
   const handleCall = () => {
@@ -127,6 +135,9 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
+        }
       >
         {/* Branch Card */}
         <View style={styles.branchCard}>

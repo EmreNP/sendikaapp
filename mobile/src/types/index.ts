@@ -154,10 +154,12 @@ export interface ContractedInstitution {
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
+  ForgotPassword: undefined;
   Signup: undefined;
   Main: undefined;
   MainTabs: undefined;
   Membership: undefined;
+  EditProfile: undefined;
   PendingApproval: undefined;
   Rejected: undefined;
   CourseDetail: { trainingId: string; lessonId?: string };

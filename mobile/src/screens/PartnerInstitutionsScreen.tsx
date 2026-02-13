@@ -67,7 +67,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
   const fetchInstitutions = async (pageNum = 1) => {
     try {
       if (pageNum === 1) setErrorMessage(null);
-      const categoryId = selectedCategory !== 'Tümü' 
+      const categoryId = selectedCategory !== 'Tümü' && categories.length > 0
         ? categories.find(c => c.name === selectedCategory)?.id 
         : undefined;
       
@@ -122,7 +122,17 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
   }, [institutions, searchTerm]);
 
   const handleInstitutionSelect = (institution: ContractedInstitution) => {
-    navigation.navigate('PartnerDetail' as any, { institution });
+    try {
+      // categoryName backend'den gelmeyebilir, categories state'inden eşleştir
+      const enriched = { ...institution };
+      if (!enriched.categoryName && enriched.categoryId && categories.length > 0) {
+        const cat = categories.find(c => c.id === enriched.categoryId);
+        if (cat) enriched.categoryName = cat.name;
+      }
+      navigation.navigate('PartnerDetail' as any, { institution: enriched });
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   if (loading) {
@@ -149,44 +159,55 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
     );
   }
 
-  const renderInstitutionItem = ({ item }: { item: ContractedInstitution }) => (
-    <TouchableOpacity
-      style={styles.partnerCard}
-      onPress={() => handleInstitutionSelect(item)}
-      activeOpacity={0.95}
-    >
-      {/* Image Container */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: item.coverImageUrl || item.logoUrl }}
-          style={styles.partnerImage}
-          resizeMode="cover"
-        />
-        {/* Discount Badge */}
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{item.badgeText}</Text>
-        </View>
-      </View>
+  const renderInstitutionItem = ({ item }: { item: ContractedInstitution }) => {
+    // categoryName backend'den gelmeyebilir, categories state'inden eşleştir
+    // Güvenli erişim: categories boş olabilir
+    let categoryName = '';
+    if (item.categoryName) {
+      categoryName = item.categoryName;
+    } else if (item.categoryId && categories.length > 0) {
+      categoryName = categories.find(c => c.id === item.categoryId)?.name || '';
+    }
 
-      {/* Content */}
-      <View style={styles.cardContent}>
-        {/* Category Badge */}
-        {item.categoryName && (
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{item.categoryName}</Text>
+    return (
+      <TouchableOpacity
+        style={styles.partnerCard}
+        onPress={() => handleInstitutionSelect(item)}
+        activeOpacity={0.95}
+      >
+        {/* Image Container */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: item.coverImageUrl || item.logoUrl }}
+            style={styles.partnerImage}
+            resizeMode="cover"
+          />
+          {/* Discount Badge */}
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>{item.badgeText}</Text>
           </View>
-        )}
+        </View>
 
-        {/* Name */}
-        <Text style={styles.partnerName}>{item.title}</Text>
+        {/* Content */}
+        <View style={styles.cardContent}>
+          {/* Category Badge */}
+          {categoryName ? (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{categoryName}</Text>
+            </View>
+          ) : null}
 
-        {/* Description */}
-        <Text style={styles.partnerDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+          {/* Name */}
+          <Text style={styles.partnerName}>{item.title}</Text>
+
+          {/* Description */}
+          <Text style={styles.partnerDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -396,35 +417,31 @@ const styles = StyleSheet.create({
     marginTop: -64,
     paddingHorizontal: 16,
   },
-  // Categories - Front birebir
+  // Categories - Sabit yükseklikte yatay scroll
   categoriesScroll: {
+    flexGrow: 0,
     marginBottom: 16,
+    maxHeight: 52,
   },
   categoriesContent: {
-    gap: 8,
+    alignItems: 'center',
+    paddingRight: 8,
   },
   categoryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   categoryButtonSelected: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: 'rgba(30,58,138,0.1)',
-    transform: [{ scale: 1.05 }],
+    backgroundColor: '#1e3a8a',
+    borderColor: '#1e3a8a',
   },
   categoryText: {
     fontSize: 14,
@@ -432,7 +449,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   categoryTextSelected: {
-    color: '#1e3a8a',
+    color: '#ffffff',
     fontWeight: '600',
   },
   // Partners Grid/FlatList

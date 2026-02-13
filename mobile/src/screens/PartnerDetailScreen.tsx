@@ -95,7 +95,9 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
         {/* Header with Cover Image */}
         <View style={styles.headerWrapper}>
           <Image
-            source={{ uri: partner.coverUrl || partner.logoUrl }}
+            source={{ 
+              uri: partner.coverUrl || partner.logoUrl || 'https://via.placeholder.com/800x400/e2e8f0/64748b?text=Kurum+Görseli'
+            }}
             style={styles.coverImage}
           />
           <LinearGradient
@@ -110,12 +112,14 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
           </TouchableOpacity>
           
           <View style={styles.headerContent}>
-            <View style={styles.categoryBadge}>
-              <Feather name={getCategoryIcon(partner.category) as any} size={14} color={getCategoryColor(partner.category)} />
-              <Text style={[styles.categoryText, { color: getCategoryColor(partner.category) }]}>
-                {partner.category}
-              </Text>
-            </View>
+            {partner.category && (
+              <View style={styles.categoryBadge}>
+                <Feather name={getCategoryIcon(partner.category) as any} size={14} color={getCategoryColor(partner.category)} />
+                <Text style={[styles.categoryText, { color: getCategoryColor(partner.category) }]}>
+                  {partner.category}
+                </Text>
+              </View>
+            )}
             <Text style={styles.partnerName}>{partner.name}</Text>
           </View>
 

@@ -1,10 +1,11 @@
 // App Navigator - Main Navigation Setup
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import type { RootStackParamList, MainTabParamList } from '../types';
@@ -13,6 +14,7 @@ import type { RootStackParamList, MainTabParamList } from '../types';
 import {
   WelcomeScreen,
   LoginScreen,
+  ForgotPasswordScreen,
   SignupScreen,
   HomeScreen,
   CoursesScreen,
@@ -29,6 +31,7 @@ import {
   PendingApprovalScreen,
   RejectedScreen,
   ProfileScreen,
+  EditProfileScreen,
   MuktesepScreen,
   DistrictRepresentativeScreen,
   PartnerInstitutionsScreen,
@@ -108,8 +111,16 @@ const NotificationHandler = () => {
 export const AppNavigator = () => {
   const { isAuthenticated, isLoading, status, isAdmin } = useAuth();
 
+  useEffect(() => {
+    if (!isLoading) {
+      // Auth yüklendi, splash screen'i gizle
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isLoading]);
+
   if (isLoading) {
-    return <LoadingScreen />;
+    // Splash screen hala görünür, boş view döndür
+    return null;
   }
 
   return (
@@ -121,6 +132,7 @@ export const AppNavigator = () => {
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : status === 'rejected' ? (
@@ -146,6 +158,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="PartnerInstitutions" component={PartnerInstitutionsScreen} />
             <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}

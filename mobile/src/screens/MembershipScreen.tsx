@@ -18,6 +18,7 @@ import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
 import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch } from '../types';
@@ -68,9 +69,12 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     if (!formData.tcNo.trim()) {
       newErrors.tcNo = 'TC Kimlik No gereklidir';
       valid = false;
-    } else if (formData.tcNo.length !== 11) {
-      newErrors.tcNo = 'TC Kimlik No 11 haneli olmalıdır';
-      valid = false;
+    } else {
+      const tcValidation = validateTCKimlikNo(formData.tcNo.trim());
+      if (!tcValidation.valid) {
+        newErrors.tcNo = tcValidation.error || 'Geçersiz TC Kimlik No';
+        valid = false;
+      }
     }
 
     if (!formData.phone.trim()) {

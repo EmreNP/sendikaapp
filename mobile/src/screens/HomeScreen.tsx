@@ -20,7 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { HamburgerMenu } from '../components/HamburgerMenu';
+import { OfflineBanner } from '../components/OfflineBanner';
 import ApiService from '../services/api';
+import { cacheNews, cacheAnnouncements, getCachedNews, getCachedAnnouncements } from '../services/offlineCache';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { stripHtmlTags } from '../components/HtmlContent';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -102,11 +105,11 @@ const sliderImages = [
 // Front QuickAccessGrid - 6 buton (front/src/components/QuickAccessGrid.tsx'den birebir)
 // icon mapping: lucide-react -> Feather (birebir renk kodları)
 // Frontend renkleri: blue-600 #2563eb, blue-700 #1d4ed8, indigo-600 #4f46e5, indigo-700 #4338ca, cyan-600 #0891b2, cyan-700 #0e7490
-// Sıralama: 1-Bize Ulaşın, 2-Haberler, 3-Anlaşmalı, 4-5-6 Rastgele
+// Sıralama: 1-Bize Ulaşın, 2-Haberler, 3-Anlaşmalı Kurumlar, 4-5-6 Rastgele
 const quickAccessItems = [
   { id: '1', title: 'Bize Ulaşın', icon: 'phone', route: 'Contact', colors: ['#64748b', '#475569'] as [string, string] },
   { id: '2', title: 'Haberler', icon: 'book-open', route: 'News', colors: ['#4f46e5', '#4338ca'] as [string, string] },
-  { id: '3', title: 'Anlaşmalı', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '3', title: 'Anlaşmalı Kurumlar', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
   { id: '4', title: 'Hutbeler', icon: 'book', route: 'Hutbeler', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
   { id: '5', title: 'Müktesep Hesaplama', icon: 'percent', route: 'Muktesep', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
   { id: '6', title: 'DİBBYS', icon: 'database', route: 'DIBBYS', colors: ['#0891b2', '#0e7490'] as [string, string] },
@@ -193,6 +196,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const sliderRef = useRef<FlatList>(null);
   const [sliderNews, setSliderNews] = useState<News[]>([]);
+  const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     fetchData();
@@ -234,12 +238,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       
       // Slider için öne çıkan haberleri al (isFeatured=true)
       setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : (newsData.items.length > 0 ? newsData.items.slice(0, 3) : mockNews.slice(0, 3)));
+
+      // Cache successful data for offline use
+      if (fetchedAnnouncements.length > 0) await cacheAnnouncements(fetchedAnnouncements);
+      if (fetchedNews.length > 0) await cacheNews(newsData.items);
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Hata durumunda mock data kullan
-      setAnnouncements(mockAnnouncements);
-      setNews(mockNews);
-      setSliderNews(mockNews.slice(0, 3));
+      // Try loading from cache first, then fall back to mock data
+      const cachedNewsData = await getCachedNews();
+      const cachedAnnouncementsData = await getCachedAnnouncements();
+      
+      if (cachedAnnouncementsData && cachedAnnouncementsData.length > 0) {
+        setAnnouncements(cachedAnnouncementsData);
+      } else {
+        setAnnouncements(mockAnnouncements);
+      }
+      
+      if (cachedNewsData && cachedNewsData.length > 0) {
+        setNews(cachedNewsData.slice(0, 3));
+        setSliderNews(cachedNewsData.slice(0, 3));
+      } else {
+        setNews(mockNews);
+        setSliderNews(mockNews.slice(0, 3));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -339,10 +360,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Front QuickAccessGrid - white card with gradient icon
   const renderQuickAccessItem = (item: typeof quickAccessItems[0]) => {
+    // Responsive genişlik: En az 100px, ideal 3 sütun
+    const cardWidth = Math.max(100, (screenWidth - 32 - 24) / 3);
+    
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.quickAccessCard, { width: (screenWidth - 32 - 24) / 3 }]}
+        style={[styles.quickAccessCard, { width: cardWidth }]}
         onPress={() => handleQuickAccess(item.route)}
         activeOpacity={0.8}
       >
@@ -431,6 +455,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      <OfflineBanner />
+      
       {/* Front TopNavigation - logo ve marka */}
       <LinearGradient
         colors={['#ffffff', '#f8fafc']}
@@ -809,7 +836,8 @@ const styles = StyleSheet.create({
     width: (_initScreenWidth - 32 - 24) / 3, // 3 columns with gap
     alignItems: 'center',
     paddingVertical: DEFAULT_LAYOUT.iconPadding,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
+    minWidth: 100,
   },
   quickAccessIcon: {
     width: DEFAULT_LAYOUT.iconSize,
@@ -855,11 +883,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   quickAccessTitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#374151', // text-gray-700
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: 17,
+    paddingHorizontal: 2,
   },
   // Announcements Section - Front birebir
   announcementSection: {

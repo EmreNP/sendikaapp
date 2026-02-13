@@ -45,6 +45,15 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+    }).catch((err: any) => {
+      // Network error - provide meaningful message
+      if (err.message?.includes('Network request failed') || err.message?.includes('Failed to fetch')) {
+        throw new Error('İnternet bağlantınız yok veya sunucuya ulaşılamıyor. Lütfen bağlantınızı kontrol edin.');
+      }
+      if (err.message?.includes('timeout') || err.message?.includes('Timeout')) {
+        throw new Error('İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+      }
+      throw new Error('Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.');
     });
 
     const contentType = response.headers.get('content-type') || '';
@@ -146,6 +155,28 @@ class ApiService {
     );
 
     return { user: response.data };
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.AUTH.PASSWORD_RESET_REQUEST,
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      },
+      false
+    );
+  }
+
+  async updateProfile(data: Record<string, any>): Promise<User> {
+    const response = await this.request<{ success: boolean; data: { user: User } }>(
+      API_ENDPOINTS.USERS.ME,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+    return response.data.user;
   }
 
   async getCurrentUser(): Promise<User> {

@@ -187,6 +187,18 @@ export const HtmlContent: React.FC<HtmlContentProps> = ({
     },
   }), [baseFontSize]);
 
+  // renderersProps ve defaultTextProps'u memoize et — aksi halde her render'da
+  // yeni obje oluşur ve RenderHtml gereksiz yere ağacı yeniden oluşturur.
+  const renderersProps = useMemo(() => ({
+    img: {
+      enableExperimentalPercentWidth: true,
+    },
+  }), []);
+
+  const defaultTextProps = useMemo(() => ({
+    selectable: true,
+  }), []);
+
   return (
     <RenderHtml
       contentWidth={contentWidth}
@@ -194,17 +206,8 @@ export const HtmlContent: React.FC<HtmlContentProps> = ({
       tagsStyles={customTagsStyles}
       systemFonts={defaultSystemFonts}
       enableExperimentalMarginCollapsing
-      defaultTextProps={{
-        selectable: true,
-      }}
-      renderersProps={{
-        img: {
-          enableExperimentalPercentWidth: true,
-        },
-        a: {
-          // Link'lere tıklanınca tarayıcıda aç
-        },
-      }}
+      defaultTextProps={defaultTextProps}
+      renderersProps={renderersProps}
     />
   );
 };

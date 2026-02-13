@@ -5,11 +5,17 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "distribution": "internal"
       },
       "distribution": "internal",
       "env": {
@@ -19,6 +25,12 @@
     "production": {
       "android": {
         "buildType": "app-bundle",
+        "env": {
+          "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
+        }
+      },
+      "ios": {
+        "autoIncrement": true,
         "env": {
           "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
         }

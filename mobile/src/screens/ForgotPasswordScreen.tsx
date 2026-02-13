@@ -1,4 +1,4 @@
-// Login Screen - Redesigned to match front web design
+// Forgot Password Screen - Şifre Sıfırlama
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -13,38 +13,34 @@ import {
   Animated,
   Easing,
   Dimensions,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useAuth } from '../context/AuthContext';
-import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
+import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type ForgotPasswordScreenProps = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 };
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { login } = useAuth();
+export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: '', password: '' });
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Rotating animation for Persian motif
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -54,7 +50,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       })
     ).start();
 
-    // Fade in and slide up animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -75,62 +70,128 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     outputRange: ['0deg', '360deg'],
   });
 
-  const validateForm = () => {
-    let valid = true;
-    const newErrors = { email: '', password: '' };
-
+  const validateEmail = () => {
     if (!email.trim()) {
-      newErrors.email = 'E-posta adresi gereklidir';
-      valid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Geçerli bir e-posta adresi giriniz';
-      valid = false;
+      setError('E-posta adresi gereklidir');
+      return false;
     }
-
-    if (!password) {
-      newErrors.password = 'Şifre gereklidir';
-      valid = false;
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Geçerli bir e-posta adresi giriniz');
+      return false;
     }
-
-    setErrors(newErrors);
-    return valid;
+    setError('');
+    return true;
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
+  const handleResetPassword = async () => {
+    if (!validateEmail()) return;
 
     setLoading(true);
     try {
-      await login(email, password);
-    } catch (error: any) {
-      Alert.alert('Giriş Başarısız', getUserFriendlyErrorMessage(error, 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.'));
+      await ApiService.requestPasswordReset(email.trim().toLowerCase());
+      setSent(true);
+    } catch (err: any) {
+      // Backend güvenlik gereği her durumda başarılı döner (email olsun olmasın)
+      // Ama network hatası olabilir
+      Alert.alert(
+        'Hata',
+        getUserFriendlyErrorMessage(err, 'Şifre sıfırlama isteği gönderilemedi. Lütfen tekrar deneyin.')
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  if (sent) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0f172a', '#312e81', '#0f172a']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.patternOverlay}>
+          <IslamicTileBackground opacity={0.1} />
+        </View>
+
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Feather name="arrow-left" size={20} color="#ffffff" />
+              <Text style={styles.backButtonText}>Geri</Text>
+            </TouchableOpacity>
+
+            <View style={styles.successCard}>
+              <View style={styles.successIconContainer}>
+                <LinearGradient
+                  colors={['#10b981', '#059669']}
+                  style={styles.successIcon}
+                >
+                  <Feather name="mail" size={32} color="#ffffff" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.successTitle}>E-posta Gönderildi!</Text>
+              <Text style={styles.successMessage}>
+                Şifre sıfırlama bağlantısı{'\n'}
+                <Text style={styles.successEmail}>{email}</Text>
+                {'\n'}adresine gönderildi.
+              </Text>
+              <Text style={styles.successHint}>
+                E-postanızı kontrol edin. Gelen kutunuzda bulamazsanız spam/gereksiz klasörünü de kontrol edin.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.backToLoginButton}
+                onPress={() => navigation.navigate('Login')}
+              >
+                <LinearGradient
+                  colors={['#4338ca', '#1e40af']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.backToLoginGradient}
+                >
+                  <Feather name="log-in" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.backToLoginText}>Giriş Sayfasına Dön</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={() => {
+                  setSent(false);
+                  setEmail('');
+                }}
+              >
+                <Text style={styles.resendText}>Tekrar gönder</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Gradient Background */}
       <LinearGradient
         colors={['#0f172a', '#312e81', '#0f172a']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-
-      {/* Islamic Pattern Overlay */}
       <View style={styles.patternOverlay}>
         <IslamicTileBackground opacity={0.1} />
       </View>
-
-      {/* Animated Persian Motif */}
       <View style={styles.decorativeElements} pointerEvents="none">
         <Animated.View
-          style={[
-            styles.motifTopLeft,
-            { transform: [{ rotate: rotation }] },
-          ]}
+          style={[styles.motifTopLeft, { transform: [{ rotate: rotation }] }]}
         >
           <CircularPersianMotif size={500} color="#ffffff" opacity={0.07} />
         </Animated.View>
@@ -146,7 +207,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Back Button */}
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
@@ -155,7 +215,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <Text style={styles.backButtonText}>Geri</Text>
             </TouchableOpacity>
 
-            {/* Main Card */}
             <Animated.View
               style={[
                 styles.card,
@@ -177,74 +236,47 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 </View>
                 <View style={styles.cardHeaderContent}>
                   <View style={styles.iconContainer}>
-                    <Image
-                      source={require('../../assets/logo.png')}
-                      style={styles.logoImage}
-                      resizeMode="cover"
-                    />
+                    <Feather name="key" size={28} color="#4338ca" />
                   </View>
-                  <Text style={styles.title}>Giriş Yap</Text>
-                  <Text style={styles.subtitle}>Hesabınıza giriş yapın</Text>
+                  <Text style={styles.title}>Şifremi Unuttum</Text>
+                  <Text style={styles.subtitle}>Şifrenizi sıfırlamak için e-posta adresinizi girin</Text>
                 </View>
               </LinearGradient>
 
               {/* Card Body */}
               <View style={styles.cardBody}>
-                {/* Email Input */}
+                <View style={styles.infoBox}>
+                  <Feather name="info" size={16} color="#3b82f6" />
+                  <Text style={styles.infoText}>
+                    Kayıtlı e-posta adresinize şifre sıfırlama bağlantısı göndereceğiz.
+                  </Text>
+                </View>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>E-posta Adresi</Text>
-                  <View style={[styles.inputWrapper, errors.email ? styles.inputError : null]}>
+                  <View style={[styles.inputWrapper, error ? styles.inputError : null]}>
                     <Feather name="mail" size={18} color="#94a3b8" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       value={email}
                       onChangeText={(text) => {
                         setEmail(text);
-                        setErrors({ ...errors, email: '' });
+                        setError('');
                       }}
-                      placeholder="Örn: isminiz@gmail.com"
+                      placeholder="Kayıtlı e-posta adresiniz"
                       placeholderTextColor="#94a3b8"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
+                      autoFocus
                     />
                   </View>
-                  <Text style={styles.hintText}>Kayıt olurken kullandığınız e-posta adresini yazın</Text>
-                  {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 </View>
 
-                {/* Password Input */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Şifre</Text>
-                  <View style={[styles.inputWrapper, errors.password ? styles.inputError : null]}>
-                    <Feather name="lock" size={18} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={password}
-                      onChangeText={(text) => {
-                        setPassword(text);
-                        setErrors({ ...errors, password: '' });
-                      }}
-                      placeholder="Şifrenizi girin"
-                      placeholderTextColor="#94a3b8"
-                      secureTextEntry={!showPassword}
-                      autoComplete="password"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeButton}
-                    >
-                      <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color="#94a3b8" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.hintText}>Kayıt olurken belirlediğiniz şifrenizi yazın</Text>
-                  {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-                </View>
-
-                {/* Submit Button */}
                 <TouchableOpacity
                   style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                  onPress={handleLogin}
+                  onPress={handleResetPassword}
                   disabled={loading}
                   activeOpacity={0.9}
                 >
@@ -258,27 +290,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                       <Feather name="loader" size={20} color="#ffffff" />
                     ) : (
                       <>
-                        <Feather name="log-in" size={20} color="#ffffff" style={styles.buttonIcon} />
-                        <Text style={styles.submitButtonText}>Giriş Yap</Text>
+                        <Feather name="send" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                        <Text style={styles.submitButtonText}>Sıfırlama Bağlantısı Gönder</Text>
                       </>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Forgot Password Link */}
-                <TouchableOpacity
-                  style={styles.forgotPasswordContainer}
-                  onPress={() => navigation.navigate('ForgotPassword' as any)}
-                >
-                  <Feather name="key" size={14} color="#4338ca" style={{ marginRight: 4 }} />
-                  <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
-                </TouchableOpacity>
-
-                {/* Signup Link */}
-                <View style={styles.signupContainer}>
-                  <Text style={styles.signupText}>Hesabınız yok mu? </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-                    <Text style={styles.signupLink}>Kayıt Ol</Text>
+                <View style={styles.loginContainer}>
+                  <Text style={styles.loginText}>Şifrenizi hatırladınız mı? </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                    <Text style={styles.loginLink}>Giriş Yap</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -358,20 +380,13 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: 32,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-    borderRadius: 40,
-  },
-  logoImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
   },
   title: {
     fontSize: 24,
@@ -382,9 +397,25 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: 'rgba(199, 210, 254, 1)',
+    textAlign: 'center',
   },
   cardBody: {
     padding: 32,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+    gap: 10,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 18,
   },
   inputGroup: {
     marginBottom: 24,
@@ -417,16 +448,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1e293b',
   },
-  eyeButton: {
-    padding: 4,
-  },
-  hintText: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-    marginLeft: 4,
-    fontStyle: 'italic',
-  },
   errorText: {
     fontSize: 12,
     color: '#ef4444',
@@ -434,7 +455,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   submitButton: {
-    marginTop: 16,
+    marginTop: 8,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -447,37 +468,94 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
   },
-  buttonIcon: {
-    marginRight: 8,
-  },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
   },
-  forgotPasswordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '500',
-  },
-  signupContainer: {
+  loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 24,
   },
-  signupText: {
+  loginText: {
     fontSize: 14,
     color: '#64748b',
   },
-  signupLink: {
+  loginLink: {
     fontSize: 14,
     color: '#4338ca',
     fontWeight: '600',
+  },
+  // Success screen styles
+  successCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 50,
+    elevation: 20,
+  },
+  successIconContainer: {
+    marginBottom: 24,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+  successMessage: {
+    fontSize: 15,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  successEmail: {
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+  successHint: {
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 18,
+  },
+  backToLoginButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  backToLoginGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  backToLoginText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  resendButton: {
+    paddingVertical: 8,
+  },
+  resendText: {
+    fontSize: 14,
+    color: '#4338ca',
+    fontWeight: '500',
   },
 });
