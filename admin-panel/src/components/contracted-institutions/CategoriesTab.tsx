@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tag, Plus, Edit, Trash2, XCircle, X } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, XCircle, X, Search } from 'lucide-react';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { institutionCategoryService } from '@/services/api/institutionCategoryService';
 import type { InstitutionCategory, CreateInstitutionCategoryRequest, UpdateInstitutionCategoryRequest } from '@/types/contracted-institution';
@@ -23,6 +23,7 @@ const INITIAL_FORM: CategoryFormData = {
 export default function CategoriesTab({ categories, onCategoriesChange }: CategoriesTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,8 +147,7 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
     <>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Kategoriler</h2>
+        <div className="flex items-center justify-end">
           <button
             onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
@@ -155,6 +155,20 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
             <Plus className="w-4 h-4" />
             Yeni Kategori
           </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Kategori ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm"
+            />
+          </div>
         </div>
 
         {/* Error (outside modal) */}
@@ -169,79 +183,98 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
 
         {/* Categories List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {categories.length === 0 ? (
-            <div className="text-center py-16">
-              <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">Henüz kategori eklenmemiş</p>
-              <button
-                onClick={openAddModal}
-                className="mt-3 text-sm text-slate-700 hover:text-slate-800 font-medium"
-              >
-                İlk kategoriyi ekleyin →
-              </button>
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">Sıra</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori Adı</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-500">#{category.order}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-gray-900">{category.name}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleToggleActive(category)}
-                        disabled={processing}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
-                          category.isActive
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                        }`}
-                      >
-                        {category.isActive ? 'Aktif' : 'Pasif'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+          {(() => {
+            const filteredCategories = categories.filter(cat => 
+              cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            if (categories.length === 0) {
+              return (
+                <div className="text-center py-16">
+                  <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Henüz kategori eklenmemiş</p>
+                  <button
+                    onClick={openAddModal}
+                    className="mt-3 text-sm text-slate-700 hover:text-slate-800 font-medium"
+                  >
+                    İlk kategoriyi ekleyin →
+                  </button>
+                </div>
+              );
+            }
+            
+            if (filteredCategories.length === 0) {
+              return (
+                <div className="text-center py-16">
+                  <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Arama kriterlerine uygun kategori bulunamadı</p>
+                </div>
+              );
+            }
+            
+            return (
+              <>
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">Sıra</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori Adı</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredCategories.map((category) => (
+                    <tr key={category.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-500">#{category.order}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                      </td>
+                      <td className="px-4 py-3">
                         <button
-                          onClick={() => openEditModal(category)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Düzenle"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Sil"
+                          onClick={() => handleToggleActive(category)}
                           disabled={processing}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                            category.isActive
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {category.isActive ? 'Aktif' : 'Pasif'}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEditModal(category)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Düzenle"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(category)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Sil"
+                            disabled={processing}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-        {/* Total Count */}
-        {categories.length > 0 && (
-          <div className="text-sm text-gray-500 text-center py-2">
-            Toplam {categories.length} kategori
-          </div>
-        )}
+              {/* Footer with total count (same placement/style as other pages) */}
+              <div className="px-4 py-3 border-t border-gray-200">
+                <div className="text-sm text-gray-500">Toplam {filteredCategories.length} kategori</div>
+              </div>
+            </>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Category Add/Edit Modal */}

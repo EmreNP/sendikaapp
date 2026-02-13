@@ -202,15 +202,7 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
     <>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">Anlaşmalı Kurumlar</h2>
-            {total > 0 && (
-              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {total} kurum
-              </span>
-            )}
-          </div>
+        <div className="flex items-center justify-end">
           <button
             onClick={() => { setSelectedInstitution(null); setIsFormModalOpen(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
@@ -221,27 +213,19 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
         </div>
 
         {/* Search & Filters */}
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-          {/* Search - sol */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="flex items-center justify-between gap-4">
+          {/* Search Bar - sol */}
+          <div className="flex-1 relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
+              placeholder="Kurum adı veya açıklama ara..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              placeholder="Kurum adı veya açıklama ara..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm"
             />
-            {searchTerm && (
-              <button
-                onClick={() => { setSearchTerm(''); setPage(1); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            )}
           </div>
-
+          
           {/* Filters - sağ */}
           <div className="flex items-center gap-3">
             {/* Category Filter */}
@@ -262,24 +246,30 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
             <div className="inline-flex bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => { setFilterPublished(null); setPage(1); }}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filterPublished === null ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterPublished === null
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Tümü
               </button>
               <button
                 onClick={() => { setFilterPublished(true); setPage(1); }}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filterPublished === true ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterPublished === true
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Yayında
               </button>
               <button
                 onClick={() => { setFilterPublished(false); setPage(1); }}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filterPublished === false ? 'bg-white text-yellow-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filterPublished === false
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Taslak
@@ -347,129 +337,129 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.size === institutions.length && institutions.length > 0}
-                        onChange={toggleSelectAll}
-                        className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kurum</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Badge</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Oluşturan</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {institutions.map((institution) => (
-                    <tr
-                      key={institution.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => { setSelectedInstitution(institution); setIsPreviewModalOpen(true); }}
-                    >
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 w-10">
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(institution.id)}
-                          onChange={() => toggleSelect(institution.id)}
+                          checked={selectedIds.size === institutions.length && institutions.length > 0}
+                          onChange={toggleSelectAll}
                           className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                         />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {institution.coverImageUrl ? (
-                            <img
-                              src={institution.coverImageUrl}
-                              alt={institution.title}
-                              className="w-12 h-8 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
-                              <Briefcase className="w-4 h-4 text-gray-400" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 line-clamp-1">{institution.title}</p>
-                            <p className="text-xs text-gray-500 line-clamp-1">{institution.description.substring(0, 60)}...</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                          {getCategoryName(institution.categoryId)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                          {institution.badgeText}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                          institution.isPublished ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {institution.isPublished ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          {institution.isPublished ? 'Yayında' : 'Taslak'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <User className="w-3 h-3" />
-                          <span className="text-xs">{getUserName(institution.createdBy)}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-gray-500">{formatDate(institution.createdAt)}</span>
-                      </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <ActionButton
-                            variant="edit"
-                            icon={Edit}
-                            title="Düzenle"
-                            onClick={() => { setSelectedInstitution(institution); setIsFormModalOpen(true); }}
-                          />
-                          <ActionButton
-                            variant={institution.isPublished ? 'unpublish' : 'publish'}
-                            icon={institution.isPublished ? EyeOff : CheckCircle}
-                            title={institution.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
-                            onClick={() => handleTogglePublish(institution)}
-                            disabled={processing}
-                          />
-                          <ActionButton
-                            variant="delete"
-                            icon={Trash2}
-                            title="Sil"
-                            onClick={() => handleDelete(institution)}
-                            disabled={processing}
-                          />
-                        </div>
-                      </td>
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kurum</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Badge</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Oluşturan</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {institutions.map((institution) => (
+                      <tr
+                        key={institution.id}
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => { setSelectedInstitution(institution); setIsPreviewModalOpen(true); }}
+                      >
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(institution.id)}
+                            onChange={() => toggleSelect(institution.id)}
+                            className="rounded border-gray-300 text-slate-700 focus:ring-slate-500"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {institution.coverImageUrl ? (
+                              <img
+                                src={institution.coverImageUrl}
+                                alt={institution.title}
+                                className="w-12 h-8 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
+                                <Briefcase className="w-4 h-4 text-gray-400" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 line-clamp-1">{institution.title}</p>
+                              <p className="text-xs text-gray-500 line-clamp-1">{institution.description.substring(0, 60)}...</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            {getCategoryName(institution.categoryId)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {institution.badgeText}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                            institution.isPublished ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {institution.isPublished ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            {institution.isPublished ? 'Yayında' : 'Taslak'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                            <User className="w-3 h-3" />
+                            <span className="text-xs">{getUserName(institution.createdBy)}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs text-gray-500">{formatDate(institution.createdAt)}</span>
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <ActionButton
+                              variant="edit"
+                              icon={Edit}
+                              title="Düzenle"
+                              onClick={() => { setSelectedInstitution(institution); setIsFormModalOpen(true); }}
+                            />
+                            <ActionButton
+                              variant={institution.isPublished ? 'unpublish' : 'publish'}
+                              icon={institution.isPublished ? EyeOff : CheckCircle}
+                              title={institution.isPublished ? 'Yayından Kaldır' : 'Yayınla'}
+                              onClick={() => handleTogglePublish(institution)}
+                              disabled={processing}
+                            />
+                            <ActionButton
+                              variant="delete"
+                              icon={Trash2}
+                              title="Sil"
+                              onClick={() => handleDelete(institution)}
+                              disabled={processing}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Pagination */}
+              <Pagination
+                currentPage={page}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+                showPageNumbers={false}
+              />
+            </>
           )}
         </div>
-
-        {/* Pagination */}
-        {total > limit && (
-          <Pagination
-            currentPage={page}
-            total={total}
-            limit={limit}
-            onPageChange={setPage}
-          />
-        )}
       </div>
 
       {/* Form Modal */}
