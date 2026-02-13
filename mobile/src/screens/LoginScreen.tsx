@@ -179,7 +179,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                     <Image
                       source={require('../../assets/logo.png')}
                       style={styles.logoImage}
-                      resizeMode="contain"
+                      resizeMode="cover"
                     />
                   </View>
                   <Text style={styles.title}>Giriş Yap</Text>
@@ -355,12 +355,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 6,
+    overflow: 'hidden',
+    borderRadius: 40,
   },
   logoImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   title: {
     fontSize: 24,

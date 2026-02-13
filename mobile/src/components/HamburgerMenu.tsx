@@ -29,7 +29,7 @@ interface HamburgerMenuProps {
 const socialLinks = [
   { icon: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/share/17xcaDfcmz/?mibextid=wwXIfr', color: '#1877F2' },
   { icon: 'twitter', label: 'X', href: 'https://x.com/tdvskonya?s=11', color: '#000000' },
-  { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/tdvskonya?igsh=NzAzbjk0emw5MjNy&utm_source=qr', color: '#E1306C' },
+  { icon: 'instagram', label: 'Instagram', href: 'instagram://user?username=tdvskonya', fallbackHref: 'https://www.instagram.com/tdvskonya', color: '#E1306C' },
   { icon: 'youtube', label: 'YouTube', href: 'https://youtube.com/@turkdiyanetvakif-senkonya?si=7sI8kUPWQu2pQsSw', color: '#FF0000' },
 ];
 
@@ -97,7 +97,26 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
     );
   };
 
-  const handleSocialLink = (url: string) => {
+  const handleSocialLink = async (url: string, fallbackUrl?: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else if (fallbackUrl) {
+        await Linking.openURL(fallbackUrl);
+      } else {
+        Alert.alert('Hata', 'Bu bağlantı açılamıyor');
+      }
+    } catch (error) {
+      if (fallbackUrl) {
+        Linking.openURL(fallbackUrl);
+      } else {
+        Alert.alert('Hata', 'Bağlantı açılamadı');
+      }
+    }
+  };
+
+  const handleSocialLinkOld = (url: string) => {
     Linking.openURL(url);
   };
 
@@ -156,8 +175,42 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             >
               {/* Top Action Cards */}
               <View style={styles.topCardsRow}>
-                {/* Member Registration or District Rep */}
-                {role === 'branch_manager' ? (
+                {/* Member Registration Card - Always visible */}
+                <TouchableOpacity
+                  style={styles.actionCardHalf}
+                  onPress={() => {
+                    closeMenu();
+                    onMembershipClick?.();
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={['#2563eb', '#1d4ed8', '#1e40af']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCardGradient}
+                  >
+                    <View style={styles.cardGlow} />
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardIconBg}>
+                        <Feather name="user-plus" size={16} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardBadgeOrange}>
+                        <Text style={styles.cardBadgeText}>Yeni</Text>
+                      </View>
+                    </View>
+                    <View style={styles.cardFooter}>
+                      <Text style={styles.cardTitle}>Üye Kayıt</Text>
+                      <View style={styles.cardAction}>
+                        <Text style={styles.cardActionText}>Görüntüle</Text>
+                        <Feather name="chevron-right" size={12} color="rgba(255,255,255,0.8)" />
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* District Rep Card - Only for branch managers */}
+                {role === 'branch_manager' && (
                   <TouchableOpacity
                     style={styles.actionCardHalf}
                     onPress={() => {
@@ -190,69 +243,35 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>
-                ) : (
+                )}
+
+                {/* Notifications Card - Always visible */}
+                {role !== 'branch_manager' && (
                   <TouchableOpacity
                     style={styles.actionCardHalf}
                     onPress={() => {
                       closeMenu();
-                      onMembershipClick?.();
+                      onNotificationsClick?.();
                     }}
                     activeOpacity={0.9}
                   >
-                    <LinearGradient
-                      colors={['#2563eb', '#1d4ed8', '#1e40af']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionCardGradient}
-                    >
-                      <View style={styles.cardGlow} />
+                    <View style={styles.notificationCard}>
                       <View style={styles.cardHeader}>
-                        <View style={styles.cardIconBg}>
-                          <Feather name="user-plus" size={16} color="#ffffff" />
-                        </View>
-                        <View style={styles.cardBadgeOrange}>
-                          <Text style={styles.cardBadgeText}>Yeni</Text>
+                        <View style={styles.notificationIconBg}>
+                          <Feather name="bell" size={16} color="#334155" />
                         </View>
                       </View>
                       <View style={styles.cardFooter}>
-                        <Text style={styles.cardTitle}>Üye Kayıt</Text>
+                        <Text style={styles.notificationTitle}>Bildirimler</Text>
+                        <Text style={styles.notificationSubtext}>Tüm bildirimleri görüntüle</Text>
                         <View style={styles.cardAction}>
-                          <Text style={styles.cardActionText}>Görüntüle</Text>
-                          <Feather name="chevron-right" size={12} color="rgba(255,255,255,0.8)" />
+                          <Text style={styles.notificationActionText}>Görüntüle</Text>
+                          <Feather name="chevron-right" size={12} color="#64748b" />
                         </View>
                       </View>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 )}
-
-                {/* Notifications Card */}
-                <TouchableOpacity
-                  style={styles.actionCardHalf}
-                  onPress={() => {
-                    closeMenu();
-                    onNotificationsClick?.();
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <View style={styles.notificationCard}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.notificationIconBg}>
-                        <Feather name="bell" size={16} color="#334155" />
-                      </View>
-                      <View style={styles.cardBadgeRed}>
-                        <Text style={styles.cardBadgeText}>5</Text>
-                      </View>
-                    </View>
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.notificationTitle}>Bildirimler</Text>
-                      <Text style={styles.notificationSubtext}>5 yeni</Text>
-                      <View style={styles.cardAction}>
-                        <Text style={styles.notificationActionText}>Görüntüle</Text>
-                        <Feather name="chevron-right" size={12} color="#64748b" />
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
               </View>
 
               {/* About Button */}
@@ -283,7 +302,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
                 <TouchableOpacity
                   style={styles.contactItem}
-                  onPress={() => Linking.openURL('tel:+903322211234')}
+                  onPress={() => Linking.openURL('tel:+905359786942')}
                   activeOpacity={0.7}
                 >
                   <LinearGradient
@@ -294,13 +313,13 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   </LinearGradient>
                   <View style={styles.contactTextContainer}>
                     <Text style={styles.contactLabel}>Telefon</Text>
-                    <Text style={styles.contactValue}>+90 (332) 221 12 34</Text>
+                    <Text style={styles.contactValue}>+90 535 978 69 42</Text>
                   </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.contactItem}
-                  onPress={() => Linking.openURL('mailto:info@tdvakifsen-konya.org.tr')}
+                  onPress={() => Linking.openURL('mailto:tdvskonya42@gmail.com')}
                   activeOpacity={0.7}
                 >
                   <LinearGradient
@@ -311,7 +330,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   </LinearGradient>
                   <View style={styles.contactTextContainer}>
                     <Text style={styles.contactLabel}>E-posta</Text>
-                    <Text style={styles.contactValue}>info@tdvakifsen-konya.org.tr</Text>
+                    <Text style={styles.contactValue}>tdvskonya42@gmail.com</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -324,7 +343,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   </LinearGradient>
                   <View style={styles.contactTextContainer}>
                     <Text style={styles.contactLabel}>Adres</Text>
-                    <Text style={styles.contactValue}>Konya, Türkiye</Text>
+                    <Text style={styles.contactValue}>Ferhuniye Mah. Dr Ziya Paşa Sok. Dışkapı No:4 Kat:2 No:106 Selçuklu/Konya</Text>
                   </View>
                 </View>
               </View>
@@ -347,7 +366,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                       <TouchableOpacity
                         key={social.label}
                         style={styles.socialIconButton}
-                        onPress={() => handleSocialLink(social.href)}
+                        onPress={() => handleSocialLink(social.href, (social as any).fallbackHref)}
                         activeOpacity={0.7}
                       >
                         <Feather name={social.icon as any} size={18} color="#ffffff" />

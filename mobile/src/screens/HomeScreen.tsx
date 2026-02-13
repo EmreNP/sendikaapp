@@ -99,13 +99,14 @@ const sliderImages = [
 // Front QuickAccessGrid - 6 buton (front/src/components/QuickAccessGrid.tsx'den birebir)
 // icon mapping: lucide-react -> Feather (birebir renk kodları)
 // Frontend renkleri: blue-600 #2563eb, blue-700 #1d4ed8, indigo-600 #4f46e5, indigo-700 #4338ca, cyan-600 #0891b2, cyan-700 #0e7490
+// Sıralama: 1-Bize Ulaşın, 2-Haberler, 3-Anlaşmalı, 4-5-6 Rastgele
 const quickAccessItems = [
-  { id: '1', title: 'Üyelik', icon: 'user-plus', route: 'Membership', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
-  { id: '2', title: 'DİBBYS', icon: 'dibbys', route: 'DIBBYS', colors: ['#ffffff', '#ffffff'] as [string, string], isDibbys: true },
-  { id: '3', title: 'Haberler', icon: 'book-open', route: 'News', colors: ['#4f46e5', '#4338ca'] as [string, string] },
-  { id: '4', title: 'Bize Ulaşın', icon: 'phone', route: 'Contact', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '1', title: 'Bize Ulaşın', icon: 'phone', route: 'Contact', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '2', title: 'Haberler', icon: 'book-open', route: 'News', colors: ['#4f46e5', '#4338ca'] as [string, string] },
+  { id: '3', title: 'Anlaşmalı', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '4', title: 'Hutbeler', icon: 'book', route: 'Hutbeler', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
   { id: '5', title: 'Müktesep Hesaplama', icon: 'percent', route: 'Muktesep', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
-  { id: '6', title: 'Anlaşmalı', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '6', title: 'DİBBYS', icon: 'database', route: 'DIBBYS', colors: ['#0891b2', '#0e7490'] as [string, string] },
 ];
 
 // Mock Duyurular - API boş ise kullanılacak
@@ -186,6 +187,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [currentAnnouncementSlide, setCurrentAnnouncementSlide] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const sliderRef = useRef<FlatList>(null);
+  const [sliderNews, setSliderNews] = useState<News[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -193,13 +195,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Auto slide for ImageSlider (front: 5000ms interval)
   useEffect(() => {
+    if (sliderNews.length === 0) return;
     const interval = setInterval(() => {
-      const nextSlide = (currentSlide + 1) % sliderImages.length;
+      const nextSlide = (currentSlide + 1) % sliderNews.length;
       setCurrentSlide(nextSlide);
       sliderRef.current?.scrollToIndex({ index: nextSlide, animated: true });
     }, 5000);
     return () => clearInterval(interval);
-  }, [currentSlide]);
+  }, [currentSlide, sliderNews.length]);
 
   // Auto slide for Announcements (front: 5000ms interval)
   useEffect(() => {
@@ -213,20 +216,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [announcementsRes, newsRes] = await Promise.all([
+      const [announcementsRes, newsRes, featuredNewsRes] = await Promise.all([
         ApiService.getAnnouncements().catch(() => []),
-        ApiService.getNews().catch(() => []),
+        ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => []),
+        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => []),
       ]);
       // API verisi varsa kullan, yoksa mock data kullan
       const fetchedAnnouncements = announcementsRes.slice(0, 5);
       const fetchedNews = newsRes.slice(0, 3);
       setAnnouncements(fetchedAnnouncements.length > 0 ? fetchedAnnouncements : mockAnnouncements);
       setNews(fetchedNews.length > 0 ? fetchedNews : mockNews);
+      
+      // Slider için öne çıkan haberleri al (isFeatured=true)
+      setSliderNews(featuredNewsRes.length > 0 ? featuredNewsRes : (newsRes.length > 0 ? newsRes.slice(0, 3) : mockNews.slice(0, 3)));
     } catch (error) {
       console.error('Error fetching data:', error);
       // Hata durumunda mock data kullan
       setAnnouncements(mockAnnouncements);
       setNews(mockNews);
+      setSliderNews(mockNews.slice(0, 3));
     } finally {
       setIsLoading(false);
     }
@@ -239,8 +247,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const handleQuickAccess = (route: string) => {
-    if (route === 'Membership') {
-      navigation.navigate('Membership' as any);
+    if (route === 'Hutbeler') {
+      Linking.openURL('https://dinhizmetleri.diyanet.gov.tr/kategoriler/yayinlarimiz/hutbeler/t%C3%BCrk%C3%A7e');
     } else if (route === 'DIBBYS') {
       // DİBBYS direkt login sayfasına yönlendir
       Linking.openURL('http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d');
@@ -286,10 +294,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Front ImageSlider - rounded-2xl, shadow, overlay
-  const renderSliderItem = ({ item }: { item: typeof sliderImages[0] }) => (
-    <View style={styles.slideContainer}>
-      <Image source={{ uri: item.uri }} style={styles.slideImage} />
+  // Front ImageSlider - rounded-2xl, shadow, overlay (Haberlerden)
+  const renderSliderItem = ({ item }: { item: News }) => (
+    <TouchableOpacity 
+      style={styles.slideContainer}
+      onPress={() => navigation.navigate('AllNews' as any)}
+      activeOpacity={0.9}
+    >
+      <Image 
+        source={{ uri: item.imageUrl || 'https://images.unsplash.com/photo-1577741314755-048d8525d31e?w=800&h=400&fit=crop' }} 
+        style={styles.slideImage} 
+      />
       {/* Gradient overlay - from-black/70 via-black/30 to-transparent */}
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
@@ -297,15 +312,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       />
       <View style={styles.slideTextContainer}>
         <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDescription}>{item.description}</Text>
+        <Text style={styles.slideDescription}>{item.summary || item.content.substring(0, 100)}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   // Slider pagination dots
   const renderPagination = () => (
     <View style={styles.pagination}>
-      {sliderImages.map((_, index) => (
+      {sliderNews.map((_, index) => (
         <View
           key={index}
           style={[
@@ -319,8 +334,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Front QuickAccessGrid - white card with gradient icon
   const renderQuickAccessItem = (item: typeof quickAccessItems[0]) => {
-    const isDibbys = (item as any).isDibbys;
-    
     return (
       <TouchableOpacity
         key={item.id}
@@ -328,27 +341,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         onPress={() => handleQuickAccess(item.route)}
         activeOpacity={0.8}
       >
-        {isDibbys ? (
-          // DİBBYS özel - logo göster
-          <View style={styles.quickAccessIconDibbys}>
-            <Image 
-              source={{ uri: 'https://dibbys.diyanet.gov.tr/assets/images/dibbys-logo.png' }} 
-              style={styles.dibbysLogo}
-              resizeMode="contain"
-            />
-          </View>
-        ) : (
-          <LinearGradient
-            colors={item.colors}
-            style={styles.quickAccessIcon}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Feather name={item.icon as any} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
-            {/* Shine overlay - from-white/20 to-transparent */}
-            <View style={styles.iconShine} />
-          </LinearGradient>
-        )}
+        <LinearGradient
+          colors={item.colors}
+          style={styles.quickAccessIcon}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Feather name={item.icon as any} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
+          {/* Shine overlay - from-white/20 to-transparent */}
+          <View style={styles.iconShine} />
+        </LinearGradient>
         <Text style={styles.quickAccessTitle} numberOfLines={2}>{item.title}</Text>
       </TouchableOpacity>
     );
@@ -435,7 +437,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Image 
               source={require('../../assets/logo.png')}
               style={styles.logo}
-              resizeMode="contain"
+              resizeMode="cover"
             />
           </View>
           {/* Marka İsmi */}
@@ -447,18 +449,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
         </View>
-        {/* Sağ İkonlar: Bildirim + Hamburger Menu */}
+        {/* Sağ İkon: Hamburger Menu */}
         <View style={styles.headerRightIcons}>
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => {}}
-          >
-            <Feather name="bell" size={22} color="#475569" />
-          </TouchableOpacity>
           <HamburgerMenu
             onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as any)}
             onMembershipClick={() => navigation.navigate('Membership' as any)}
-            onNotificationsClick={() => {}} 
+            onNotificationsClick={() => navigation.navigate('Notifications' as any)} 
             onAboutClick={() => navigation.navigate('About' as any)}
           />
         </View>
@@ -500,28 +496,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        {/* Image Slider - Front: rounded-2xl, shadow-xl, px-4 pt-3 pb-2 */}
+        {/* Image Slider - Front: rounded-2xl, shadow-xl, px-4 pt-3 pb-2 (Haberlerden) */}
         <View style={styles.sliderWrapper}>
           <View style={styles.sliderContainer}>
-            <FlatList
-              ref={sliderRef}
-              data={sliderImages}
-              renderItem={renderSliderItem}
-              keyExtractor={(item) => item.id}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                { useNativeDriver: false }
-              )}
-              onMomentumScrollEnd={(e) => {
-                const sliderWidth = screenWidth - 32;
-                const index = Math.round(e.nativeEvent.contentOffset.x / sliderWidth);
-                setCurrentSlide(index);
-              }}
-            />
-            {renderPagination()}
+            {isLoading ? (
+              <View style={styles.sliderLoading}>
+                <ActivityIndicator size="large" color="#2563eb" />
+              </View>
+            ) : sliderNews.length > 0 ? (
+              <>
+                <FlatList
+                  ref={sliderRef}
+                  data={sliderNews}
+                  renderItem={renderSliderItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: false }
+                  )}
+                  onMomentumScrollEnd={(e) => {
+                    const sliderWidth = screenWidth - 32;
+                    const index = Math.round(e.nativeEvent.contentOffset.x / sliderWidth);
+                    setCurrentSlide(index);
+                  }}
+                />
+                {renderPagination()}
+              </>
+            ) : (
+              <View style={styles.sliderEmpty}>
+                <Text style={styles.emptyText}>Henüz öne çıkan haber bulunmuyor</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -584,15 +592,6 @@ const styles = StyleSheet.create({
   headerRightIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(100, 116, 139, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   brandSection: {
     flexDirection: 'row',
@@ -611,12 +610,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
-    padding: 4,
+    overflow: 'hidden',
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
   brandText: {
     gap: 4,
@@ -713,6 +712,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 0,
+  },
+  sliderLoading: {
+    height: LAYOUT.sliderHeight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  sliderEmpty: {
+    height: LAYOUT.sliderHeight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#64748b',
   },
   slideContainer: {
     width: screenWidth - 32,

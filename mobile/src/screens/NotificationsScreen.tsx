@@ -1,0 +1,430 @@
+// Notifications Screen - Kullanıcı Bildirimleri
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import ApiService from '../services/api';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  type: 'announcement' | 'news';
+  contentId?: string;
+  contentName?: string;
+  imageUrl?: string;
+  createdAt: string;
+  read?: boolean;
+}
+
+export const NotificationsScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async (pageNum = 1) => {
+    try {
+      setIsLoading(pageNum === 1);
+      const response = await ApiService.getNotifications({ page: pageNum, limit: 20 });
+      
+      if (response?.notifications) {
+        if (pageNum === 1) {
+          setNotifications(response.notifications);
+        } else {
+          setNotifications(prev => [...prev, ...response.notifications]);
+        }
+        setHasMore(response.pagination.page < response.pagination.totalPages);
+        setPage(pageNum);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchNotifications(1);
+  };
+
+  const loadMore = () => {
+    if (!isLoading && hasMore) {
+      fetchNotifications(page + 1);
+    }
+  };
+
+  const handleNotificationPress = (notification: Notification) => {
+    if (notification.type === 'news' && notification.contentId) {
+      navigation.navigate('AllNews' as any);
+    } else if (notification.type === 'announcement' && notification.contentId) {
+      navigation.navigate('AllAnnouncements' as any);
+    }
+  };
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 60) return `${minutes} dakika önce`;
+    if (hours < 24) return `${hours} saat önce`;
+    if (days < 7) return `${days} gün önce`;
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'announcement': return { bg: '#dbeafe', icon: '#2563eb', text: 'Duyuru' };
+      case 'news': return { bg: '#fef3c7', icon: '#d97706', text: 'Haber' };
+      default: return { bg: '#f3f4f6', icon: '#6b7280', text: 'Bildirim' };
+    }
+  };
+
+  const renderNotification = (notification: Notification) => {
+    const typeColors = getTypeColor(notification.type);
+
+    return (
+      <TouchableOpacity
+        key={notification.id}
+        style={styles.notificationCard}
+        onPress={() => handleNotificationPress(notification)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.notificationLeft}>
+          <View style={[styles.notificationIconBg, { backgroundColor: typeColors.bg }]}>
+            <Feather 
+              name={notification.type === 'news' ? 'book-open' : 'bell'} 
+              size={20} 
+              color={typeColors.icon} 
+            />
+          </View>
+        </View>
+
+        <View style={styles.notificationContent}>
+          <View style={styles.notificationHeader}>
+            <View style={[styles.typeBadge, { backgroundColor: typeColors.bg }]}>
+              <Text style={[styles.typeBadgeText, { color: typeColors.icon }]}>
+                {typeColors.text}
+              </Text>
+            </View>
+            <Text style={styles.notificationTime}>{formatDate(notification.createdAt)}</Text>
+          </View>
+
+          <Text style={styles.notificationTitle} numberOfLines={2}>
+            {notification.title}
+          </Text>
+
+          <Text style={styles.notificationBody} numberOfLines={3}>
+            {notification.body}
+          </Text>
+
+          {notification.imageUrl && (
+            <Image 
+              source={{ uri: notification.imageUrl }} 
+              style={styles.notificationImage}
+              resizeMode="cover"
+            />
+          )}
+
+          {notification.contentName && (
+            <View style={styles.contentLink}>
+              <Feather name="external-link" size={12} color="#2563eb" />
+              <Text style={styles.contentLinkText} numberOfLines={1}>
+                {notification.contentName}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <LinearGradient
+        colors={['#ffffff', '#f8fafc']}
+        style={styles.header}
+      >
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Feather name="arrow-left" size={24} color="#1e293b" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Bildirimler</Text>
+          {notifications.length > 0 && (
+            <Text style={styles.headerSubtitle}>{notifications.length} bildirim</Text>
+          )}
+        </View>
+        <View style={styles.headerRight} />
+      </LinearGradient>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+        }
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const paddingToBottom = 20;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+            loadMore();
+          }
+        }}
+        scrollEventThrottle={400}
+      >
+        {isLoading && page === 1 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2563eb" />
+            <Text style={styles.loadingText}>Bildirimler yükleniyor...</Text>
+          </View>
+        ) : notifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconBg}>
+              <Feather name="bell-off" size={48} color="#94a3b8" />
+            </View>
+            <Text style={styles.emptyTitle}>Henüz Bildirim Yok</Text>
+            <Text style={styles.emptySubtitle}>
+              Size gönderilen bildirimler burada görünecek
+            </Text>
+          </View>
+        ) : (
+          <>
+            {notifications.map(renderNotification)}
+            
+            {isLoading && page > 1 && (
+              <View style={styles.loadMoreContainer}>
+                <ActivityIndicator size="small" color="#2563eb" />
+              </View>
+            )}
+
+            {!hasMore && notifications.length > 0 && (
+              <View style={styles.endContainer}>
+                <View style={styles.endLine} />
+                <Text style={styles.endText}>Tüm bildirimler gösterildi</Text>
+                <View style={styles.endLine} />
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  headerRight: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyIconBg: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+  notificationCard: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.6)',
+  },
+  notificationLeft: {
+    marginRight: 12,
+  },
+  notificationIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  notificationBody: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  notificationImage: {
+    width: '100%',
+    height: 140,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  contentLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  contentLinkText: {
+    fontSize: 13,
+    color: '#2563eb',
+    fontWeight: '500',
+    flex: 1,
+  },
+  loadMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 12,
+  },
+  endLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  endText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+});

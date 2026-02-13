@@ -23,6 +23,25 @@ import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
+import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Konya ilçeleri
+const KONYA_DISTRICTS = [
+  'Ahırlı', 'Akören', 'Akşehir', 'Altınekin', 'Beyşehir', 'Bozkır', 'Cihanbeyli',
+  'Çeltik', 'Çumra', 'Derbent', 'Derebucak', 'Doğanhisar', 'Emirgazi', 'Ereğli',
+  'Güneysınır', 'Hadim', 'Halkapınar', 'Hüyük', 'Ilgın', 'Kadınhanı', 'Karapınar',
+  'Karatay', 'Kulu', 'Meram', 'Sarayönü', 'Selçuklu', 'Seydişehir', 'Taşkent',
+  'Tuzlukçu', 'Yalıhüyük', 'Yunak',
+];
+
+// Kadro ünvanları
+const POSITIONS = [
+  'Vaiz', 'Şube Müdürü', 'Murakıp', 'Din hizmetleri uzmanı', 'Şef', 'Tekniker',
+  'Kuran Kursu Öğreticisi', 'Teknisyen', 'İmam-Hatip', 'Veri Hazırlama ve Kontrol İşletmeni',
+  'Memur', 'Müezzin Kayyım', 'Bekçi', 'Hizmetli', 'Şöför', 'Manevi Danışman',
+  'Vakıf Çalışanı', 'Diyanet Akademi Aday Görevli', 'Öğrenci', 'Diğer',
+];
 
 const { width } = Dimensions.get('window');
 
@@ -35,14 +54,20 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    phone: '',
     email: '',
     password: '',
     birthDate: '',
+    district: '',
+    kadroUnvani: '',
     gender: '' as 'male' | 'female' | '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [kvkkAccepted, setKvkkAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerDate, setDatePickerDate] = useState(new Date());
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -87,13 +112,21 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     let valid = true;
     const newErrors: Record<string, string> = {};
 
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Ad gereklidir';
+    if (!formData.firstName.trim() || formData.firstName.length < 2) {
+      newErrors.firstName = 'Ad en az 2 karakter olmalıdır';
       valid = false;
     }
 
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Soyad gereklidir';
+    if (!formData.lastName.trim() || formData.lastName.length < 2) {
+      newErrors.lastName = 'Soyad en az 2 karakter olmalıdır';
+      valid = false;
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Telefon numarası gereklidir';
+      valid = false;
+    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = '10-11 haneli telefon numarası giriniz';
       valid = false;
     }
 
@@ -118,8 +151,23 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       valid = false;
     }
 
+    if (!formData.district.trim()) {
+      newErrors.district = 'Görev ilçesi gereklidir';
+      valid = false;
+    }
+
+    if (!formData.kadroUnvani.trim()) {
+      newErrors.kadroUnvani = 'Kadro ünvanı gereklidir';
+      valid = false;
+    }
+
     if (!formData.gender) {
       newErrors.gender = 'Cinsiyet seçimi gereklidir';
+      valid = false;
+    }
+
+    if (!kvkkAccepted) {
+      Alert.alert('Uyarı', 'Devam etmek için KVKK metnini okuyup onaylamanız gerekmektedir.');
       valid = false;
     }
 
@@ -133,11 +181,14 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     setLoading(true);
     try {
       await registerBasic({
-        email: formData.email,
-        password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        phone: formData.phone.replace(/\s/g, ''),
+        email: formData.email,
+        password: formData.password,
         birthDate: formData.birthDate,
+        district: formData.district,
+        kadroUnvani: formData.kadroUnvani,
         gender: formData.gender as 'male' | 'female',
       });
     } catch (error: any) {
@@ -218,7 +269,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                     <Image
                       source={require('../../assets/logo.png')}
                       style={styles.logoImage}
-                      resizeMode="contain"
+                      resizeMode="cover"
                     />
                   </View>
                   <Text style={styles.title}>Hesap Oluştur</Text>
@@ -262,6 +313,24 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
+                {/* Phone */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Telefon Numarası</Text>
+                  <View style={[styles.inputWrapper, errors.phone ? styles.inputError : null]}>
+                    <Feather name="phone" size={16} color="#94a3b8" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      value={formData.phone}
+                      onChangeText={(text) => updateField('phone', text)}
+                      placeholder="Örn: 05551234567"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  <Text style={styles.hintText}>Başında 0 ile 11 hane (Örn: 05551234567)</Text>
+                  {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
+                </View>
+
                 {/* Email */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>E-posta Adresi</Text>
@@ -290,36 +359,91 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       style={styles.input}
                       value={formData.password}
                       onChangeText={(text) => updateField('password', text)}
-                      placeholder="Örn: Sifrem1!"
+                      placeholder="Örn: Sifrem123"
                       placeholderTextColor="#94a3b8"
                       secureTextEntry={!showPassword}
+                      autoCapitalize="none"
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.hintText}>
-                    En az 6 harf olsun. İçinde 1 BÜYÜK harf (A,B,C), 1 rakam (1,2,3) ve 1 işaret (!@#$) bulunsun.
-                  </Text>
+                  <Text style={styles.hintText}>En az 6 karakter içermelidir</Text>
                   {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                 </View>
 
                 {/* Birth Date */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Doğum Tarihi</Text>
-                  <View style={[styles.inputWrapper, errors.birthDate ? styles.inputError : null]}>
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    style={[styles.inputWrapper, errors.birthDate ? styles.inputError : null]}
+                  >
                     <Feather name="calendar" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={formData.birthDate}
-                      onChangeText={(text) => updateField('birthDate', text)}
-                      placeholder="Örn: 1980-05-15"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="numeric"
+                    <Text style={[styles.datePickerText, !formData.birthDate && styles.datePickerPlaceholder]}>
+                      {formData.birthDate || 'YYYY-AA-GG (Örn: 1990-05-15)'}
+                    </Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={datePickerDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setDatePickerDate(selectedDate);
+                          const year = selectedDate.getFullYear();
+                          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(selectedDate.getDate()).padStart(2, '0');
+                          updateField('birthDate', `${year}-${month}-${day}`);
+                        }
+                      }}
+                      maximumDate={new Date()}
                     />
-                  </View>
-                  <Text style={styles.hintText}>Yıl-Ay-Gün formatında yazın (Örn: 1980-05-15 = 15 Mayıs 1980)</Text>
+                  )}
+                  <Text style={styles.hintText}>18 yaşından büyük olmalısınız. Takvimden tarihinizi seçin</Text>
                   {errors.birthDate ? <Text style={styles.errorText}>{errors.birthDate}</Text> : null}
+                </View>
+
+                {/* District */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Görev İlçesi</Text>
+                  <View style={[styles.pickerWrapper, errors.district ? styles.inputError : null]}>
+                    <Feather name="map-pin" size={16} color="#94a3b8" style={styles.inputIcon} />
+                    <Picker
+                      selectedValue={formData.district}
+                      onValueChange={(value) => updateField('district', value)}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="İlçe seçiniz..." value="" />
+                      {KONYA_DISTRICTS.map((district) => (
+                        <Picker.Item key={district} label={district} value={district} />
+                      ))}
+                    </Picker>
+                  </View>
+                  <Text style={styles.hintText}>Konya'da görev yaptığınız ilçeyi seçin</Text>
+                  {errors.district ? <Text style={styles.errorText}>{errors.district}</Text> : null}
+                </View>
+
+                {/* Kadro Unvani */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Kadro Ünvanı</Text>
+                  <View style={[styles.pickerWrapper, errors.kadroUnvani ? styles.inputError : null]}>
+                    <Feather name="briefcase" size={16} color="#94a3b8" style={styles.inputIcon} />
+                    <Picker
+                      selectedValue={formData.kadroUnvani}
+                      onValueChange={(value) => updateField('kadroUnvani', value)}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Ünvan seçiniz..." value="" />
+                      {POSITIONS.map((position) => (
+                        <Picker.Item key={position} label={position} value={position} />
+                      ))}
+                    </Picker>
+                  </View>
+                  <Text style={styles.hintText}>Diyanet İşleri'ndeki görev unvanınızı seçin</Text>
+                  {errors.kadroUnvani ? <Text style={styles.errorText}>{errors.kadroUnvani}</Text> : null}
                 </View>
 
                 {/* Gender Selection */}
@@ -362,6 +486,33 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                     </TouchableOpacity>
                   </View>
                   {errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
+                </View>
+
+                {/* KVKK Acceptance */}
+                <View style={styles.kvkkContainer}>
+                  <TouchableOpacity 
+                    style={styles.checkbox}
+                    onPress={() => setKvkkAccepted(!kvkkAccepted)}
+                  >
+                    <View style={[styles.checkboxBox, kvkkAccepted && styles.checkboxChecked]}>
+                      {kvkkAccepted && <Feather name="check" size={14} color="#ffffff" />}
+                    </View>
+                    <Text style={styles.kvkkText}>
+                      <Text style={styles.kvkkLink} onPress={() => Alert.alert(
+                        'KVKK Aydınlatma Metni',
+                        'Türk Diyanet Vakıf Sen olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında kişisel verilerinizin güvenliğini sağlamak önceliğimizdir.\n\n' +
+                        'Toplanan Veriler: Ad, soyad, telefon, e-posta, doğum tarihi, TC kimlik no, görev bilgileri\n\n' +
+                        'Kullanım Amacı: Üyelik işlemleri, iletişim, eğitim ve etkinlik duyuruları, sendika hizmetlerinden yararlanma\n\n' +
+                        'Veri Saklama: Verileriniz üyeliğiniz süresince ve yasal zorunluluklar çerçevesinde saklanır\n\n' +
+                        'Haklarınız: KVKK kapsamında verilerinize erişim, düzeltme, silme ve işlemenin durdurulması haklarına sahipsiniz\n\n' +
+                        'İletişim: kvkk@tdiyanetsen.org',
+                        [{ text: 'Tamam' }]
+                      )}>
+                        KVKK Aydınlatma Metni
+                      </Text>
+                      'ni okudum, kabul ediyorum
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Submit Button */}
@@ -478,12 +629,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 6,
+    overflow: 'hidden',
+    borderRadius: 40,
   },
   logoImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   title: {
     fontSize: 24,
@@ -526,6 +678,29 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     height: 48,
     paddingHorizontal: 12,
+  },
+  pickerWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    height: 48,
+    paddingLeft: 12,
+  },
+  picker: {
+    flex: 1,
+    color: '#1e293b',
+    marginLeft: -8,
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  datePickerPlaceholder: {
+    color: '#94a3b8',
   },
   inputError: {
     borderColor: '#ef4444',
@@ -580,6 +755,40 @@ const styles = StyleSheet.create({
   genderTextSelected: {
     color: '#4338ca',
     fontWeight: '600',
+  },
+  kvkkContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    marginRight: 10,
+    marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#4338ca',
+    borderColor: '#4338ca',
+  },
+  kvkkText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+  kvkkLink: {
+    color: '#4338ca',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   submitButton: {
     marginTop: 24,

@@ -33,6 +33,7 @@ import {
   PartnerInstitutionsScreen,
   PartnerDetailScreen,
   DocumentScreen,
+  NotificationsScreen,
   // PDFViewerScreen, // Native PDF viewer commented out to avoid crashes
 } from '../screens';
 
@@ -136,6 +137,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="PartnerInstitutions" component={PartnerInstitutionsScreen} />
             <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}
       </Stack.Navigator>

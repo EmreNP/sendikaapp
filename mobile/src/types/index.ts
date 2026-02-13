@@ -155,6 +155,7 @@ export type RootStackParamList = {
   DistrictRepresentative: undefined;
   PartnerInstitutions: undefined;
   PartnerDetail: { partner: import('../data/partners').Partner };
+  Notifications: undefined;
 };
 
 export type MainTabParamList = {
