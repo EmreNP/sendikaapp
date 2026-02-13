@@ -95,16 +95,31 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     let valid = true;
     const newErrors: Record<string, string> = {};
 
+    // Ad - en az 2 karakter, en fazla 50 karakter, sadece harf ve Türkçe karakterler
     if (!formData.firstName.trim() || formData.firstName.length < 2) {
       newErrors.firstName = 'Ad en az 2 karakter olmalıdır';
       valid = false;
-    }
-
-    if (!formData.lastName.trim() || formData.lastName.length < 2) {
-      newErrors.lastName = 'Soyad en az 2 karakter olmalıdır';
+    } else if (formData.firstName.length > 50) {
+      newErrors.firstName = 'Ad en fazla 50 karakter olabilir';
+      valid = false;
+    } else if (!/^[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+$/.test(formData.firstName)) {
+      newErrors.firstName = 'Ad sadece harf içerebilir';
       valid = false;
     }
 
+    // Soyad - en az 2 karakter, en fazla 50 karakter, sadece harf ve Türkçe karakterler
+    if (!formData.lastName.trim() || formData.lastName.length < 2) {
+      newErrors.lastName = 'Soyad en az 2 karakter olmalıdır';
+      valid = false;
+    } else if (formData.lastName.length > 50) {
+      newErrors.lastName = 'Soyad en fazla 50 karakter olabilir';
+      valid = false;
+    } else if (!/^[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+$/.test(formData.lastName)) {
+      newErrors.lastName = 'Soyad sadece harf içerebilir';
+      valid = false;
+    }
+
+    // Telefon - 10-11 haneli numara
     if (!formData.phone.trim()) {
       newErrors.phone = 'Telefon numarası gereklidir';
       valid = false;
@@ -113,6 +128,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       valid = false;
     }
 
+    // Email - geçerli format ve benzersiz
     if (!formData.email.trim()) {
       newErrors.email = 'E-posta adresi gereklidir';
       valid = false;
@@ -121,34 +137,68 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       valid = false;
     }
 
+    // Şifre - en az 8 karakter, en az 1 büyük harf, 1 küçük harf, 1 rakam
     if (!formData.password) {
       newErrors.password = 'Şifre gereklidir';
       valid = false;
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Şifre en az 6 karakter olmalıdır';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Şifre en az 8 karakter olmalıdır';
+      valid = false;
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      newErrors.password = 'Şifre en az 1 küçük harf içermelidir';
+      valid = false;
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'Şifre en az 1 büyük harf içermelidir';
+      valid = false;
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Şifre en az 1 rakam içermelidir';
       valid = false;
     }
 
+    // Doğum tarihi - en az 18 yaşında, en fazla 120 yaşında
     if (!formData.birthDate) {
       newErrors.birthDate = 'Doğum tarihi gereklidir';
       valid = false;
+    } else {
+      const birthDate = new Date(formData.birthDate);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      
+      let actualAge = age;
+      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+        actualAge--;
+      }
+
+      if (actualAge < 18) {
+        newErrors.birthDate = 'En az 18 yaşında olmalısınız';
+        valid = false;
+      } else if (actualAge > 120) {
+        newErrors.birthDate = 'Geçerli bir doğum tarihi giriniz';
+        valid = false;
+      }
     }
 
+    // Görev ilçesi
     if (!formData.district.trim()) {
       newErrors.district = 'Görev ilçesi gereklidir';
       valid = false;
     }
 
+    // Kadro ünvanı
     if (!formData.kadroUnvani.trim()) {
       newErrors.kadroUnvani = 'Kadro ünvanı gereklidir';
       valid = false;
     }
 
+    // Cinsiyet
     if (!formData.gender) {
       newErrors.gender = 'Cinsiyet seçimi gereklidir';
       valid = false;
     }
 
+    // KVKK onayı
     if (!kvkkAccepted) {
       Alert.alert('Uyarı', 'Devam etmek için KVKK metnini okuyup onaylamanız gerekmektedir.');
       valid = false;
@@ -358,7 +408,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.hintText}>En az 6 karakter içermelidir</Text>
+                  <Text style={styles.hintText}>En az 8 karakter, 1 büyük harf, 1 küçük harf ve 1 rakam içermelidir</Text>
                   {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                 </View>
 

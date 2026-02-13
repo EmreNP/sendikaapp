@@ -502,7 +502,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Sağ İkon: Hamburger Menu */}
         <View style={styles.headerRightIcons}>
           <HamburgerMenu
-            onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as never)}
             onMembershipClick={() => navigation.navigate('Membership' as never)}
             onNotificationsClick={() => navigation.navigate('Notifications' as never)} 
             onAboutClick={() => navigation.navigate('About' as never)}

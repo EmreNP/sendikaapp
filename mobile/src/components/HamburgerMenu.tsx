@@ -22,7 +22,6 @@ const _initWidth = Dimensions.get('window').width;
 const _INIT_MENU_WIDTH = _initWidth * 0.85;
 
 interface HamburgerMenuProps {
-  onDistrictRepClick?: () => void;
   onMembershipClick?: () => void;
   onNotificationsClick?: () => void;
   onAboutClick?: () => void;
@@ -36,7 +35,6 @@ const socialLinks: { icon: keyof typeof Feather.glyphMap; label: string; href: s
 ];
 
 export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
-  onDistrictRepClick,
   onMembershipClick,
   onNotificationsClick,
   onAboutClick,
@@ -204,7 +202,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                       </View>
                     </View>
                     <View style={styles.cardFooter}>
-                      <Text style={styles.cardTitle}>Üye Kayıt</Text>
+                      <Text style={styles.cardTitle}>Sendikaya Üye Ol</Text>
                       <View style={styles.cardAction}>
                         <Text style={styles.cardActionText}>Görüntüle</Text>
                         <Feather name="chevron-right" size={12} color="rgba(255,255,255,0.8)" />
@@ -213,69 +211,31 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* District Rep Card - Only for branch managers */}
-                {role === 'branch_manager' && (
-                  <TouchableOpacity
-                    style={styles.actionCardHalf}
-                    onPress={() => {
-                      closeMenu();
-                      onDistrictRepClick?.();
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <LinearGradient
-                      colors={['#7c3aed', '#6d28d9', '#5b21b6']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionCardGradient}
-                    >
-                      <View style={styles.cardGlow} />
-                      <View style={styles.cardHeader}>
-                        <View style={styles.cardIconBg}>
-                          <Feather name="briefcase" size={16} color="#ffffff" />
-                        </View>
-                        <View style={styles.cardBadgePurple}>
-                          <Text style={styles.cardBadgeText}>Özel</Text>
-                        </View>
-                      </View>
-                      <View style={styles.cardFooter}>
-                        <Text style={styles.cardTitle}>İlçe İşyeri Temsilcisi</Text>
-                        <View style={styles.cardAction}>
-                          <Text style={styles.cardActionText}>Görüntüle</Text>
-                          <Feather name="chevron-right" size={12} color="rgba(255,255,255,0.8)" />
-                        </View>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-
                 {/* Notifications Card - Always visible */}
-                {role !== 'branch_manager' && (
-                  <TouchableOpacity
-                    style={styles.actionCardHalf}
-                    onPress={() => {
-                      closeMenu();
-                      onNotificationsClick?.();
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <View style={styles.notificationCard}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.notificationIconBg}>
-                          <Feather name="bell" size={16} color="#334155" />
-                        </View>
-                      </View>
-                      <View style={styles.cardFooter}>
-                        <Text style={styles.notificationTitle}>Bildirimler</Text>
-                        <Text style={styles.notificationSubtext}>Tüm bildirimleri görüntüle</Text>
-                        <View style={styles.cardAction}>
-                          <Text style={styles.notificationActionText}>Görüntüle</Text>
-                          <Feather name="chevron-right" size={12} color="#64748b" />
-                        </View>
+                <TouchableOpacity
+                  style={styles.actionCardHalf}
+                  onPress={() => {
+                    closeMenu();
+                    onNotificationsClick?.();
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.notificationCard}>
+                    <View style={styles.cardHeader}>
+                      <View style={styles.notificationIconBg}>
+                        <Feather name="bell" size={16} color="#334155" />
                       </View>
                     </View>
-                  </TouchableOpacity>
-                )}
+                    <View style={styles.cardFooter}>
+                      <Text style={styles.notificationTitle}>Bildirimler</Text>
+                      <Text style={styles.notificationSubtext}>Tüm bildirimleri görüntüle</Text>
+                      <View style={styles.cardAction}>
+                        <Text style={styles.notificationActionText}>Görüntüle</Text>
+                        <Feather name="chevron-right" size={12} color="#64748b" />
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               </View>
 
               {/* About Button */}

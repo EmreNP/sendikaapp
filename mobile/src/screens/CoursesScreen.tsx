@@ -194,29 +194,48 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
           <View style={styles.lockedIcon}>
             <Feather name="lock" size={48} color="#4338ca" />
           </View>
-          <Text style={styles.lockedTitle}>Eğitimlere Erişim Kısıtlı</Text>
+          <Text style={styles.lockedTitle}>Bu alana erişiminiz yok</Text>
           <Text style={styles.lockedText}>
-            {isPendingDetails
-              ? 'Eğitimlere erişebilmek için üyelik bilgilerinizi tamamlamanız gerekmektedir.'
-              : 'Üyelik başvurunuz onay bekliyor. Onaylandıktan sonra eğitimlere erişebilirsiniz.'}
+            Erişim için lütfen sendikaya üye olun.
           </Text>
-          {isPendingDetails && (
-            <TouchableOpacity
-              style={styles.membershipButton}
-              onPress={() => navigation.navigate('Membership' as never)}
-              activeOpacity={0.9}
+          <Text style={styles.lockedText}>
+            Eğer zaten üye olduğunuzu düşünüyorsanız{' '}
+            <Text 
+              style={styles.lockedLink}
+              onPress={() => navigation.navigate('Contact' as never)}
             >
-              <LinearGradient
-                colors={['#4338ca', '#1e40af']}
-                style={styles.membershipButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Feather name="user-plus" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                <Text style={styles.membershipButtonText}>Üyeliği Tamamla</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
+              bizimle iletişime geçin
+            </Text>
+          </Text>
+          
+          {/* Sendikaya Üye Ol Butonu */}
+          <TouchableOpacity
+            style={styles.membershipButton}
+            onPress={() => navigation.navigate('Membership' as never)}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={['#4338ca', '#1e40af']}
+              style={styles.membershipButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Feather name="user-plus" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.membershipButtonText}>Sendikaya Üye Ol</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          {/* Bizimle İletişime Geçin Butonu */}
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={() => navigation.navigate('Contact' as never)}
+            activeOpacity={0.9}
+          >
+            <View style={styles.contactButtonContainer}>
+              <Feather name="message-circle" size={18} color="#4338ca" style={{ marginRight: 8 }} />
+              <Text style={styles.contactButtonText}>Bizimle İletişime Geçin</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -812,12 +831,18 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 12,
     paddingHorizontal: 16,
+  },
+  lockedLink: {
+    color: '#4338ca',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   membershipButton: {
     borderRadius: 12,
     overflow: 'hidden',
+    marginTop: 12,
   },
   membershipButtonGradient: {
     flexDirection: 'row',
@@ -830,6 +855,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  contactButton: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4338ca',
+    overflow: 'hidden',
+  },
+  contactButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    backgroundColor: '#ffffff',
+  },
+  contactButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4338ca',
   },
   emptyContainer: {
     flex: 1,

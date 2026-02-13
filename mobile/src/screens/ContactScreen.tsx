@@ -1,5 +1,5 @@
 // Contact Screen - Redesigned to match front web design
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Alert,
   Linking,
   TextInput,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +21,13 @@ import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
+
+type Topic = {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+};
 
 type ContactScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -59,14 +68,31 @@ const contactInfo = [
 
 export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
+    topicId: '',
     message: '',
   });
   const [loading, setLoading] = useState(false);
+  const [loadingTopics, setLoadingTopics] = useState(true);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    loadTopics();
+  }, []);
+
+  const loadTopics = async () => {
+    try {
+      setLoadingTopics(true);
+      const topicsData = await ApiService.getTopics();
+      setTopics(topicsData.filter((t: Topic) => t.isActive));
+    } catch (error) {
+      console.error('Topics yüklenemedi:', error);
+      Alert.alert('Hata', 'Konular yüklenemedi. Lütfen sayfayı yenileyin.');
+    } finally {
+      setLoadingTopics(false);
+    }
+  };
 
   const updateField = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -77,21 +103,8 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
     let valid = true;
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Adınız gereklidir';
-      valid = false;
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'E-posta adresi gereklidir';
-      valid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Geçerli bir e-posta adresi giriniz';
-      valid = false;
-    }
-
-    if (!formData.subject.trim()) {
-      newErrors.subject = 'Konu gereklidir';
+    if (!formData.topicId) {
+      newErrors.topicId = 'Konu seçimi gereklidir';
       valid = false;
     }
 
@@ -100,6 +113,9 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
       valid = false;
     } else if (formData.message.length < 10) {
       newErrors.message = 'Mesaj en az 10 karakter olmalıdır';
+      valid = false;
+    } else if (formData.message.length > 5000) {
+      newErrors.message = 'Mesaj en fazla 5000 karakter olabilir';
       valid = false;
     }
 
@@ -113,16 +129,13 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
     setLoading(true);
     try {
       await ApiService.sendContactMessage({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone || undefined,
-        subject: formData.subject,
+        topicId: formData.topicId,
         message: formData.message,
       });
       Alert.alert(
         'Başarılı',
         'Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.',
-        [{ text: 'Tamam', onPress: () => setFormData({ name: '', email: '', phone: '', subject: '', message: '' }) }]
+        [{ text: 'Tamam', onPress: () => setFormData({ topicId: '', message: '' }) }]
       );
     } catch (error: any) {
       Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.'));
@@ -210,109 +223,146 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
               <Text style={styles.formTitle}>Mesaj Gönderin</Text>
             </View>
             <Text style={styles.formSubtitle}>
-              Tüm alanları doldurarak bize ulaşabilirsiniz
+              Mesajınızı göndermek için konu seçip mesajınızı yazın
             </Text>
 
-            {/* Name Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Ad Soyad <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputContainer, errors.name ? styles.inputError : undefined]}>
-                <Feather name="user" size={18} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Örn: Ali Veli Yılmaz"
-                  placeholderTextColor="#94a3b8"
-                  value={formData.name}
-                  onChangeText={(text) => updateField('name', text)}
-                  autoCapitalize="words"
-                />
+            {loadingTopics ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={styles.loadingText}>Konular yükleniyor...</Text>
               </View>
-              <Text style={styles.hintText}>Adınızı ve soyadınızı eksiksiz yazın</Text>
-              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-            </View>
+            ) : (
+              <>
+                {/* Topic Picker */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Konu <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity
+                    style={[styles.inputContainer, styles.pickerContainer, errors.topicId ? styles.inputError : undefined]}
+                    onPress={() => setShowTopicPicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="bookmark" size={18} color="#64748b" style={styles.inputIcon} />
+                    <Text style={[styles.pickerText, !formData.topicId && styles.pickerPlaceholder]}>
+                      {formData.topicId 
+                        ? topics.find(t => t.id === formData.topicId)?.name 
+                        : 'Konu seçiniz'}
+                    </Text>
+                    <Feather name="chevron-down" size={18} color="#64748b" />
+                  </TouchableOpacity>
+                  <Text style={styles.hintText}>Mesajınızın konusunu seçin</Text>
+                  {errors.topicId && <Text style={styles.errorText}>{errors.topicId}</Text>}
+                </View>
 
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>E-posta <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputContainer, errors.email ? styles.inputError : undefined]}>
-                <Feather name="mail" size={18} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Örn: isminiz@gmail.com"
-                  placeholderTextColor="#94a3b8"
-                  value={formData.email}
-                  onChangeText={(text) => updateField('email', text)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              <Text style={styles.hintText}>Size cevap yazabilmemiz için e-posta adresiniz gerekli</Text>
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </View>
+                {/* Message Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Mesaj <Text style={styles.required}>*</Text></Text>
+                  <View style={[styles.inputContainer, styles.textareaContainer, errors.message ? styles.inputError : undefined]}>
+                    <Feather name="message-square" size={18} color="#64748b" style={styles.textareaIcon} />
+                    <TextInput
+                      style={[styles.input, styles.textarea]}
+                      placeholder="Mesajınızı buraya yazın..."
+                      placeholderTextColor="#94a3b8"
+                      value={formData.message}
+                      onChangeText={(text) => {
+                        setFormData({ ...formData, message: text });
+                        setErrors({ ...errors, message: '' });
+                      }}
+                      multiline
+                      numberOfLines={6}
+                      textAlignVertical="top"
+                      maxLength={5000}
+                    />
+                  </View>
+                  <Text style={styles.hintText}>
+                    {formData.message.length}/5000 karakter
+                  </Text>
+                  {errors.message && <Text style={styles.errorText}>{errors.message}</Text>}
+                </View>
 
-            {/* Phone Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Telefon (Zorunlu değil)</Text>
-              <View style={styles.inputContainer}>
-                <Feather name="phone" size={18} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Örn: 0532 123 45 67"
-                  placeholderTextColor="#94a3b8"
-                  value={formData.phone}
-                  onChangeText={(text) => updateField('phone', text)}
-                  keyboardType="phone-pad"
-                />
-              </View>
-              <Text style={styles.hintText}>İsterseniz cep telefonu numaranızı da yazabilirsiniz</Text>
-            </View>
+                {/* Submit Button */}
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={['#2563eb', '#1d4ed8']}
+                    style={styles.submitButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <>
+                        <Feather name="send" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                        <Text style={styles.submitButtonText}>Mesaj Gönder</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-            {/* Subject Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Konu <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputContainer, errors.subject ? styles.inputError : undefined]}>
-                <Feather name="file-text" size={18} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Örn: Üyelik hakkında, Soru, Öneri"
-                  placeholderTextColor="#94a3b8"
-                  value={formData.subject}
-                  onChangeText={(text) => updateField('subject', text)}
-                />
-              </View>
-              <Text style={styles.hintText}>Mesajınızın konusunu kısaca yazın</Text>
-              {errors.subject && <Text style={styles.errorText}>{errors.subject}</Text>}
+      {/* Topic Picker Modal */}
+      <Modal
+        visible={showTopicPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTopicPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Konu Seçin</Text>
+              <TouchableOpacity
+                onPress={() => setShowTopicPicker(false)}
+                style={styles.modalCloseButton}
+              >
+                <Feather name="x" size={24} color="#64748b" />
+              </TouchableOpacity>
             </View>
-
-            {/* Message Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Mesaj <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputContainer, styles.textareaContainer, errors.message ? styles.inputError : undefined]}>
-                <Feather name="message-square" size={18} color="#64748b" style={styles.textareaIcon} />
-                <TextInput
-                  style={[styles.input, styles.textarea]}
-                  placeholder="Mesajınızı buraya yazın..."
-                  placeholderTextColor="#94a3b8"
-                  value={formData.message}
-                  onChangeText={(text) => updateField('message', text)}
-                  multiline
-                  numberOfLines={5}
-                  textAlignVertical="top"
-                />
-              </View>
-              <Text style={styles.hintText}>Soru, öneri veya şikayetinizi ayrıntılı olarak yazın</Text>
-              {errors.message && <Text style={styles.errorText}>{errors.message}</Text>}
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#2563eb', '#1d4ed8']}
+            <ScrollView style={styles.modalScroll}>
+              {topics.map((topic) => (
+                <TouchableOpacity
+                  key={topic.id}
+                  style={[
+                    styles.topicOption,
+                    formData.topicId === topic.id && styles.topicOptionSelected
+                  ]}
+                  onPress={() => {
+                    setFormData({ ...formData, topicId: topic.id });
+                    setErrors({ ...errors, topicId: '' });
+                    setShowTopicPicker(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.topicOptionContent}>
+                    <Text style={[
+                      styles.topicOptionName,
+                      formData.topicId === topic.id && styles.topicOptionNameSelected
+                    ]}>
+                      {topic.name}
+                    </Text>
+                    {topic.description && (
+                      <Text style={styles.topicOptionDescription}>
+                        {topic.description}
+                      </Text>
+                    )}
+                  </View>
+                  {formData.topicId === topic.id && (
+                    <Feather name="check-circle" size={22} color="#2563eb" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
                 style={styles.submitButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -532,5 +582,95 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
+  },
+  pickerContainer: {
+    paddingVertical: 14,
+    justifyContent: 'space-between',
+  },
+  pickerText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0f172a',
+  },
+  pickerPlaceholder: {
+    color: '#94a3b8',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalScroll: {
+    paddingHorizontal: 20,
+  },
+  topicOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  topicOptionSelected: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#2563eb',
+  },
+  topicOptionContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  topicOptionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  topicOptionNameSelected: {
+    color: '#2563eb',
+  },
+  topicOptionDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 4,
   },
 });
