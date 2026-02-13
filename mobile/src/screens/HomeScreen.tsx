@@ -20,6 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { HamburgerMenu } from '../components/HamburgerMenu';
 import ApiService from '../services/api';
+import { stripHtmlTags } from '../components/HtmlContent';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -216,19 +217,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [announcementsRes, newsRes, featuredNewsRes] = await Promise.all([
-        ApiService.getAnnouncements().catch(() => []),
-        ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => []),
-        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => []),
+      const [announcementsData, newsData, featuredNewsData] = await Promise.all([
+        ApiService.getAnnouncements({ limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
       ]);
       // API verisi varsa kullan, yoksa mock data kullan
-      const fetchedAnnouncements = announcementsRes.slice(0, 5);
-      const fetchedNews = newsRes.slice(0, 3);
+      const fetchedAnnouncements = announcementsData.items.slice(0, 5);
+      const fetchedNews = newsData.items.slice(0, 3);
       setAnnouncements(fetchedAnnouncements.length > 0 ? fetchedAnnouncements : mockAnnouncements);
       setNews(fetchedNews.length > 0 ? fetchedNews : mockNews);
       
       // Slider için öne çıkan haberleri al (isFeatured=true)
-      setSliderNews(featuredNewsRes.length > 0 ? featuredNewsRes : (newsRes.length > 0 ? newsRes.slice(0, 3) : mockNews.slice(0, 3)));
+      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : (newsData.items.length > 0 ? newsData.items.slice(0, 3) : mockNews.slice(0, 3)));
     } catch (error) {
       console.error('Error fetching data:', error);
       // Hata durumunda mock data kullan
@@ -312,7 +313,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       />
       <View style={styles.slideTextContainer}>
         <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDescription}>{item.summary || item.content.substring(0, 100)}</Text>
+        <Text style={styles.slideDescription}>{stripHtmlTags(item.summary || item.content).substring(0, 100)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -397,7 +398,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             
             <Text style={styles.announcementSummary} numberOfLines={3}>
-              {(currentAnnouncement as any).summary || currentAnnouncement.content}
+              {stripHtmlTags((currentAnnouncement as any).summary || currentAnnouncement.content)}
             </Text>
             
             <View style={styles.announcementMeta}>

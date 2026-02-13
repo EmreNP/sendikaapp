@@ -17,6 +17,7 @@ import { Picker } from '@react-native-picker/picker';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch } from '../types';
@@ -48,8 +49,8 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
 
   const fetchBranches = async () => {
     try {
-      const data = await ApiService.getBranches();
-      setBranches(data);
+      const { items } = await ApiService.getBranches({ limit: 100 });
+      setBranches(items);
     } catch (error) {
       console.error('Error fetching branches:', error);
     }
@@ -123,7 +124,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
         [{ text: 'Tamam', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Bilgiler kaydedilemedi');
+      Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Bilgiler kaydedilemedi. Lütfen tekrar deneyin.'));
     } finally {
       setLoading(false);
     }

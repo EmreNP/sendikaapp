@@ -107,8 +107,10 @@ export interface Announcement {
   title: string;
   content: string;
   summary?: string;
+  imageUrl?: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   isPublished: boolean;
+  isFeatured?: boolean;
   publishedAt?: string;
   expiresAt?: string;
   createdAt?: string;

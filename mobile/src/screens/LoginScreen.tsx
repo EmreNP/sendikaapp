@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -102,7 +103,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     try {
       await login(email, password);
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Giriş yapılamadı');
+      Alert.alert('Giriş Başarısız', getUserFriendlyErrorMessage(error, 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.'));
     } finally {
       setLoading(false);
     }

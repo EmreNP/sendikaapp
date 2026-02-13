@@ -64,11 +64,11 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
 
   const fetchCourseDetails = async () => {
     try {
-      const [trainingsData, lessonsData] = await Promise.all([
-        ApiService.getTrainings(),
+      const [trainingsRes, lessonsData] = await Promise.all([
+        ApiService.getTrainings({ limit: 100 }),
         ApiService.getLessons(courseId),
       ]);
-      const foundTraining = trainingsData.find((t: Training) => t.id === courseId);
+      const foundTraining = trainingsRes.items.find((t: Training) => t.id === courseId);
       setTraining(foundTraining || null);
       setLessons(lessonsData || []);
 

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -38,6 +39,7 @@ export const NotificationsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -46,6 +48,7 @@ export const NotificationsScreen: React.FC = () => {
   const fetchNotifications = async (pageNum = 1) => {
     try {
       setIsLoading(pageNum === 1);
+      if (pageNum === 1) setErrorMessage(null);
       const response = await ApiService.getNotifications({ page: pageNum, limit: 20 });
       
       if (response?.notifications) {
@@ -59,6 +62,9 @@ export const NotificationsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Bildirimler yüklenemedi.'));
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -212,12 +218,17 @@ export const NotificationsScreen: React.FC = () => {
         ) : notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBg}>
-              <Feather name="bell-off" size={48} color="#94a3b8" />
+              <Feather name={errorMessage ? 'alert-circle' : 'bell-off'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
             </View>
-            <Text style={styles.emptyTitle}>Henüz Bildirim Yok</Text>
+            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Bildirim Yok'}</Text>
             <Text style={styles.emptySubtitle}>
-              Size gönderilen bildirimler burada görünecek
+              {errorMessage || 'Size gönderilen bildirimler burada görünecek'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={() => fetchNotifications(1)} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <>

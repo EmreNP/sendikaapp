@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -192,7 +193,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         gender: formData.gender as 'male' | 'female',
       });
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Kayıt yapılamadı');
+      Alert.alert('Kayıt Başarısız', getUserFriendlyErrorMessage(error, 'Kayıt yapılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.'));
     } finally {
       setLoading(false);
     }

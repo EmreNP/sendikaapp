@@ -2,6 +2,7 @@
 import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
 
 class ApiService {
@@ -73,7 +74,11 @@ class ApiService {
 
   // Auth Methods
   async login(email: string, password: string): Promise<{ user: User }> {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      throw new Error(getUserFriendlyErrorMessage(error, 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.'));
+    }
     const user = await this.getCurrentUser();
     return { user };
   }
@@ -107,11 +112,15 @@ class ApiService {
 
     const customToken = response.data?.customToken;
 
-    if (customToken) {
-      await signInWithCustomToken(auth, customToken);
-    } else {
-      // Fallback: backend user'ı oluşturduğu için email/password ile login yapılabilir
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+    try {
+      if (customToken) {
+        await signInWithCustomToken(auth, customToken);
+      } else {
+        // Fallback: backend user'ı oluşturduğu için email/password ile login yapılabilir
+        await signInWithEmailAndPassword(auth, data.email, data.password);
+      }
+    } catch (error: any) {
+      throw new Error(getUserFriendlyErrorMessage(error, 'Kayıt başarılı ancak otomatik giriş yapılamadı. Lütfen giriş sayfasından tekrar deneyin.'));
     }
 
     const user = await this.getCurrentUser();
@@ -147,13 +156,25 @@ class ApiService {
   }
 
   // Trainings
-  async getTrainings(): Promise<Training[]> {
+  async getTrainings(params?: { page?: number; limit?: number }): Promise<{
+    items: Training[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+
+    const url = `${API_ENDPOINTS.TRAININGS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const response = await this.request<{
       success: boolean;
-      data: { trainings: Training[]; total: number; page: number; limit: number };
-    }>(API_ENDPOINTS.TRAININGS.BASE, {}, true);
+      data: { trainings: Training[]; total?: number; page?: number; limit?: number; hasMore?: boolean };
+    }>(url, {}, true);
 
-    return response.data.trainings;
+    const items = response.data.trainings || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   async getTraining(id: string): Promise<Training> {
@@ -222,25 +243,48 @@ class ApiService {
   }
 
   // Branches
-  async getBranches(): Promise<Branch[]> {
+  async getBranches(params?: { page?: number; limit?: number; search?: string }): Promise<{
+    items: Branch[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.search) queryParams.append('search', params.search);
+
+    const url = `${API_ENDPOINTS.BRANCHES.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     // Backend may return different shapes:
     // - { success: true, branches: Branch[], total, page }
     // - { success: true, data: { branches: Branch[] } }
     // - { success: true, data: Branch[] }
-    const response = await this.request<any>(
-      API_ENDPOINTS.BRANCHES.BASE,
-      {},
-      true
-    );
+    const response = await this.request<any>(url, {}, true);
 
-    if (Array.isArray(response.branches)) return response.branches;
-    if (response.data) {
-      if (Array.isArray(response.data.branches)) return response.data.branches;
-      if (Array.isArray(response.data)) return response.data;
+    let items: Branch[] = [];
+    let total = 0;
+    let hasMore = false;
+
+    if (Array.isArray(response.branches)) {
+      items = response.branches;
+      total = response.total || items.length;
+      hasMore = response.hasMore ?? (response.page ? response.page * (response.limit || 25) < total : false);
+    } else if (response.data) {
+      if (Array.isArray(response.data.branches)) {
+        items = response.data.branches;
+        total = response.data.total || items.length;
+        hasMore = response.data.hasMore ?? false;
+      } else if (Array.isArray(response.data.items)) {
+        items = response.data.items;
+        total = response.data.total || items.length;
+        hasMore = response.data.hasMore ?? false;
+      } else if (Array.isArray(response.data)) {
+        items = response.data;
+        total = items.length;
+        hasMore = false;
+      }
     }
 
-    // Fallback empty list
-    return [];
+    return { items, total, hasMore };
   }
 
   async getBranch(id: string): Promise<Branch> {
@@ -261,19 +305,27 @@ class ApiService {
   }
 
   // News
-  async getNews(params?: { isFeatured?: boolean; isPublished?: boolean; limit?: number }): Promise<News[]> {
+  async getNews(params?: { isFeatured?: boolean; isPublished?: boolean; limit?: number; page?: number }): Promise<{
+    items: News[];
+    total: number;
+    hasMore: boolean;
+  }> {
     const queryParams = new URLSearchParams();
     if (params?.isFeatured !== undefined) queryParams.append('isFeatured', String(params.isFeatured));
     if (params?.isPublished !== undefined) queryParams.append('isPublished', String(params.isPublished));
     if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.page) queryParams.append('page', String(params.page));
     
     const url = `${API_ENDPOINTS.NEWS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await this.request<{ success: boolean; data: { news: News[]; total?: number } }>(
+    const response = await this.request<{ success: boolean; data: { news: News[]; total?: number; hasMore?: boolean; page?: number; limit?: number } }>(
       url,
       {},
       true
     );
-    return response.data.news || [];
+    const items = response.data.news || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   async getNewsItem(id: string): Promise<News> {
@@ -286,13 +338,25 @@ class ApiService {
   }
 
   // Announcements
-  async getAnnouncements(): Promise<Announcement[]> {
-    const response = await this.request<{ success: boolean; data: { announcements: Announcement[]; total?: number } }>(
-      API_ENDPOINTS.ANNOUNCEMENTS.BASE,
+  async getAnnouncements(params?: { page?: number; limit?: number }): Promise<{
+    items: Announcement[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+
+    const url = `${API_ENDPOINTS.ANNOUNCEMENTS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await this.request<{ success: boolean; data: { announcements: Announcement[]; total?: number; hasMore?: boolean; page?: number; limit?: number } }>(
+      url,
       {},
       true
     );
-    return response.data.announcements || [];
+    const items = response.data.announcements || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   // FAQ

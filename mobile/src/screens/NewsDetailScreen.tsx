@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { HtmlContent, stripHtmlTags } from '../components/HtmlContent';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, News } from '../types';
@@ -30,6 +32,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
   const { newsId } = route.params;
   const [newsItem, setNewsItem] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNewsDetail();
@@ -37,11 +40,13 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
 
   const fetchNewsDetail = async () => {
     try {
-      const allNews = await ApiService.getNews();
+      setErrorMessage(null);
+      const { items: allNews } = await ApiService.getNews({ limit: 100 });
       const foundNews = allNews.find((n: News) => n.id === newsId);
       setNewsItem(foundNews || null);
     } catch (error) {
       console.error('Error fetching news detail:', error);
+      setErrorMessage(getUserFriendlyErrorMessage(error, 'Haber detayı yüklenemedi.'));
     } finally {
       setLoading(false);
     }
@@ -87,7 +92,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
           <View style={styles.errorIconContainer}>
             <Feather name="alert-circle" size={48} color="#ef4444" />
           </View>
-          <Text style={styles.errorText}>Haber bulunamadı</Text>
+          <Text style={styles.errorText}>{errorMessage || 'Haber bulunamadı'}</Text>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
@@ -174,14 +179,14 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
           {/* Summary */}
           {newsItem.summary && (
             <View style={styles.summaryContainer}>
-              <Text style={styles.summaryText}>{newsItem.summary}</Text>
+              <Text style={styles.summaryText}>{stripHtmlTags(newsItem.summary || '')}</Text>
             </View>
           )}
 
           {/* Content */}
-          <Text style={styles.bodyText}>
-            {newsItem.content || newsItem.summary || 'İçerik mevcut değil.'}
-          </Text>
+          <View style={styles.bodyContainer}>
+            <HtmlContent html={newsItem.content || newsItem.summary || 'İçerik mevcut değil.'} />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -329,10 +334,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 24,
   },
-  bodyText: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 26,
+  bodyContainer: {
     marginBottom: 24,
   },
   tagsContainer: {

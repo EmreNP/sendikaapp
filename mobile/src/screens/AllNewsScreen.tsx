@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { stripHtmlTags } from '../components/HtmlContent';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, News } from '../types';
 
@@ -25,26 +27,49 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
   const [news, setNews] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_LIMIT = 25;
 
   useEffect(() => {
     fetchNews();
   }, []);
 
-  const fetchNews = async () => {
+  const fetchNews = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getNews();
-      setNews(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getNews({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setNews(items);
+      } else {
+        setNews(prev => [...prev, ...items]);
+      }
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
       console.error('Error fetching news:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Haberler yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchNews();
+    await fetchNews(1);
     setRefreshing(false);
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchNews(page + 1);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -118,7 +143,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         <View style={styles.newsContent}>
           <Text style={styles.newsTitle} numberOfLines={2}>{item.title}</Text>
           {item.summary && (
-            <Text style={styles.newsSummary} numberOfLines={2}>{item.summary}</Text>
+            <Text style={styles.newsSummary} numberOfLines={2}>{stripHtmlTags(item.summary)}</Text>
           )}
           <View style={styles.newsDateRow}>
             <Feather name="clock" size={12} color="#94a3b8" />
@@ -181,18 +206,39 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#4338ca" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#4338ca" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="file-text" size={48} color="#4338ca" />
+              <Feather name={errorMessage ? 'alert-circle' : 'file-text'} size={48} color={errorMessage ? '#ef4444' : '#4338ca'} />
             </View>
-            <Text style={styles.emptyTitle}>Henüz Haber Yok</Text>
+            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Haber Yok'}</Text>
             <Text style={styles.emptyText}>
-              Yeni haberler eklendiğinde burada görünecektir.
+              {errorMessage || 'Yeni haberler eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -368,5 +414,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(67, 56, 202, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 56, 202, 0.15)',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4338ca',
   },
 });

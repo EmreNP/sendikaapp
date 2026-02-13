@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
@@ -124,7 +125,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
         [{ text: 'Tamam', onPress: () => setFormData({ name: '', email: '', phone: '', subject: '', message: '' }) }]
       );
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Mesaj gönderilemedi');
+      Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.'));
     } finally {
       setLoading(false);
     }

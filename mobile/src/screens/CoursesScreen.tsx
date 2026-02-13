@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -84,6 +86,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 25;
 
   // Accordion / lessons state per training
   const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
@@ -128,6 +136,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       setLessonsMap(prev => ({ ...prev, [trainingId]: lessonsWithCounts }));
     } catch (err) {
       console.error('Error loading lessons:', err);
+      Alert.alert('Hata', getUserFriendlyErrorMessage(err, 'Dersler yüklenemedi.'));
     } finally {
       setLoadingLessons(null);
     }
@@ -141,22 +150,41 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     }
   }, [canAccessTrainings]);
 
-  const fetchTrainings = async () => {
+  const fetchTrainings = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getTrainings();
-      setTrainings(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getTrainings({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setTrainings(items);
+      } else {
+        setTrainings(prev => [...prev, ...items]);
+      }
+      setTotalCount(total);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
       console.error('Error fetching trainings:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Eğitimler yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const onRefresh = async () => {
     if (!canAccessTrainings) return;
     setRefreshing(true);
-    await fetchTrainings();
+    await fetchTrainings(1);
     setRefreshing(false);
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchTrainings(page + 1);
+    }
   };
 
   if (!canAccessTrainings) {
@@ -488,7 +516,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Eğitimler</Text>
-          <Text style={styles.headerSubtitle}>{trainings.length} eğitim</Text>
+          <Text style={styles.headerSubtitle}>{totalCount > 0 ? `${totalCount} eğitim` : `${trainings.length} eğitim`}</Text>
         </View>
       </LinearGradient>
 
@@ -499,18 +527,39 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#2563eb" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="book-open" size={48} color="#94a3b8" />
+              <Feather name={errorMessage ? 'alert-circle' : 'book-open'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
             </View>
-            <Text style={styles.emptyTitle}>Henüz Eğitim Yok</Text>
+            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Eğitim Yok'}</Text>
             <Text style={styles.emptyText}>
-              Yeni eğitimler eklendiğinde burada görünecektir.
+              {errorMessage || 'Yeni eğitimler eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -806,5 +855,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 32,
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
   },
 });

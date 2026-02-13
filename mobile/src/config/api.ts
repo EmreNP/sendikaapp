@@ -7,7 +7,7 @@ const envApiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL;
 
-export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app/api').replace(/\/$/, '');
+export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app').replace(/\/$/, '');
 
 
 export const API_ENDPOINTS = {

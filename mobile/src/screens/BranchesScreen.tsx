@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,6 +35,12 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 25;
 
   useEffect(() => {
     fetchBranches();
@@ -52,22 +59,42 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
     }
   }, [searchQuery, branches]);
 
-  const fetchBranches = async () => {
+  const fetchBranches = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getBranches();
-      setBranches(data);
-      setFilteredBranches(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getBranches({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setBranches(items);
+        setFilteredBranches(items);
+      } else {
+        setBranches(prev => [...prev, ...items]);
+        setFilteredBranches(prev => searchQuery.trim() === '' ? [...prev, ...items] : prev);
+      }
+      setTotalCount(total);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
       console.error('Error fetching branches:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Şubeler yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchBranches();
+    await fetchBranches(1);
     setRefreshing(false);
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchBranches(page + 1);
+    }
   };
 
   const renderBranchItem = ({ item }: { item: Branch }) => (
@@ -160,7 +187,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         end={{ x: 1, y: 0 }}
       >
         <Text style={styles.headerTitle}>Şubelerimiz</Text>
-        <Text style={styles.headerSubtitle}>{branches.length} şube ve temsilcilik</Text>
+        <Text style={styles.headerSubtitle}>{totalCount > 0 ? `${totalCount} şube ve temsilcilik` : `${branches.length} şube ve temsilcilik`}</Text>
         
         {/* Search Bar */}
         <View style={styles.searchBar}>
@@ -186,22 +213,45 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={searchQuery.trim() === '' ? loadMore : undefined}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+        }
+        ListFooterComponent={
+          searchQuery.trim() === '' && hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#2563eb" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="map-pin" size={48} color="#cbd5e1" />
+              <Feather name={errorMessage ? 'alert-circle' : 'map-pin'} size={48} color={errorMessage ? '#ef4444' : '#cbd5e1'} />
             </View>
             <Text style={styles.emptyTitle}>
-              {searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
+              {errorMessage ? 'Bir Hata Oluştu' : searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
             </Text>
             <Text style={styles.emptyText}>
-              {searchQuery
-                ? 'Aradığınız kriterlere uygun şube bulunamadı.'
-                : 'Şubeler eklendiğinde burada görünecektir.'}
+              {errorMessage
+                ? errorMessage
+                : searchQuery
+                  ? 'Aradığınız kriterlere uygun şube bulunamadı.'
+                  : 'Şubeler eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -377,5 +427,24 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
   },
 });
