@@ -84,8 +84,10 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleNotificationPress = (notification: Notification) => {
     if (notification.type === 'news' && notification.contentId) {
+      navigation.navigate('NewsDetail' as any, { newsId: notification.contentId });
+    } else if (notification.type === 'news') {
       navigation.navigate('AllNews' as any);
-    } else if (notification.type === 'announcement' && notification.contentId) {
+    } else if (notification.type === 'announcement') {
       navigation.navigate('AllAnnouncements' as any);
     }
   };

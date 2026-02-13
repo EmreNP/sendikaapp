@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import apiService from '../services/api';
+import { getStoredToken, clearStoredToken } from '../services/notificationService';
 import type { User, UserStatus, UserRole } from '../types';
 
 interface AuthContextType {
@@ -74,6 +75,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    // Logout öncesi FCM token'ı deaktive et
+    try {
+      const storedToken = await getStoredToken();
+      if (storedToken) {
+        await apiService.deactivatePushToken(storedToken);
+        await clearStoredToken();
+        console.log('✅ FCM token logout sırasında deaktive edildi');
+      }
+    } catch (error) {
+      console.warn('FCM token deaktive edilemedi:', error);
+    }
     await apiService.logout();
     setUser(null);
   };

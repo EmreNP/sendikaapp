@@ -427,7 +427,30 @@ class ApiService {
     );
   }
 
-  // Notifications
+  // Notifications - Token Management
+  async registerPushToken(token: string, deviceType: 'ios' | 'android', deviceId?: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.NOTIFICATIONS.TOKEN,
+      {
+        method: 'POST',
+        body: JSON.stringify({ token, deviceType, deviceId }),
+      },
+      true
+    );
+  }
+
+  async deactivatePushToken(token: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.NOTIFICATIONS.TOKEN,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ token }),
+      },
+      true
+    );
+  }
+
+  // Notifications - History
   async getNotifications(params?: { page?: number; limit?: number; type?: string }): Promise<{
     notifications: any[];
     pagination: { page: number; limit: number; total: number; totalPages: number };

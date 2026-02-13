@@ -157,6 +157,11 @@ export default function SendNotificationSimpleModal({
         failed: response.failed,
       });
       setSuccess(true);
+      
+      // Token yoksa uyarı mesajı göster
+      if (response.message) {
+        setError(response.message);
+      }
 
       if (onSuccess) {
         onSuccess();
@@ -213,10 +218,15 @@ export default function SendNotificationSimpleModal({
             )}
 
             {success && result && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                <div className="text-sm font-medium mb-1">✅ Bildirim başarıyla gönderildi!</div>
+              <div className={`border px-4 py-3 rounded-lg ${result.sent > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>
+                <div className="text-sm font-medium mb-1">
+                  {result.sent > 0 ? '✅ Bildirim başarıyla gönderildi!' : '⚠️ Bildirim gönderilemedi'}
+                </div>
                 <div className="text-sm">
-                  Gönderilen: {result.sent}, Başarısız: {result.failed}
+                  {result.sent > 0 
+                    ? `Gönderilen: ${result.sent}, Başarısız: ${result.failed}`
+                    : 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.'
+                  }
                 </div>
               </div>
             )}
@@ -294,8 +304,10 @@ export default function SendNotificationSimpleModal({
                 {isAdmin && (
                   <option value={TARGET_AUDIENCE.ALL}>Tüm Kullanıcılar</option>
                 )}
-                <option value={TARGET_AUDIENCE.ACTIVE}>Aktif Kullanıcılar</option>
-                <option value={TARGET_AUDIENCE.BRANCH}>Belirli Şube</option>
+                {isAdmin && (
+                  <option value={TARGET_AUDIENCE.ACTIVE}>Aktif Kullanıcılar</option>
+                )}
+                <option value={TARGET_AUDIENCE.BRANCH}>{isBranchManager ? 'Kendi Şubem' : 'Belirli Şube'}</option>
               </select>
               {isBranchManager && (
                 <p className="text-xs text-gray-500 mt-1">

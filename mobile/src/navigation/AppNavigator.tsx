@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../hooks/useNotifications';
 import type { RootStackParamList, MainTabParamList } from '../types';
 
 // Import Screens
@@ -96,6 +97,13 @@ const LoadingScreen = () => (
   </View>
 );
 
+// Bildirim sistemi wrapper - NavigationContainer içinde olmalı
+const NotificationHandler = () => {
+  const { isAuthenticated } = useAuth();
+  useNotifications(isAuthenticated);
+  return null;
+};
+
 // Main App Navigator
 export const AppNavigator = () => {
   const { isAuthenticated, isLoading, status, isAdmin } = useAuth();
@@ -106,6 +114,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer>
+      <NotificationHandler />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           // Auth Stack
