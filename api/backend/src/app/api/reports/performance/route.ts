@@ -9,12 +9,10 @@ import { AppAuthorizationError, AppValidationError } from '@/lib/utils/errors/Ap
 import { logger } from '@/lib/utils/logger';
 
 /**
- * Performans skorunu hesapla (0-100)
- * Ağırlıklar:
- * - Aktivite sayısı: %50
- * - Haber/Duyuru sayısı: %20
- * - Üye sayısı: %20
- * - Yanıtlanan mesaj oranı: %10
+ * Performans skorunu hesapla
+ * Puanlama:
+ * - Üye alımı: 1 puan (her üye için)
+ * - Faaliyet: 0.25 puan (her faaliyet için)
  */
 function calculatePerformanceScore(metrics: {
   activityCount: number;
@@ -23,13 +21,11 @@ function calculatePerformanceScore(metrics: {
   memberCount: number;
   readMessageRate: number; // 0-1 arası
 }): number {
-  // Her metrik için normalize (max değerlere göre)
-  const activityScore = Math.min(metrics.activityCount / 10, 1) * 50; // 10 aktivite = tam puan
-  const contentScore = Math.min((metrics.newsCount + metrics.announcementCount) / 8, 1) * 20; // 8 içerik = tam puan
-  const memberScore = Math.min(metrics.memberCount / 50, 1) * 20; // 50 üye = tam puan
-  const messageScore = metrics.readMessageRate * 10;
+  // Üye alımı: 1 puan, Faaliyet: 0.25 puan
+  const memberScore = metrics.memberCount * 1;
+  const activityScore = metrics.activityCount * 0.25;
 
-  return Math.round(activityScore + contentScore + memberScore + messageScore);
+  return memberScore + activityScore;
 }
 
 /**
@@ -315,13 +311,14 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       .map((m: any) => {
         const mActivities = allActivities.filter((a: any) => a.createdBy === m.uid);
         const branch = m.branchId ? branchMap.get(m.branchId) : null;
+        const memberCount = allUsers.filter(
+          (u: any) => u.branchId === m.branchId && u.role === USER_ROLE.USER
+        ).length;
         const score = calculatePerformanceScore({
           activityCount: mActivities.length,
           newsCount: allNews.filter((n: any) => n.createdBy === m.uid).length,
           announcementCount: allAnnouncements.filter((a: any) => a.createdBy === m.uid).length,
-          memberCount: allUsers.filter(
-            (u: any) => u.branchId === m.branchId && u.role === USER_ROLE.USER
-          ).length,
+          memberCount,
           readMessageRate: 0.5,
         });
         return {
@@ -329,6 +326,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           fullName: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
           branchName: branch?.name || '',
           activityCount: mActivities.length,
+          memberCount,
           performanceScore: score,
         };
       })

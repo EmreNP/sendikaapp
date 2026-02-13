@@ -8,7 +8,6 @@ import { topicsPaths } from './paths/topics'
 import { contactPaths } from './paths/contact'
 import { trainingsPaths } from './paths/trainings'
 import { lessonsPaths } from './paths/lessons'
-import { faqPaths } from './paths/faq'
 import { notificationsPaths } from './paths/notifications'
 import { miscPaths } from './paths/misc'
 import { activitiesPaths } from './paths/activities'
@@ -26,7 +25,6 @@ export const paths = {
   ...contactPaths,
   ...trainingsPaths,
   ...lessonsPaths,
-  ...faqPaths,
   ...notificationsPaths,
   ...miscPaths,
   ...activitiesPaths,

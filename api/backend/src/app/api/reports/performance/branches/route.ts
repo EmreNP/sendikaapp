@@ -94,6 +94,12 @@ function generateTimeKeys(startDate: Date, endDate: Date, granularity: 'daily' |
   return keys;
 }
 
+/**
+ * Performans skorunu hesapla
+ * Puanlama:
+ * - Üye alımı: 1 puan (her üye için)
+ * - Faaliyet: 0.25 puan (her faaliyet için)
+ */
 function calculatePerformanceScore(metrics: {
   activityCount: number;
   newsCount: number;
@@ -101,11 +107,11 @@ function calculatePerformanceScore(metrics: {
   memberCount: number;
   readMessageRate: number;
 }): number {
-  const activityScore = Math.min(metrics.activityCount / 10, 1) * 50;
-  const contentScore = Math.min((metrics.newsCount + metrics.announcementCount) / 8, 1) * 20;
-  const memberScore = Math.min(metrics.memberCount / 50, 1) * 20;
-  const messageScore = metrics.readMessageRate * 10;
-  return Math.round(activityScore + contentScore + memberScore + messageScore);
+  // Üye alımı: 1 puan, Faaliyet: 0.25 puan
+  const memberScore = metrics.memberCount * 1;
+  const activityScore = metrics.activityCount * 0.25;
+
+  return memberScore + activityScore;
 }
 
 // GET /api/reports/performance/branches - Şube bazlı performans raporu

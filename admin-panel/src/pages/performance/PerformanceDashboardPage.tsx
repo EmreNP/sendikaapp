@@ -664,7 +664,7 @@ function OverviewTab({
 
       {/* Top Performers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="En İyi Şubeler" subtitle="Aktivite sayısına göre sıralama" noPadding>
+        <Card title="En İyi Şubeler" subtitle="Performansa göre sıralama" noPadding>
           <div className="divide-y divide-gray-50">
             {topBranches.map((branch: { branchId: string; branchName: string; activityCount: number; memberCount: number; performanceScore: number }, index: number) => (
               <div
@@ -687,12 +687,8 @@ function OverviewTab({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{branch.branchName}</p>
                   <p className="text-xs text-gray-400">
-                    {branch.activityCount} aktivite · {branch.memberCount} üye
+                    {branch.memberCount} üye · {branch.activityCount} aktivite
                   </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{branch.activityCount}</p>
-                  <p className="text-[10px] text-gray-400">aktivite</p>
                 </div>
               </div>
             ))}
@@ -702,9 +698,9 @@ function OverviewTab({
           </div>
         </Card>
 
-        <Card title="En İyi Yöneticiler" subtitle="Aktivite sayısına göre sıralama" noPadding>
+        <Card title="En İyi Yöneticiler" subtitle="Performansa göre sıralama" noPadding>
           <div className="divide-y divide-gray-50">
-            {topManagers.map((manager: { uid: string; fullName: string; branchName?: string; activityCount: number }, index: number) => (
+            {topManagers.map((manager: { uid: string; fullName: string; branchName?: string; activityCount: number; memberCount: number }, index: number) => (
               <div
                 key={manager.uid}
                 className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/50 transition-colors"
@@ -725,12 +721,8 @@ function OverviewTab({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{manager.fullName}</p>
                   <p className="text-xs text-gray-400">
-                    {manager.branchName} · {manager.activityCount} aktivite
+                    {manager.branchName} · {manager.memberCount} üye · {manager.activityCount} aktivite
                   </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{manager.activityCount}</p>
-                  <p className="text-[10px] text-gray-400">aktivite</p>
                 </div>
               </div>
             ))}

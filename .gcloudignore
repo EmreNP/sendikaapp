@@ -1,0 +1,51 @@
+# Git files
+.git
+.gitignore
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build outputs
+.next/
+**/.next/
+dist/
+**/dist/
+build/
+**/build/
+out/
+
+# Mobile app
+mobile/
+
+# Admin panel
+admin-panel/
+
+# Documents
+documents/
+*.md
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+
+# Misc
+*.swp
+*.swo
+*~
+.env.local
+.env.*.local
