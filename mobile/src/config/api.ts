@@ -77,4 +77,14 @@ export const API_ENDPOINTS = {
     HISTORY: '/api/notifications/history',
     TOKEN: '/api/notifications/token',
   },
+  // Contracted Institutions
+  CONTRACTED_INSTITUTIONS: {
+    BASE: '/api/contracted-institutions',
+    BY_ID: (id: string) => `/api/contracted-institutions/${id}`,
+  },
+  // Institution Categories
+  INSTITUTION_CATEGORIES: {
+    BASE: '/api/institution-categories',
+    BY_ID: (id: string) => `/api/institution-categories/${id}`,
+  },
 };

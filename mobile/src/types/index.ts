@@ -133,6 +133,38 @@ export interface ContactMessage {
   message: string;
 }
 
+// Contracted Institutions
+export interface HowToUseStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+}
+
+export interface InstitutionCategory {
+  id: string;
+  name: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface ContractedInstitution {
+  id: string;
+  title: string;
+  description: string;
+  categoryId: string;
+  categoryName?: string;
+  badgeText: string;
+  coverImageUrl: string;
+  logoUrl?: string;
+  howToUseSteps: HowToUseStep[];
+  isPublished: boolean;
+  order: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 // Navigation Types
 export type RootStackParamList = {
   Welcome: undefined;

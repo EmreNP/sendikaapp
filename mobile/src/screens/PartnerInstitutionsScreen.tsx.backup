@@ -1,4 +1,4 @@
-// Partner Institutions Screen - API ile Çalışan Versiyon
+// Partner Institutions Screen - API ile Çalışan Versyion
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
@@ -125,184 +125,128 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
     navigation.navigate('PartnerDetail' as any, { institution });
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header - Front: bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 */}
         <LinearGradient
           colors={['#1e3a8a', '#1e40af', '#312e81']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
+          {/* Decorative elements */}
+          <View style={styles.headerDecor1} />
+          <View style={styles.headerDecor2} />
+
+          {/* Back Button + Title */}
           <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
               <Feather name="arrow-left" size={24} color="#ffffff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Anlaşmalı Kurumlar</Text>
           </View>
-        </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1e3a8a" />
-          <Text style={styles.loadingText}>Yükleniyor...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
-  const renderInstitutionItem = ({ item }: { item: ContractedInstitution }) => (
-    <TouchableOpacity
-      style={styles.partnerCard}
-      onPress={() => handleInstitutionSelect(item)}
-      activeOpacity={0.95}
-    >
-      {/* Image Container */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: item.coverImageUrl || item.logoUrl }}
-          style={styles.partnerImage}
-          resizeMode="cover"
-        />
-        {/* Discount Badge */}
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{item.badgeText}</Text>
-        </View>
-      </View>
-
-      {/* Content */}
-      <View style={styles.cardContent}>
-        {/* Category Badge */}
-        {item.categoryName && (
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{item.categoryName}</Text>
+          {/* Search Bar - Front birebir */}
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={20} color="#bfdbfe" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Kurum ara..."
+              placeholderTextColor="#bfdbfe"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
           </View>
-        )}
+        </LinearGradient>
 
-        {/* Name */}
-        <Text style={styles.partnerName}>{item.title}</Text>
-
-        {/* Description */}
-        <Text style={styles.partnerDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header - Front: bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 */}
-      <LinearGradient
-        colors={['#1e3a8a', '#1e40af', '#312e81']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
-        {/* Decorative elements */}
-        <View style={styles.headerDecor1} />
-        <View style={styles.headerDecor2} />
-
-        {/* Back Button + Title */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Anlaşmalı Kurumlar</Text>
-        </View>
-
-        {/* Search Bar - Front birebir */}
-        <View style={styles.searchContainer}>
-          <Feather name="search" size={20} color="#bfdbfe" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Kurum ara..."
-            placeholderTextColor="#bfdbfe"
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-          />
-          {searchTerm.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchTerm('')}>
-              <Feather name="x" size={18} color="#bfdbfe" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
-
-      {/* Main Content - overlapping header */}
-      <View style={styles.mainContent}>
-        {/* Categories - Front: flex gap-2 overflow-x-auto */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesScroll}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          {allCategories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryButton,
-                selectedCategory === category && styles.categoryButtonSelected,
-              ]}
-              onPress={() => setSelectedCategory(category)}
-            >
-              <Text
+        {/* Main Content - offset from header */}
+        <View style={styles.mainContent}>
+          {/* Categories - Front: flex gap-2 overflow-x-auto */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContent}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
                 style={[
-                  styles.categoryText,
-                  selectedCategory === category && styles.categoryTextSelected,
+                  styles.categoryButton,
+                  selectedCategory === category && styles.categoryButtonSelected,
                 ]}
+                onPress={() => setSelectedCategory(category)}
               >
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    selectedCategory === category && styles.categoryTextSelected,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-        {/* Partners Grid - FlatList */}
-        <FlatList
-          data={filteredInstitutions}
-          renderItem={renderInstitutionItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.flatListContent}
-          onEndReached={searchTerm.trim() === '' ? loadMore : undefined}
-          onEndReachedThreshold={0.3}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1e3a8a']} />
-          }
-          ListFooterComponent={
-            searchTerm.trim() === '' && hasMore ? (
-              <View style={styles.footerContainer}>
-                {loadingMore ? (
-                  <ActivityIndicator size="small" color="#1e3a8a" />
-                ) : (
-                  <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
-                    <Feather name="plus-circle" size={18} color="#1e3a8a" style={{ marginRight: 8 }} />
-                    <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
-                  </TouchableOpacity>
-                )}
+          {/* Partners Grid - Front: grid grid-cols-1 sm:grid-cols-2 gap-4 */}
+          <View style={styles.partnersGrid}>
+            {filteredPartners.map((partner) => (
+              <TouchableOpacity
+                key={partner.id}
+                style={styles.partnerCard}
+                onPress={() => handlePartnerSelect(partner)}
+                activeOpacity={0.95}
+              >
+                {/* Image Container */}
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: partner.logoUrl }}
+                    style={styles.partnerImage}
+                    resizeMode="cover"
+                  />
+                  {/* Discount Badge */}
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>{partner.discountRate}</Text>
+                  </View>
+                </View>
+
+                {/* Content */}
+                <View style={styles.cardContent}>
+                  {/* Category Badge */}
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{partner.category}</Text>
+                  </View>
+
+                  {/* Name */}
+                  <Text style={styles.partnerName}>{partner.name}</Text>
+
+                  {/* Description */}
+                  <Text style={styles.partnerDescription} numberOfLines={2}>
+                    {partner.shortDescription}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Empty State */}
+            {filteredPartners.length === 0 && (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Feather name="briefcase" size={32} color="#94a3b8" />
+                </View>
+                <Text style={styles.emptyText}>
+                  Arama kriterlerine uygun kurum bulunamadı.
+                </Text>
               </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Feather name={errorMessage ? 'alert-circle' : 'briefcase'} size={32} color={errorMessage ? '#ef4444' : '#94a3b8'} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {errorMessage ? 'Bir Hata Oluştu' : searchTerm ? 'Sonuç Bulunamadı' : 'Henüz Anlaşmalı Kurum Yok'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {errorMessage || (searchTerm ? 'Arama kriterlerine uygun kurum bulunamadı.' : 'Yeni kurumlar eklendiğinde burada görünecektir.')}
-              </Text>
-              {errorMessage && (
-                <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#1e3a8a', borderRadius: 8 }}>
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -379,22 +323,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#ffffff',
   },
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
-  },
   // Main Content - overlapping header
   mainContent: {
-    flex: 1,
     marginTop: -64,
     paddingHorizontal: 16,
+    paddingBottom: 100,
   },
   // Categories - Front birebir
   categoriesScroll: {
@@ -435,9 +368,9 @@ const styles = StyleSheet.create({
     color: '#1e3a8a',
     fontWeight: '600',
   },
-  // Partners Grid/FlatList
-  flatListContent: {
-    paddingBottom: 100,
+  // Partners Grid
+  partnersGrid: {
+    gap: 16,
   },
   partnerCard: {
     backgroundColor: '#ffffff',
@@ -530,37 +463,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
   emptyText: {
     fontSize: 15,
     fontWeight: '500',
     color: '#94a3b8',
     textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  // Footer/Pagination
-  footerContainer: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  loadMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(30, 58, 138, 0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(30, 58, 138, 0.15)',
-  },
-  loadMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1e3a8a',
   },
 });

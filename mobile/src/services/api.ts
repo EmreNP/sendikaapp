@@ -3,7 +3,7 @@ import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'fire
 import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
-import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
+import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage, ContractedInstitution, InstitutionCategory } from '../types';
 
 class ApiService {
   private async getAuthToken(): Promise<string | null> {
@@ -450,6 +450,47 @@ class ApiService {
       true
     );
     return response.data;
+  }
+
+  // Contracted Institutions
+  async getContractedInstitutions(params?: { page?: number; limit?: number; categoryId?: string }): Promise<{
+    items: ContractedInstitution[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.categoryId) queryParams.append('categoryId', params.categoryId);
+
+    const url = `${API_ENDPOINTS.CONTRACTED_INSTITUTIONS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await this.request<{ 
+      success: boolean; 
+      data: { institutions: ContractedInstitution[]; total?: number; hasMore?: boolean; page?: number; limit?: number } 
+    }>(url, {}, true);
+
+    const items = response.data.institutions || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
+  }
+
+  async getContractedInstitution(id: string): Promise<ContractedInstitution> {
+    const response = await this.request<{ success: boolean; data: { institution: ContractedInstitution } }>(
+      API_ENDPOINTS.CONTRACTED_INSTITUTIONS.BY_ID(id),
+      {},
+      true
+    );
+    return response.data.institution;
+  }
+
+  async getInstitutionCategories(): Promise<InstitutionCategory[]> {
+    const response = await this.request<{ success: boolean; data: { categories: InstitutionCategory[] } }>(
+      `${API_ENDPOINTS.INSTITUTION_CATEGORIES.BASE}?activeOnly=true`,
+      {},
+      true
+    );
+    return response.data.categories || [];
   }
 }
 
