@@ -390,6 +390,10 @@ export function serializeActivityTimestamps(activity: any): any {
   return serializeObjectTimestamps(activity, ['createdAt', 'updatedAt', 'activityDate']);
 }
 
+export function serializeContractedInstitutionTimestamps(institution: any): any {
+  return serializeObjectTimestamps(institution);
+}
+
 /**
  * Generic Content serializer (type'a göre uygun serializer'ı kullanır)
  */

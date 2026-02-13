@@ -66,7 +66,7 @@ export const authPaths = {
                 fatherName: { type: 'string', description: 'Baba adı', example: 'Mehmet' },
                 motherName: { type: 'string', description: 'Anne adı', example: 'Ayşe' },
                 birthPlace: { type: 'string', description: 'Doğum yeri', example: 'Konya' },
-                education: { type: 'string', enum: ['ilkogretim', 'lise', 'on_lisans', 'lisans', 'yuksek_lisans', 'doktora'], description: 'Öğrenim seviyesi', example: 'lisans' },
+                education: { type: 'string', enum: ['ilkogretim', 'lise', 'yuksekokul'], description: 'Öğrenim seviyesi', example: 'lise' },
                 kurumSicil: { type: 'string', description: 'Kurum sicil numarası', example: '12345' },
                 kadroUnvanKodu: { type: 'string', description: 'Kadro ünvan kodu', example: 'M001' },
                 isMemberOfOtherUnion: { type: 'boolean', description: 'Başka bir sendikaya üye mi? (opsiyonel)', example: false },

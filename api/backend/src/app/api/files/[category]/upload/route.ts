@@ -14,7 +14,7 @@ import { isErrorWithMessage } from '@/lib/utils/response';
 
 import { logger } from '../../../../../lib/utils/logger';
 // İzin verilen kategoriler
-const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images'] as const;
+const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images', 'institution-images'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
 
 // Kategori bazlı yetki kontrolü
@@ -80,6 +80,13 @@ function getCategoryPermissions(category: string, userRole: string): {
         error: (!isAdminOrSuperadmin(userRole) && userRole !== USER_ROLE.BRANCH_MANAGER) 
           ? 'Bu işlem için admin veya branch manager yetkisi gerekli' 
           : undefined,
+      };
+    
+    case 'institution-images':
+      // Institution images: Admin veya Superadmin
+      return {
+        canUpload: isAdminOrSuperadmin(userRole),
+        error: !isAdminOrSuperadmin(userRole) ? 'Bu işlem için admin yetkisi gerekli' : undefined,
       };
     
     default:
@@ -231,24 +238,12 @@ export const POST = asyncHandler(async (
           throw new Error('Firebase Storage bucket yapılandırılmamış');
         }
         
-        // Bucket'ın var olup olmadığını kontrol et
-        const [exists] = await bucket.exists();
-        if (!exists) {
-          throw new Error(`Storage bucket '${bucket.name}' mevcut değil. Lütfen Firebase Console'dan bucket oluşturun veya doğru bucket name'i belirtin.`);
-        }
-        
     } catch (bucketError: unknown) {
       const errorMessage = isErrorWithMessage(bucketError) ? bucketError.message : 'Bilinmeyen hata';
       logger.error('❌ Bucket initialization error:', bucketError);
-      
-      // 404 hatası için özel mesaj
-      if (errorMessage.includes('does not exist') || errorMessage.includes('mevcut değil')) {
-        throw new AppBadGatewayError(
-          `Storage bucket bulunamadı. Lütfen Firebase Console'dan Storage bucket'ı oluşturun veya .env dosyasına doğru FIREBASE_STORAGE_BUCKET değerini ekleyin.`
-        );
-      }
-      
-      throw new AppBadGatewayError('Storage bucket yapılandırma hatası');
+      throw new AppBadGatewayError(
+        `Storage bucket yapılandırma hatası: ${errorMessage}`
+      );
     }
 
       // Dosyayı buffer'a çevir
