@@ -91,22 +91,89 @@ if (getApps().length === 0) {
       }
     }
   } else {
-    // Production'da environment variables veya default credentials kullan
-    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
-    
-    if (!storageBucket) {
-      logger.warn('⚠️  FIREBASE_STORAGE_BUCKET environment variable is not set');
-      logger.warn('   Storage operations may not work correctly');
-    }
-    
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      ...(storageBucket && { storageBucket: storageBucket }),
-    });
-    
-    logger.log('✅ Firebase Admin SDK initialized (Production)');
-    if (storageBucket) {
-      logger.log(`   Storage bucket: ${storageBucket}`);
+    // Production ortamı için de service account key kullan
+    // FCM mesajı gönderebilmek için gerekli
+    try {
+      let serviceAccount;
+      
+      // Önce GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable'ı kontrol et
+      // Cloud Run/Cloud Build'de secret olarak enjekte edilebilir
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+        try {
+          serviceAccount = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          logger.log('📋 Service account loaded from GOOGLE_APPLICATION_CREDENTIALS_JSON');
+        } catch (parseError) {
+          logger.error('❌ Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', parseError);
+          throw parseError;
+        }
+      } 
+      // Eğer path belirtilmişse dosyadan oku
+      else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+        if (fs.existsSync(credPath)) {
+          const credContent = fs.readFileSync(credPath, 'utf8');
+          serviceAccount = JSON.parse(credContent);
+          logger.log(`📋 Service account loaded from: ${credPath}`);
+        } else {
+          throw new Error(`GOOGLE_APPLICATION_CREDENTIALS file not found: ${credPath}`);
+        }
+      } 
+      // Fallback: serviceAccountKey.json dosyasını ara
+      else {
+        const possiblePaths = [
+          path.resolve(process.cwd(), 'serviceAccountKey.json'),
+          path.resolve(process.cwd(), '..', 'serviceAccountKey.json'),
+          '/app/serviceAccountKey.json', // Docker container içinde
+        ];
+        
+        let foundPath: string | null = null;
+        for (const p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            foundPath = p;
+            break;
+          }
+        }
+        
+        if (foundPath) {
+          const credContent = fs.readFileSync(foundPath, 'utf8');
+          serviceAccount = JSON.parse(credContent);
+          logger.log(`📋 Service account loaded from: ${foundPath}`);
+        } else {
+          throw new Error('Service account credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS');
+        }
+      }
+      
+      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || serviceAccount.storageBucket;
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        ...(storageBucket && { storageBucket: storageBucket }),
+      });
+      
+      logger.log('✅ Firebase Admin SDK initialized (Production with Service Account)');
+      if (storageBucket) {
+        logger.log(`   Storage bucket: ${storageBucket}`);
+      }
+    } catch (error: unknown) {
+      const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
+      logger.error('❌ Production initialization with service account failed:', errorMessage);
+      logger.warn('⚠️  Falling back to Application Default Credentials...');
+      logger.warn('⚠️  FCM notifications may not work without proper credentials!');
+      
+      // Fallback to default credentials
+      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+      
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        ...(storageBucket && { storageBucket: storageBucket }),
+      });
+      
+      logger.log('✅ Firebase Admin SDK initialized (Production - ADC Fallback)');
+      if (storageBucket) {
+        logger.log(`   Storage bucket: ${storageBucket}`);
+      } else {
+        logger.warn('⚠️  FIREBASE_STORAGE_BUCKET not set');
+      }
     }
   }
 }

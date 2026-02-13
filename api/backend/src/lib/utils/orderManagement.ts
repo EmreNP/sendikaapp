@@ -85,18 +85,7 @@ export async function getNextContentOrder(lessonId: string, contentType: 'video'
   }
 }
 
-/**
- * FAQ için mevcut en yüksek order'ı bulur ve yeni order döndürür
- * Transaction kullanarak race condition'lara karşı güvenli çalışır
- */
-export async function getNextFAQOrder(): Promise<number> {
-  try {
-    return await getNextOrderInTransaction('faqs');
-  } catch (error) {
-    logger.error('Error getting next FAQ order:', error);
-    return 1;
-  }
-}
+
 
 /**
  * Anlaşmalı kurumlar için mevcut en yüksek order'ı bulur ve yeni order döndürür

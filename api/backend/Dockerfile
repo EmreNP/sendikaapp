@@ -28,5 +28,9 @@ COPY --from=builder /workspace/backend/.next ./.next
 COPY --from=builder /workspace/backend/node_modules ./node_modules
 COPY --from=builder /workspace/backend/next.config.js ./next.config.js
 
+# NOT: Service account key dosyası build sırasında değil, 
+# Cloud Run'da secret olarak mount edilmeli veya
+# GOOGLE_APPLICATION_CREDENTIALS_JSON env variable ile enjekte edilmeli
+
 EXPOSE 8080
 CMD ["npm", "start"]
