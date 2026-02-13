@@ -132,7 +132,8 @@ async function cleanupFailedTokens(
         // Geçersiz veya kayıtlı olmayan token'ları pasif yap
         if (
           errorCode === 'messaging/invalid-registration-token' ||
-          errorCode === 'messaging/registration-token-not-registered'
+          errorCode === 'messaging/registration-token-not-registered' ||
+          errorCode === 'messaging/mismatched-credential'
         ) {
           try {
             const tokenSnapshots = await db.collection('fcmTokens')
