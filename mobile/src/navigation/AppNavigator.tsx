@@ -38,7 +38,6 @@ import {
   PartnerDetailScreen,
   DocumentScreen,
   NotificationsScreen,
-  // PDFViewerScreen, // Native PDF viewer commented out to avoid crashes
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

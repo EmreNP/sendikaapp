@@ -19,6 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
@@ -56,7 +57,7 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
         uri: file.uri,
         name: file.name,
         type: file.mimeType || 'application/octet-stream',
-      } as any);
+      } as unknown as Blob);
       formData.append('type', type);
       
       Alert.alert(
@@ -64,7 +65,7 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
         `${type === 'resignation' ? 'İstifa' : 'Üyelik'} formu başarıyla yüklendi.\n\nDosya: ${file.name}`
       );
     } catch (error) {
-      console.error('File upload error:', error);
+      logger.error('File upload error:', error);
       Alert.alert('Hata', 'Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setUploadingFile(null);
@@ -93,7 +94,7 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
         setImages([...images, asset.uri]);
       }
     } catch (error) {
-      console.error('Image picker error:', error);
+      logger.error('Image picker error:', error);
       Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu.');
     }
   };
@@ -113,7 +114,7 @@ export const DistrictRepresentativeScreen: React.FC<DistrictRepresentativeScreen
       setDescription('');
       setImages([]);
     } catch (error) {
-      console.error('Activity submit error:', error);
+      logger.error('Activity submit error:', error);
       Alert.alert('Hata', 'Faaliyet kaydedilirken bir hata oluştu.');
     } finally {
       setSubmitting(false);

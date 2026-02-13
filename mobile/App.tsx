@@ -10,9 +10,23 @@ import * as SplashScreen from 'expo-splash-screen';
 // Bu React 18.2+ ile uyarı veriyor ama kütüphane henüz güncellenmedi.
 // Kütüphane güncellenene kadar bu uyarıları gizliyoruz.
 LogBox.ignoreLogs([
+  'Support for defaultProps will be removed from memo components',
+  'Support for defaultProps will be removed from function components',
   'Support for defaultProps will be removed',
   'You seem to update the renderersProps prop',
 ]);
+
+// React 18.2+'da defaultProps uyarıları console.error üzerinden gönderiliyor.
+// LogBox.ignoreLogs yalnızca console.warn'ı bastırdığı için console.error'u da
+// filtrelememiz gerekiyor. Sadece bu spesifik uyarı bastırılıyor, gerçek hatalar geçiyor.
+const originalConsoleError = console.error;
+console.error = (...args: unknown[]) => {
+  const message = typeof args[0] === 'string' ? args[0] : '';
+  if (message.includes('Support for defaultProps will be removed')) {
+    return;
+  }
+  originalConsoleError(...args);
+};
 import { AuthProvider } from './src/context/AuthContext';
 import { NotificationBadgeProvider } from './src/context/NotificationBadgeContext';
 import { AppNavigator } from './src/navigation';

@@ -13,6 +13,7 @@ import {
   getDeviceType,
 } from '../services/notificationService';
 import apiService from '../services/api';
+import { logger } from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,10 +35,10 @@ export function useNotifications(isAuthenticated: boolean) {
       const token = await registerForPushNotificationsAsync();
       if (token) {
         await apiService.registerPushToken(token, getDeviceType());
-        console.log('✅ Push token backend\'e kaydedildi');
+        logger.log('✅ Push token backend\'e kaydedildi');
       }
     } catch (error) {
-      console.error('Push token kaydedilemedi:', error);
+      logger.error('Push token kaydedilemedi:', error);
     }
   }, []);
 
@@ -48,10 +49,10 @@ export function useNotifications(isAuthenticated: boolean) {
       if (token) {
         await apiService.deactivatePushToken(token);
         await clearStoredToken();
-        console.log('✅ Push token deaktive edildi');
+        logger.log('✅ Push token deaktive edildi');
       }
     } catch (error) {
-      console.error('Push token deaktive edilemedi:', error);
+      logger.error('Push token deaktive edilemedi:', error);
     }
   }, []);
 
@@ -74,7 +75,7 @@ export function useNotifications(isAuthenticated: boolean) {
           navigation.navigate('Notifications');
         }
       } catch (error) {
-        console.error('Bildirim yönlendirme hatası:', error);
+        logger.error('Bildirim yönlendirme hatası:', error);
       }
     },
     [navigation]
@@ -92,7 +93,7 @@ export function useNotifications(isAuthenticated: boolean) {
     // 3. Foreground: bildirim geldiğinde (opsiyonel loglama)
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (notification) => {
-        console.log('📩 Bildirim alındı (foreground):', notification.request.content.title);
+        logger.log('📩 Bildirim alındı (foreground):', notification.request.content.title);
       }
     );
 

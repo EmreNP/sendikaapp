@@ -1,5 +1,6 @@
 // Offline Cache Service - News & Announcements caching
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 const CACHE_KEYS = {
   NEWS: '@sendika_cache_news',
@@ -27,7 +28,7 @@ async function setCache<T>(key: string, data: T): Promise<void> {
     };
     await AsyncStorage.setItem(key, JSON.stringify(entry));
   } catch (error) {
-    console.warn('Cache write failed:', error);
+    logger.warn('Cache write failed:', error);
   }
 }
 
@@ -48,7 +49,7 @@ async function getCache<T>(key: string, ignoreExpiry = false): Promise<T | null>
     
     return entry.data;
   } catch (error) {
-    console.warn('Cache read failed:', error);
+    logger.warn('Cache read failed:', error);
     return null;
   }
 }
@@ -86,6 +87,6 @@ export async function clearAllCache(): Promise<void> {
   try {
     await AsyncStorage.multiRemove(Object.values(CACHE_KEYS));
   } catch (error) {
-    console.warn('Cache clear failed:', error);
+    logger.warn('Cache clear failed:', error);
   }
 }

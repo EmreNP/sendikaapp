@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, Branch } from '../types';
@@ -42,7 +43,7 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
       const foundBranch = await ApiService.getBranch(branchId);
       setBranch(foundBranch || null);
     } catch (error) {
-      console.error('Error fetching branch details:', error);
+      logger.error('Error fetching branch details:', error);
       Alert.alert('Hata', 'Şube detayları yüklenemedi');
     } finally {
       setLoading(false);

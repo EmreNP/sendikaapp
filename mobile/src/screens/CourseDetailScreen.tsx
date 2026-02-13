@@ -1,22 +1,24 @@
 // Course Detail Screen
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
   Linking,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
+import { DetailSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, Training, Lesson } from '../types';
@@ -43,6 +45,9 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
   const [loadingContents, setLoadingContents] = useState(false);
   const [activeTab, setActiveTab] = useState<'all'|'videos'|'documents'|'tests'>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
+  // Course-scoped storage key to prevent unbounded blob growth
+  const storageKey = `@sendika_completed_${courseId}`;
 
   useEffect(() => {
     fetchCourseDetails();
@@ -79,7 +84,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
         : lessonsData[0];
       setSelectedLesson(initialLesson || null);
     } catch (error) {
-      console.error('Error fetching course details:', error);
+      logger.error('Error fetching course details:', error);
       Alert.alert('Hata', 'Eğitim detayları yüklenemedi');
     } finally {
       setLoading(false);
@@ -87,14 +92,14 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchCourseDetails();
-  };
+  }, [courseId]);
 
-  const toggleLesson = (lessonId: string) => {
-    setExpandedLesson(expandedLesson === lessonId ? null : lessonId);
-  };
+  const toggleLesson = useCallback((lessonId: string) => {
+    setExpandedLesson(prev => prev === lessonId ? null : lessonId);
+  }, []);
 
   const loadContents = async (lessonId: string, tab: 'all'|'videos'|'documents'|'tests') => {
     try {
@@ -103,12 +108,12 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
         const data = await ApiService.getLessonContents(lessonId);
         setContents(data || []);
       } else {
-        const type = tab === 'videos' ? 'video' : tab === 'documents' ? 'document' : 'test';
-        const data = await ApiService.getLessonContents(lessonId, type as any);
+        const type: 'video' | 'document' | 'test' = tab === 'videos' ? 'video' : tab === 'documents' ? 'document' : 'test';
+        const data = await ApiService.getLessonContents(lessonId, type);
         setContents(data || []);
       }
     } catch (err) {
-      console.error('Error loading contents:', err);
+      logger.error('Error loading contents:', err);
       setContents([]);
     } finally {
       setLoadingContents(false);
@@ -117,28 +122,43 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
 
   const loadCompletedItems = async () => {
     try {
-      const stored = await AsyncStorage.getItem('completedContent');
+      // First check course-scoped key
+      const stored = await AsyncStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         setCompletedItems(new Set(parsed));
+        return;
+      }
+
+      // Migration: check legacy global key and migrate matching items
+      const legacyStored = await AsyncStorage.getItem('completedContent');
+      if (legacyStored) {
+        const legacyParsed: string[] = JSON.parse(legacyStored);
+        // We can't perfectly filter by courseId here since IDs are content-level,
+        // but we preserve all legacy items for this course on first load
+        // and save to the new scoped key
+        setCompletedItems(new Set(legacyParsed));
+        await AsyncStorage.setItem(storageKey, JSON.stringify(legacyParsed));
+        // Clean up legacy key after migration
+        await AsyncStorage.removeItem('completedContent');
       }
     } catch (err) {
-      console.error('Error loading completed items:', err);
+      logger.error('Error loading completed items:', err);
     }
   };
 
-  const markAsCompleted = async (id: string) => {
+  const markAsCompleted = useCallback(async (id: string) => {
     try {
       const newSet = new Set(completedItems);
       newSet.add(id);
       setCompletedItems(newSet);
-      await AsyncStorage.setItem('completedContent', JSON.stringify(Array.from(newSet)));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(Array.from(newSet)));
     } catch (err) {
-      console.error('Error marking as completed:', err);
+      logger.error('Error marking as completed:', err);
     }
-  };
+  }, [completedItems, storageKey]);
 
-  const toggleComplete = async (id: string) => {
+  const toggleComplete = useCallback(async (id: string) => {
     try {
       const newSet = new Set(completedItems);
       if (newSet.has(id)) {
@@ -147,18 +167,16 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
         newSet.add(id);
       }
       setCompletedItems(newSet);
-      await AsyncStorage.setItem('completedContent', JSON.stringify(Array.from(newSet)));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(Array.from(newSet)));
     } catch (err) {
-      console.error('Error toggling complete:', err);
+      logger.error('Error toggling complete:', err);
     }
-  };
+  }, [completedItems, storageKey]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4338ca" />
-        </View>
+        <DetailSkeleton />
       </SafeAreaView>
     );
   }
@@ -324,7 +342,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
                       try {
                         if (c.type === 'test') {
                           // navigate to Test screen with completion callback
-                          navigation.navigate('Test' as any, { 
+                          (navigation.navigate as (screen: string, params: object) => void)('Test', { 
                             testId: c.id,
                             contentId: c.id,
                             onComplete: () => markAsCompleted(c.id)
@@ -336,7 +354,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
                           // Mark document as completed when opened
                           await markAsCompleted(c.id);
                           // open document using WebView-based Document screen
-                          navigation.navigate('Document' as any, { 
+                          (navigation.navigate as (screen: string, params: object) => void)('Document', { 
                             url: c.url, 
                             title: c.title,
                             contentId: c.id
@@ -352,7 +370,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
                           await toggleComplete(c.id);
                         }
                       } catch (err) {
-                        console.error('Failed to open url:', err);
+                        logger.error('Failed to open url:', err);
                       }
                     }} style={styles.contentItem} activeOpacity={0.8}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>

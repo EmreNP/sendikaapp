@@ -6,17 +6,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Share,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import { HtmlContent, stripHtmlTags } from '../components/HtmlContent';
+import { DetailSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList, News } from '../types';
@@ -46,7 +48,7 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
       const foundNews = await ApiService.getNewsItem(newsId);
       setNewsItem(foundNews || null);
     } catch (error) {
-      console.error('Error fetching news detail:', error);
+      logger.error('Error fetching news detail:', error);
       setErrorMessage(getUserFriendlyErrorMessage(error, 'Haber detayı yüklenemedi.'));
     } finally {
       setLoading(false);
@@ -78,16 +80,14 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
         title: newsItem.title,
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      logger.error('Error sharing:', error);
     }
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4338ca" />
-        </View>
+        <DetailSkeleton />
       </SafeAreaView>
     );
   }

@@ -24,5 +24,4 @@ export { PartnerInstitutionsScreen } from './PartnerInstitutionsScreen';
 export { PartnerDetailScreen } from './PartnerDetailScreen';
 export { TestScreen } from './TestScreen';
 export { NotificationsScreen } from './NotificationsScreen';
-// export { PDFViewerScreen } from './PDFViewerScreen'; // Native PDF viewer - commented out due to stability issues
 export { DocumentScreen } from './DocumentScreen';

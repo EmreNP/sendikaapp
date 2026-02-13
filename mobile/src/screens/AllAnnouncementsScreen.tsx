@@ -1,22 +1,24 @@
 // All Announcements Screen - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   RefreshControl,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import { HtmlContent, stripHtmlTags } from '../components/HtmlContent';
+import { CardSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Announcement } from '../types';
 
@@ -55,7 +57,7 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
       setHasMore(more);
       setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching announcements:', error);
+      logger.error('Error fetching announcements:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Duyurular yüklenemedi.'));
       }
@@ -65,18 +67,18 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchAnnouncements(1);
     setRefreshing(false);
-  };
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       setLoadingMore(true);
       fetchAnnouncements(page + 1);
     }
-  };
+  }, [loadingMore, hasMore, page]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -120,11 +122,11 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     }
   };
 
-  const toggleAnnouncement = (id: string) => {
-    setSelectedAnnouncement(selectedAnnouncement === id ? null : id);
-  };
+  const toggleAnnouncement = useCallback((id: string) => {
+    setSelectedAnnouncement(prev => prev === id ? null : id);
+  }, []);
 
-  const renderAnnouncementItem = ({ item }: { item: Announcement }) => {
+  const renderAnnouncementItem = useCallback(({ item }: { item: Announcement }) => {
     const isExpanded = selectedAnnouncement === item.id;
     const priorityColors = getPriorityColor(item.priority);
     const plainContent = item.content ? stripHtmlTags(item.content) : '';
@@ -187,7 +189,9 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
         )}
       </TouchableOpacity>
     );
-  };
+  }, [selectedAnnouncement]);
+
+  const keyExtractor = useCallback((item: Announcement) => item.id, []);
 
   if (loading) {
     return (
@@ -208,9 +212,7 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
           <Text style={styles.headerTitle}>Duyurular</Text>
           <View style={{ width: 40 }} />
         </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4338ca" />
-        </View>
+        <CardSkeleton count={4} />
       </SafeAreaView>
     );
   }
@@ -237,9 +239,12 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
       <FlatList
         data={announcements}
         renderItem={renderAnnouncementItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={
@@ -272,8 +277,9 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
               <Feather name={errorMessage ? 'alert-circle' : 'bell'} size={48} color={errorMessage ? '#ef4444' : '#4338ca'} />
             </View>
             <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Duyuru Yok'}</Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              {errorMessage || 'Yeni duyurular eklendiğinde burada görünecektir.'}
+              {errorMessage ? 'Lütfen tekrar deneyin.' : 'Yeni duyurular eklendiğinde burada görünecektir.'}
             </Text>
             {errorMessage && (
               <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>

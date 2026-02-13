@@ -7,14 +7,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import type { RootStackParamList, ContractedInstitution } from '../types';
+import type { RootStackParamList, ContractedInstitution, HowToUseStep } from '../types';
 
 type PartnerDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PartnerDetail'>;
 type PartnerDetailScreenRouteProp = RouteProp<RootStackParamList, 'PartnerDetail'>;
@@ -26,7 +26,7 @@ interface PartnerDetailScreenProps {
 
 export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ navigation, route }) => {
   // Support both 'institution' (from PartnerInstitutionsScreen) and legacy 'partner' param
-  const params = route.params as any;
+  const params = route.params;
   const institution: ContractedInstitution | undefined = params.institution;
   const legacyPartner = params.partner;
 
@@ -49,7 +49,7 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
         coverUrl: legacyPartner.coverUrl || legacyPartner.logoUrl || '',
         discountRate: legacyPartner.discountRate || '',
         description: legacyPartner.description || '',
-        howToUseSteps: [] as any[],
+        howToUseSteps: [] as HowToUseStep[],
       }
     : null;
 
@@ -114,7 +114,7 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
           <View style={styles.headerContent}>
             {partner.category && (
               <View style={styles.categoryBadge}>
-                <Feather name={getCategoryIcon(partner.category) as any} size={14} color={getCategoryColor(partner.category)} />
+                <Feather name={getCategoryIcon(partner.category) as keyof typeof Feather.glyphMap} size={14} color={getCategoryColor(partner.category)} />
                 <Text style={[styles.categoryText, { color: getCategoryColor(partner.category) }]}>
                   {partner.category}
                 </Text>

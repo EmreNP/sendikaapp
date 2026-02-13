@@ -8,22 +8,24 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Image,
   Dimensions,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import {
   getReadNotificationIds,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   setUnreadCount,
 } from '../services/notificationStorage';
+import { ListItemSkeleton } from '../components/SkeletonLoader';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -88,7 +90,7 @@ export const NotificationsScreen: React.FC = () => {
         setPage(pageNum);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Bildirimler yüklenemedi.'));
       }
@@ -98,20 +100,20 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const ids = await getReadNotificationIds();
     setReadIds(ids);
     await fetchNotifications(1, ids);
-  };
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!isLoading && hasMore) {
       fetchNotifications(page + 1);
     }
-  };
+  }, [isLoading, hasMore, page]);
 
-  const handleNotificationPress = async (notification: Notification) => {
+  const handleNotificationPress = useCallback(async (notification: Notification) => {
     // Mark as read
     await markNotificationAsRead(notification.id);
     const newReadIds = new Set(readIds);
@@ -126,13 +128,13 @@ export const NotificationsScreen: React.FC = () => {
 
     // Navigate
     if (notification.type === 'news' && notification.contentId) {
-      navigation.navigate('NewsDetail' as any, { newsId: notification.contentId });
+      navigation.navigate('NewsDetail' as never, { newsId: notification.contentId } as never);
     } else if (notification.type === 'news') {
-      navigation.navigate('AllNews' as any);
+      navigation.navigate('AllNews' as never);
     } else if (notification.type === 'announcement') {
-      navigation.navigate('AllAnnouncements' as any);
+      navigation.navigate('AllAnnouncements' as never);
     }
-  };
+  }, [readIds, notifications, navigation]);
 
   const handleMarkAllAsRead = () => {
     if (notifications.length === 0) return;
@@ -181,7 +183,7 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const renderNotification = (notification: Notification) => {
+  const renderNotification = useCallback((notification: Notification) => {
     const typeColors = getTypeColor(notification.type);
 
     return (
@@ -226,7 +228,7 @@ export const NotificationsScreen: React.FC = () => {
             <Image 
               source={{ uri: notification.imageUrl }} 
               style={styles.notificationImage}
-              resizeMode="cover"
+              contentFit="cover"
             />
           )}
 
@@ -241,7 +243,10 @@ export const NotificationsScreen: React.FC = () => {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [handleNotificationPress]);
+
+  const renderItem = useCallback(({ item }: { item: Notification }) => renderNotification(item), [renderNotification]);
+  const keyExtractor = useCallback((item: Notification) => item.id, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -276,18 +281,16 @@ export const NotificationsScreen: React.FC = () => {
 
       {/* Content */}
       {isLoading && page === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Bildirimler yükleniyor...</Text>
-        </View>
+        <ListItemSkeleton count={6} />
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconBg}>
             <Feather name={errorMessage ? 'alert-circle' : 'bell-off'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
           </View>
           <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Okunmamış Bildirim Yok'}</Text>
+          {errorMessage ? <Text style={styles.emptySubtitle}>{errorMessage}</Text> : null}
           <Text style={styles.emptySubtitle}>
-            {errorMessage || 'Tüm bildirimlerinizi okudunuz. Yeni bildirimler geldiğinde burada görünecek.'}
+            {errorMessage ? 'Lütfen tekrar deneyin.' : 'Tüm bildirimlerinizi okudunuz. Yeni bildirimler geldiğinde burada görünecek.'}
           </Text>
           {errorMessage && (
             <TouchableOpacity onPress={() => fetchNotifications(1)} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
@@ -298,10 +301,13 @@ export const NotificationsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderNotification(item)}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
           }

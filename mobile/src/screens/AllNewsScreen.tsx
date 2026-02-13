@@ -1,21 +1,23 @@
 // All News Screen
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import { stripHtmlTags } from '../components/HtmlContent';
+import { CardSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, News } from '../types';
 
@@ -49,7 +51,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
       setHasMore(more);
       setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching news:', error);
+      logger.error('Error fetching news:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Haberler yüklenemedi.'));
       }
@@ -59,18 +61,18 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchNews(1);
     setRefreshing(false);
-  };
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       setLoadingMore(true);
       fetchNews(page + 1);
     }
-  };
+  }, [loadingMore, hasMore, page]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -81,7 +83,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
     });
   };
 
-  const renderNewsItem = ({ item, index }: { item: News; index: number }) => {
+  const renderNewsItem = useCallback(({ item, index }: { item: News; index: number }) => {
     const isFeature = index === 0;
     
     if (isFeature) {
@@ -155,7 +157,9 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [navigation]);
+
+  const keyExtractor = useCallback((item: News) => item.id, []);
 
   if (loading) {
     return (
@@ -175,9 +179,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
           <Text style={styles.headerTitle}>Haberler</Text>
           <View style={{ width: 40 }} />
         </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4338ca" />
-        </View>
+        <CardSkeleton count={4} />
       </SafeAreaView>
     );
   }
@@ -203,9 +205,12 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
       <FlatList
         data={news}
         renderItem={renderNewsItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={
@@ -231,8 +236,9 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
               <Feather name={errorMessage ? 'alert-circle' : 'file-text'} size={48} color={errorMessage ? '#ef4444' : '#4338ca'} />
             </View>
             <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Haber Yok'}</Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              {errorMessage || 'Yeni haberler eklendiğinde burada görünecektir.'}
+              {errorMessage ? 'Lütfen tekrar deneyin.' : 'Yeni haberler eklendiğinde burada görünecektir.'}
             </Text>
             {errorMessage && (
               <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>

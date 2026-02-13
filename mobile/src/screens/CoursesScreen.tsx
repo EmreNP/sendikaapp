@@ -1,5 +1,5 @@
 // Courses Screen - Training List - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -118,7 +119,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
               testCount: allContents.filter((c: any) => c.type === 'test').length,
             };
           } catch (err) {
-            console.error(`Error loading contents for lesson ${lesson.id}:`, err);
+            logger.error(`Error loading contents for lesson ${lesson.id}:`, err);
             return {
               ...lesson,
               videoCount: 0,
@@ -131,7 +132,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       
       setLessonsMap(prev => ({ ...prev, [trainingId]: lessonsWithCounts }));
     } catch (err) {
-      console.error('Error loading lessons:', err);
+      logger.error('Error loading lessons:', err);
       Alert.alert('Hata', getUserFriendlyErrorMessage(err, 'Dersler yüklenemedi.'));
     } finally {
       setLoadingLessons(null);
@@ -159,7 +160,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       setHasMore(more);
       setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching trainings:', error);
+      logger.error('Error fetching trainings:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Eğitimler yüklenemedi.'));
       }
@@ -169,19 +170,19 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     if (!canAccessTrainings) return;
     setRefreshing(true);
     await fetchTrainings(1);
     setRefreshing(false);
-  };
+  }, [canAccessTrainings]);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       setLoadingMore(true);
       fetchTrainings(page + 1);
     }
-  };
+  }, [loadingMore, hasMore, page]);
 
   if (!canAccessTrainings) {
     return (
@@ -202,7 +203,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
           {isPendingDetails && (
             <TouchableOpacity
               style={styles.membershipButton}
-              onPress={() => navigation.navigate('Membership' as any)}
+              onPress={() => navigation.navigate('Membership' as never)}
               activeOpacity={0.9}
             >
               <LinearGradient
@@ -234,7 +235,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     );
   }
 
-  const renderTrainingItem = ({ item, index }: { item: Training; index: number }) => {
+  const renderTrainingItem = useCallback(({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
     const isExpanded = expandedTrainingId === item.id;
     const lessons = lessonsMap[item.id] || [];
@@ -311,7 +312,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Feather name={icon as any} size={28} color="#ffffff" />
+            <Feather name={icon as keyof typeof Feather.glyphMap} size={28} color="#ffffff" />
           </LinearGradient>
 
           {/* Content */}
@@ -499,7 +500,9 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         )}
       </View>
     );
-  };
+  }, [expandedTrainingId, lessonsMap, loadingLessons, navigation]);
+
+  const keyExtractor = useCallback((item: Training) => item.id, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -520,9 +523,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       <FlatList
         data={trainings}
         renderItem={renderTrainingItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={8}
+        windowSize={5}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={
@@ -548,8 +554,9 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
               <Feather name={errorMessage ? 'alert-circle' : 'book-open'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
             </View>
             <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Eğitim Yok'}</Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              {errorMessage || 'Yeni eğitimler eklendiğinde burada görünecektir.'}
+              {errorMessage ? 'Lütfen tekrar deneyin.' : 'Yeni eğitimler eklendiğinde burada görünecektir.'}
             </Text>
             {errorMessage && (
               <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>

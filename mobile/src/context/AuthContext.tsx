@@ -4,6 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import apiService from '../services/api';
 import { getStoredToken, clearStoredToken } from '../services/notificationService';
+import { logger } from '../utils/logger';
 import type { User, UserStatus, UserRole } from '../types';
 
 interface AuthContextType {
@@ -48,7 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(userData);
 
         } catch (error) {
-          console.error('Failed to get user data:', error);
+          logger.error('Failed to get user data:', error);
           setUser(null);
         }
       } else {
@@ -72,10 +73,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (storedToken) {
         await apiService.deactivatePushToken(storedToken);
         await clearStoredToken();
-        console.log('✅ FCM token logout sırasında deaktive edildi');
+        logger.log('✅ FCM token logout sırasında deaktive edildi');
       }
     } catch (error) {
-      console.warn('FCM token deaktive edilemedi:', error);
+      logger.warn('FCM token deaktive edilemedi:', error);
     }
     await apiService.logout();
     setUser(null);
@@ -106,7 +107,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userData = await apiService.getCurrentUser();
       setUser(userData);
     } catch (error) {
-      console.error('Failed to refresh user:', error);
+      logger.error('Failed to refresh user:', error);
     }
   };
 

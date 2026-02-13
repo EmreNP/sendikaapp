@@ -75,7 +75,30 @@ class ApiService {
     }
 
     if (!response.ok) {
-      throw new Error(data?.message || 'Bir hata oluştu');
+      // HTTP status koduna göre anlamlı hata mesajları
+      const serverMessage = data?.message;
+      switch (response.status) {
+        case 400:
+          throw new Error(serverMessage || 'Gönderilen bilgilerde bir hata var. Lütfen kontrol edip tekrar deneyin.');
+        case 401:
+          throw new Error(serverMessage || 'Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.');
+        case 403:
+          throw new Error(serverMessage || 'Bu işlem için yetkiniz bulunmamaktadır.');
+        case 404:
+          throw new Error(serverMessage || 'Aradığınız içerik bulunamadı.');
+        case 408:
+          throw new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        case 429:
+          throw new Error('Çok fazla istek gönderildi. Lütfen bir süre bekleyip tekrar deneyin.');
+        case 500:
+          throw new Error(serverMessage || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.');
+        case 502:
+        case 503:
+        case 504:
+          throw new Error('Sunucu şu anda kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin.');
+        default:
+          throw new Error(serverMessage || `Beklenmeyen bir hata oluştu (Kod: ${response.status}).`);
+      }
     }
 
     return data as T;
@@ -252,9 +275,9 @@ class ApiService {
 
     // no type: fetch all three in parallel
     const [videosRes, docsRes, testsRes] = await Promise.all([
-      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ data: { videos: [] } } as any)),
-      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ data: { documents: [] } } as any)),
-      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ data: { tests: [] } } as any)),
+      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ success: false, data: { videos: [] } })),
+      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ success: false, data: { documents: [] } })),
+      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ success: false, data: { tests: [] } })),
     ]);
 
     const combined = [

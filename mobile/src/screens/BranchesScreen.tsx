@@ -1,5 +1,5 @@
 // Branches Screen - Branch List - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
+import { ListItemSkeleton } from '../components/SkeletonLoader';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,6 +30,8 @@ type BranchesScreenNavigationProp = CompositeNavigationProp<
 type BranchesScreenProps = {
   navigation: BranchesScreenNavigationProp;
 };
+
+const keyExtractorId = (item: { id: string }) => item.id;
 
 export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -74,7 +78,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
       setHasMore(more);
       setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Şubeler yüklenemedi.'));
       }
@@ -84,20 +88,20 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchBranches(1);
     setRefreshing(false);
-  };
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       setLoadingMore(true);
       fetchBranches(page + 1);
     }
-  };
+  }, [loadingMore, hasMore, page]);
 
-  const renderBranchItem = ({ item }: { item: Branch }) => (
+  const renderBranchItem = useCallback(({ item }: { item: Branch }) => (
     <TouchableOpacity
       style={styles.branchCard}
       onPress={() => navigation.navigate('BranchDetail', { branchId: item.id })}
@@ -115,7 +119,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         <View style={styles.branchInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.branchName}>{item.name}</Text>
-            {(item as any).isMainBranch && (
+            {item.isMainBranch && (
               <View style={styles.mainBadge}>
                 <Feather name="star" size={10} color="#ffffff" style={{ marginRight: 3 }} />
                 <Text style={styles.mainBadgeText}>Merkez</Text>
@@ -156,7 +160,13 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         </View>
       )}
     </TouchableOpacity>
-  );
+  ), [navigation]);
+
+  const getItemLayout = useCallback((_data: any, index: number) => ({
+    length: 140,
+    offset: 140 * index,
+    index,
+  }), []);
 
   if (loading) {
     return (
@@ -169,10 +179,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         >
           <Text style={styles.headerTitle}>Şubelerimiz</Text>
         </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Şubeler yükleniyor...</Text>
-        </View>
+        <ListItemSkeleton count={5} />
       </SafeAreaView>
     );
   }
@@ -210,9 +217,13 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
       <FlatList
         data={filteredBranches}
         renderItem={renderBranchItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractorId}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        getItemLayout={getItemLayout}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         onEndReached={searchQuery.trim() === '' ? loadMore : undefined}
         onEndReachedThreshold={0.3}
         refreshControl={
@@ -240,9 +251,10 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
             <Text style={styles.emptyTitle}>
               {errorMessage ? 'Bir Hata Oluştu' : searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
             </Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
               {errorMessage
-                ? errorMessage
+                ? 'Lütfen tekrar deneyin.'
                 : searchQuery
                   ? 'Aradığınız kriterlere uygun şube bulunamadı.'
                   : 'Şubeler eklendiğinde burada görünecektir.'}

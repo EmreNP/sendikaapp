@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch } from '../types';
 
@@ -53,7 +54,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
       const { items } = await ApiService.getBranches({ limit: 100 });
       setBranches(items);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     }
   };
 

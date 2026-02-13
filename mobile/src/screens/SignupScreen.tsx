@@ -222,6 +222,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              accessibilityLabel="Geri"
+              accessibilityRole="button"
             >
               <Feather name="arrow-left" size={20} color="#ffffff" />
               <Text style={styles.backButtonText}>Geri</Text>
@@ -275,6 +277,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         placeholder="Adınız"
                         placeholderTextColor="#94a3b8"
                         autoCapitalize="words"
+                        accessibilityLabel="Ad"
                       />
                     </View>
                     {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
@@ -290,6 +293,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         placeholder="Soyadınız"
                         placeholderTextColor="#94a3b8"
                         autoCapitalize="words"
+                        accessibilityLabel="Soyad"
                       />
                     </View>
                     {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
@@ -308,6 +312,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholder="Örn: 05551234567"
                       placeholderTextColor="#94a3b8"
                       keyboardType="phone-pad"
+                      accessibilityLabel="Telefon"
                     />
                   </View>
                   <Text style={styles.hintText}>Başında 0 ile 11 hane (Örn: 05551234567)</Text>
@@ -327,6 +332,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholderTextColor="#94a3b8"
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      accessibilityLabel="E-posta"
                     />
                   </View>
                   <Text style={styles.hintText}>Gmail, Hotmail veya başka e-posta adresinizi yazın</Text>
@@ -346,6 +352,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholderTextColor="#94a3b8"
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
+                      accessibilityLabel="Şifre"
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
@@ -439,6 +446,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         formData.gender === 'male' && styles.genderSelected,
                       ]}
                       onPress={() => updateField('gender', 'male')}
+                      accessibilityLabel="Erkek"
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: formData.gender === 'male' }}
                     >
                       <Feather 
                         name="user" 
@@ -456,6 +466,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         formData.gender === 'female' && styles.genderSelected,
                       ]}
                       onPress={() => updateField('gender', 'female')}
+                      accessibilityLabel="Kadın"
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: formData.gender === 'female' }}
                     >
                       <Feather 
                         name="user" 
@@ -476,6 +489,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   <TouchableOpacity 
                     style={styles.checkbox}
                     onPress={() => setKvkkAccepted(!kvkkAccepted)}
+                    accessibilityLabel="KVKK metnini okudum ve kabul ediyorum"
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: kvkkAccepted }}
                   >
                     <View style={[styles.checkboxBox, kvkkAccepted && styles.checkboxChecked]}>
                       {kvkkAccepted && <Feather name="check" size={14} color="#ffffff" />}
@@ -504,6 +520,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   onPress={handleSignup}
                   disabled={loading}
                   activeOpacity={0.9}
+                  accessibilityLabel="Kayıt ol"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: loading }}
                 >
                   <LinearGradient
                     colors={['#4338ca', '#1e40af']}
@@ -605,7 +624,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: 40,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -613,7 +632,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-    borderRadius: 40,
   },
   logoImage: {
     width: 64,

@@ -1,5 +1,6 @@
 // Notification Storage Service - Local notification read state management
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 const READ_NOTIFICATIONS_KEY = '@sendika_read_notifications';
 const UNREAD_COUNT_KEY = '@sendika_unread_count';
@@ -14,7 +15,7 @@ export async function getReadNotificationIds(): Promise<Set<string>> {
       return new Set(JSON.parse(stored));
     }
   } catch (error) {
-    console.warn('Failed to load read notifications:', error);
+    logger.warn('Failed to load read notifications:', error);
   }
   return new Set();
 }
@@ -28,7 +29,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
     readIds.add(notificationId);
     await AsyncStorage.setItem(READ_NOTIFICATIONS_KEY, JSON.stringify([...readIds]));
   } catch (error) {
-    console.warn('Failed to mark notification as read:', error);
+    logger.warn('Failed to mark notification as read:', error);
   }
 }
 
@@ -41,7 +42,7 @@ export async function markAllNotificationsAsRead(notificationIds: string[]): Pro
     notificationIds.forEach(id => readIds.add(id));
     await AsyncStorage.setItem(READ_NOTIFICATIONS_KEY, JSON.stringify([...readIds]));
   } catch (error) {
-    console.warn('Failed to mark notifications as read:', error);
+    logger.warn('Failed to mark notifications as read:', error);
   }
 }
 
@@ -52,7 +53,7 @@ export async function setUnreadCount(count: number): Promise<void> {
   try {
     await AsyncStorage.setItem(UNREAD_COUNT_KEY, String(count));
   } catch (error) {
-    console.warn('Failed to save unread count:', error);
+    logger.warn('Failed to save unread count:', error);
   }
 }
 
@@ -83,7 +84,7 @@ export async function cleanupReadNotifications(): Promise<void> {
       }
     }
   } catch (error) {
-    console.warn('Failed to cleanup read notifications:', error);
+    logger.warn('Failed to cleanup read notifications:', error);
   }
 }
 
@@ -94,6 +95,6 @@ export async function clearNotificationState(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([READ_NOTIFICATIONS_KEY, UNREAD_COUNT_KEY]);
   } catch (error) {
-    console.warn('Failed to clear notification state:', error);
+    logger.warn('Failed to clear notification state:', error);
   }
 }

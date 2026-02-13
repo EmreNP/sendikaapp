@@ -70,6 +70,7 @@ export interface Branch {
     latitude: number;
     longitude: number;
   };
+  isMainBranch?: boolean;
   isActive: boolean;
   createdAt?: string;
 }

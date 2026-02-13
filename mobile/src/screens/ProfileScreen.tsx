@@ -56,13 +56,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
-  const menuItems = [
-    { icon: 'user', label: 'Profil Bilgileri', action: () => navigation.navigate('Membership' as any) },
-    { icon: 'edit-2', label: 'Profil Düzenle', action: () => navigation.navigate('EditProfile' as any) },
-    { icon: 'bell', label: 'Bildirimler', action: () => navigation.navigate('Notifications' as any), badge: unreadCount },
+  const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void; badge?: number }[] = [
+    { icon: 'user', label: 'Profil Bilgileri', action: () => navigation.navigate('Membership' as never) },
+    { icon: 'edit-2', label: 'Profil Düzenle', action: () => navigation.navigate('EditProfile' as never) },
+    { icon: 'bell', label: 'Bildirimler', action: () => navigation.navigate('Notifications' as never), badge: unreadCount },
     { icon: 'file-text', label: 'Belgelerim', action: () => Alert.alert('Belgelerim', 'Bu özellik yakında aktif olacaktır.') },
-    { icon: 'calculator', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as any) },
-    { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as any) },
+    { icon: 'hash', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as never) },
+    { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
   ];
 
@@ -71,7 +71,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     menuItems.splice(3, 0, {
       icon: 'briefcase',
       label: 'İlçe İşyeri Temsilcisi',
-      action: () => navigation.navigate('DistrictRepresentative' as any),
+      action: () => navigation.navigate('DistrictRepresentative' as never),
     });
   }
 
@@ -121,15 +121,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.menuIconContainer}>
-                  <Feather name={item.icon as any} size={20} color="#4338ca" />
+                  <Feather name={item.icon} size={20} color="#4338ca" />
                 </View>
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </View>
               <View style={styles.menuItemRight}>
-                {(item as any).badge > 0 && (
+                {item.badge != null && item.badge > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
-                      {(item as any).badge > 99 ? '99+' : (item as any).badge}
+                      {item.badge > 99 ? '99+' : item.badge}
                     </Text>
                   </View>
                 )}

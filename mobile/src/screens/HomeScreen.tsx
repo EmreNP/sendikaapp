@@ -1,12 +1,11 @@
 // Home Screen - Main Dashboard - Birebir Front/React Tasarımından React Native Çevirisi
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   useWindowDimensions,
   RefreshControl,
@@ -15,6 +14,7 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ import ApiService from '../services/api';
 import { cacheNews, cacheAnnouncements, getCachedNews, getCachedAnnouncements } from '../services/offlineCache';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { stripHtmlTags } from '../components/HtmlContent';
+import { logger } from '../utils/logger';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -79,24 +80,31 @@ type HomeScreenProps = {
   navigation: HomeScreenNavigationProp;
 };
 
+// Bundled fallback slider images
+const FALLBACK_SLIDER_IMAGES = [
+  require('../../assets/images/slider/slide_1.jpg'),
+  require('../../assets/images/slider/slide_2.jpg'),
+  require('../../assets/images/slider/slide_3.jpg'),
+];
+
 // Front ImageSlider - 3 slayt (front/src/components/ImageSlider.tsx'den birebir)
-// İslami / Sendika temalı görseller
+// İslami / Sendika temalı görseller - artık bundled
 const sliderImages = [
   { 
     id: '1', 
-    uri: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&h=400&fit=crop', // Cami/İslami mimari
+    source: FALLBACK_SLIDER_IMAGES[0],
     title: 'Sendika Etkinliklerimiz', 
     description: 'Üyelerimiz için düzenlenen toplantılar ve seminerler' 
   },
   { 
     id: '2', 
-    uri: 'https://images.unsplash.com/photo-1545167496-5a7bf7a7b3a8?w=800&h=400&fit=crop', // Toplantı/Konferans
+    source: FALLBACK_SLIDER_IMAGES[1],
     title: 'Yönetim Kurulu', 
     description: 'Sendikamızın önderliğinde güçlü birliktelik' 
   },
   { 
     id: '3', 
-    uri: 'https://images.unsplash.com/photo-1519817650390-64a93db51149?w=800&h=400&fit=crop', // İslami geometrik desen
+    source: FALLBACK_SLIDER_IMAGES[2],
     title: 'Hak ve Adalet Mücadelemiz', 
     description: 'Din görevlilerinin haklarını savunuyoruz' 
   },
@@ -154,7 +162,7 @@ const mockNews: News[] = [
     content: 'Genel Başkanımız Nurettin Karabulut, Konya Şubemizi ziyaret ederek üyelerimizle bir araya geldi.',
     summary: 'Genel Başkanımızın Konya ziyareti büyük ilgi gördü.',
     category: 'Etkinlik',
-    imageUrl: 'https://images.unsplash.com/photo-1577741314755-048d8525d31e?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date().toISOString(),
     publishedAt: new Date().toISOString(),
@@ -165,7 +173,7 @@ const mockNews: News[] = [
     content: 'Toplu sözleşme görüşmeleri sonucunda din görevlilerinin maaşlarına yüzde 30 zam yapılması kararlaştırıldı.',
     summary: 'Maaş artışı tüm din görevlilerini kapsayacak.',
     category: 'Duyuru',
-    imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     publishedAt: new Date(Date.now() - 86400000).toISOString(),
@@ -176,7 +184,7 @@ const mockNews: News[] = [
     content: 'Şubemiz tarafından düzenlenen Kur\'an-ı Kerim kursunu başarıyla tamamlayan kursiyerlere sertifikaları takdim edildi.',
     summary: '150 kursiyer sertifikalarını aldı.',
     category: 'Eğitim',
-    imageUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date(Date.now() - 259200000).toISOString(),
     publishedAt: new Date(Date.now() - 259200000).toISOString(),
@@ -243,7 +251,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       if (fetchedAnnouncements.length > 0) await cacheAnnouncements(fetchedAnnouncements);
       if (fetchedNews.length > 0) await cacheNews(newsData.items);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       // Try loading from cache first, then fall back to mock data
       const cachedNewsData = await getCachedNews();
       const cachedAnnouncementsData = await getCachedAnnouncements();
@@ -266,28 +274,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
-  };
+  }, []);
 
-  const handleQuickAccess = (route: string) => {
+  const handleQuickAccess = useCallback((route: string) => {
     if (route === 'Hutbeler') {
       Linking.openURL('https://dinhizmetleri.diyanet.gov.tr/kategoriler/yayinlarimiz/hutbeler/t%C3%BCrk%C3%A7e');
     } else if (route === 'DIBBYS') {
       // DİBBYS direkt login sayfasına yönlendir
       Linking.openURL('http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d');
     } else if (route === 'News') {
-      navigation.navigate('AllNews' as any);
+      navigation.navigate('AllNews' as never);
     } else if (route === 'Contact') {
-      navigation.navigate('Contact' as any);
+      navigation.navigate('Contact' as never);
     } else if (route === 'Muktesep') {
-      navigation.navigate('Muktesep' as any);
+      navigation.navigate('Muktesep' as never);
     } else if (route === 'PartnerInstitutions') {
-      navigation.navigate('PartnerInstitutions' as any);
+      navigation.navigate('PartnerInstitutions' as never);
     }
-  };
+  }, [navigation]);
 
   // Front AnnouncementSection'dan - Öncelik renkleri
   const getPriorityColor = (priority: string) => {
@@ -321,14 +329,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   // Front ImageSlider - rounded-2xl, shadow, overlay (Haberlerden)
-  const renderSliderItem = ({ item }: { item: News }) => (
+  const renderSliderItem = useCallback(({ item }: { item: News }) => (
     <TouchableOpacity 
       style={[styles.slideContainer, { width: screenWidth - 32, height: LAYOUT.sliderHeight }]}
-      onPress={() => navigation.navigate('AllNews' as any)}
+      onPress={() => navigation.navigate('AllNews' as never)}
       activeOpacity={0.9}
+      accessibilityLabel={`Haber: ${item.title}`}
+      accessibilityRole="button"
+      accessibilityHint="Tüm haberleri görmek için dokunun"
     >
       <Image 
-        source={{ uri: item.imageUrl || 'https://images.unsplash.com/photo-1577741314755-048d8525d31e?w=800&h=400&fit=crop' }} 
+        source={item.imageUrl ? { uri: item.imageUrl } : FALLBACK_SLIDER_IMAGES[0]} 
         style={styles.slideImage} 
       />
       {/* Gradient overlay - from-black/70 via-black/30 to-transparent */}
@@ -341,7 +352,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <Text style={styles.slideDescription}>{stripHtmlTags(item.summary || item.content).substring(0, 100)}</Text>
       </View>
     </TouchableOpacity>
-  );
+  ), [screenWidth, LAYOUT.sliderHeight, navigation]);
+
+  const sliderKeyExtractor = useCallback((item: News) => item.id, []);
 
   // Slider pagination dots
   const renderPagination = () => (
@@ -369,6 +382,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         style={[styles.quickAccessCard, { width: cardWidth }]}
         onPress={() => handleQuickAccess(item.route)}
         activeOpacity={0.8}
+        accessibilityLabel={item.title}
+        accessibilityRole="button"
       >
         <LinearGradient
           colors={item.colors}
@@ -376,7 +391,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Feather name={item.icon as any} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
+          <Feather name={item.icon as keyof typeof Feather.glyphMap} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
           {/* Shine overlay - from-white/20 to-transparent */}
           <View style={styles.iconShine} />
         </LinearGradient>
@@ -409,8 +424,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={styles.announcementCard}
-        onPress={() => navigation.navigate('AllAnnouncements' as any)}
+        onPress={() => navigation.navigate('AllAnnouncements' as never)}
         activeOpacity={0.9}
+        accessibilityLabel={`Duyuru: ${currentAnnouncement.title}`}
+        accessibilityRole="button"
+        accessibilityHint="Tüm duyuruları görmek için dokunun"
       >
         <View style={styles.announcementContent}>
           <View style={styles.announcementLeft}>
@@ -426,7 +444,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             
             <Text style={styles.announcementSummary} numberOfLines={3}>
-              {stripHtmlTags((currentAnnouncement as any).summary || currentAnnouncement.content)}
+              {stripHtmlTags((currentAnnouncement as Announcement).summary || currentAnnouncement.content)}
             </Text>
             
             <View style={styles.announcementMeta}>
@@ -469,7 +487,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Image 
               source={require('../../assets/logo.png')}
               style={styles.logo}
-              resizeMode="cover"
+              contentFit="cover"
             />
           </View>
           {/* Marka İsmi */}
@@ -484,10 +502,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Sağ İkon: Hamburger Menu */}
         <View style={styles.headerRightIcons}>
           <HamburgerMenu
-            onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as any)}
-            onMembershipClick={() => navigation.navigate('Membership' as any)}
-            onNotificationsClick={() => navigation.navigate('Notifications' as any)} 
-            onAboutClick={() => navigation.navigate('About' as any)}
+            onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as never)}
+            onMembershipClick={() => navigation.navigate('Membership' as never)}
+            onNotificationsClick={() => navigation.navigate('Notifications' as never)} 
+            onAboutClick={() => navigation.navigate('About' as never)}
           />
         </View>
       </LinearGradient>
@@ -503,8 +521,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {isPendingDetails && (
           <TouchableOpacity
             style={styles.membershipBanner}
-            onPress={() => navigation.navigate('Membership' as any)}
+            onPress={() => navigation.navigate('Membership' as never)}
             activeOpacity={0.8}
+            accessibilityLabel="Üyeliğinizi tamamlayın"
+            accessibilityRole="button"
+            accessibilityHint="Üyelik başvurunuzu tamamlamak için dokunun"
           >
             <LinearGradient
               colors={['#fef3c7', '#fde68a']}
@@ -541,10 +562,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   ref={sliderRef}
                   data={sliderNews}
                   renderItem={renderSliderItem}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={sliderKeyExtractor}
                   horizontal
                   pagingEnabled
                   showsHorizontalScrollIndicator={false}
+                  removeClippedSubviews={true}
                   onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: false }
@@ -588,7 +610,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
             <TouchableOpacity 
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('AllAnnouncements' as any)}
+              onPress={() => navigation.navigate('AllAnnouncements' as never)}
+              accessibilityLabel="Tüm duyuruları gör"
+              accessibilityRole="button"
             >
               <Text style={styles.seeAllText}>Tümü</Text>
               <Feather name="arrow-right" size={16} color="#2563eb" />

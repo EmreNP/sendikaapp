@@ -1,5 +1,5 @@
 // Partner Institutions Screen - API ile Çalışan Versiyon
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,18 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   Dimensions,
   FlatList,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ContractedInstitution, InstitutionCategory } from '../types';
 
@@ -60,7 +61,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
       const data = await ApiService.getInstitutionCategories();
       setCategories(data);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      logger.error('Error fetching categories:', error);
     }
   };
 
@@ -85,7 +86,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
       setHasMore(more);
       setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching institutions:', error);
+      logger.error('Error fetching institutions:', error);
       if (pageNum === 1) {
         setErrorMessage(getUserFriendlyErrorMessage(error, 'Anlaşmalı kurumlar yüklenemedi.'));
       }
@@ -96,17 +97,17 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchInstitutions(1);
-  };
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!loadingMore && hasMore && !searchTerm.trim()) {
       setLoadingMore(true);
       fetchInstitutions(page + 1);
     }
-  };
+  }, [loadingMore, hasMore, searchTerm, page]);
 
   const allCategories = useMemo(() => ['Tümü', ...categories.map(c => c.name)], [categories]);
 
@@ -121,7 +122,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
     );
   }, [institutions, searchTerm]);
 
-  const handleInstitutionSelect = (institution: ContractedInstitution) => {
+  const handleInstitutionSelect = useCallback((institution: ContractedInstitution) => {
     try {
       // categoryName backend'den gelmeyebilir, categories state'inden eşleştir
       const enriched = { ...institution };
@@ -129,37 +130,13 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
         const cat = categories.find(c => c.id === enriched.categoryId);
         if (cat) enriched.categoryName = cat.name;
       }
-      navigation.navigate('PartnerDetail' as any, { institution: enriched });
+      navigation.navigate('PartnerDetail' as never, { institution: enriched } as never);
     } catch (error) {
-      console.error('Navigation error:', error);
+      logger.error('Navigation error:', error);
     }
-  };
+  }, [categories, navigation]);
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <LinearGradient
-          colors={['#1e3a8a', '#1e40af', '#312e81']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Feather name="arrow-left" size={24} color="#ffffff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Anlaşmalı Kurumlar</Text>
-          </View>
-        </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1e3a8a" />
-          <Text style={styles.loadingText}>Yükleniyor...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const renderInstitutionItem = ({ item }: { item: ContractedInstitution }) => {
+  const renderInstitutionItem = useCallback(({ item }: { item: ContractedInstitution }) => {
     // categoryName backend'den gelmeyebilir, categories state'inden eşleştir
     // Güvenli erişim: categories boş olabilir
     let categoryName = '';
@@ -180,7 +157,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
           <Image
             source={{ uri: item.coverImageUrl || item.logoUrl }}
             style={styles.partnerImage}
-            resizeMode="cover"
+            contentFit="cover"
           />
           {/* Discount Badge */}
           <View style={styles.discountBadge}>
@@ -207,7 +184,33 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [categories, handleInstitutionSelect]);
+
+  const keyExtractor = useCallback((item: ContractedInstitution) => item.id, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <LinearGradient
+          colors={['#1e3a8a', '#1e40af', '#312e81']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.header}
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Feather name="arrow-left" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Anlaşmalı Kurumlar</Text>
+          </View>
+        </LinearGradient>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1e3a8a" />
+          <Text style={styles.loadingText}>Yükleniyor...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -282,9 +285,12 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
         <FlatList
           data={filteredInstitutions}
           renderItem={renderInstitutionItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.flatListContent}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={8}
+          windowSize={5}
           onEndReached={searchTerm.trim() === '' ? loadMore : undefined}
           onEndReachedThreshold={0.3}
           refreshControl={
@@ -312,8 +318,9 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
               <Text style={styles.emptyTitle}>
                 {errorMessage ? 'Bir Hata Oluştu' : searchTerm ? 'Sonuç Bulunamadı' : 'Henüz Anlaşmalı Kurum Yok'}
               </Text>
+              {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
               <Text style={styles.emptyText}>
-                {errorMessage || (searchTerm ? 'Arama kriterlerine uygun kurum bulunamadı.' : 'Yeni kurumlar eklendiğinde burada görünecektir.')}
+                {errorMessage ? 'Lütfen tekrar deneyin.' : (searchTerm ? 'Arama kriterlerine uygun kurum bulunamadı.' : 'Yeni kurumlar eklendiğinde burada görünecektir.')}
               </Text>
               {errorMessage && (
                 <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#1e3a8a', borderRadius: 8 }}>

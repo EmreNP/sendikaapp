@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, User } from '../types';
 
 type EditProfileScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
@@ -51,14 +51,14 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
       const data = {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        phone: (user as any).phone || '',
-        address: (user as any).address || '',
-        city: (user as any).city || '',
-        district: (user as any).district || '',
-        gender: (user as any).gender || '',
-        education: (user as any).education || '',
-        kadroUnvani: (user as any).kadroUnvani || '',
-        birthDate: (user as any).birthDate || '',
+        phone: user.phone || '',
+        address: (user as User & { address?: string }).address || '',
+        city: (user as User & { city?: string }).city || '',
+        district: user.district || '',
+        gender: user.gender || '',
+        education: user.education || '',
+        kadroUnvani: user.kadroUnvani || '',
+        birthDate: user.birthDate ? String(user.birthDate) : '',
       };
       setFormData(data);
       setOriginalData(data);

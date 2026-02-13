@@ -22,6 +22,7 @@ import { Platform, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getApp } from 'firebase/app';
+import { logger } from '../utils/logger';
 
 export interface AppVersionConfig {
   minVersion: string;
@@ -90,7 +91,7 @@ const fetchVersionConfig = async (): Promise<AppVersionConfig | null> => {
     }
     return null;
   } catch (error) {
-    console.warn('Sürüm yapılandırması alınamadı:', error);
+    logger.warn('Sürüm yapılandırması alınamadı:', error);
     return null;
   }
 };
@@ -154,7 +155,7 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
       latestVersion: config.latestVersion || currentVersion,
     };
   } catch (error) {
-    console.warn('Güncelleme kontrolü başarısız:', error);
+    logger.warn('Güncelleme kontrolü başarısız:', error);
     return defaultResult;
   }
 };
@@ -176,6 +177,6 @@ export const openStoreForUpdate = async (url?: string): Promise<void> => {
       await Linking.openURL(targetUrl);
     }
   } catch (error) {
-    console.warn('Store açılamadı:', error);
+    logger.warn('Store açılamadı:', error);
   }
 };

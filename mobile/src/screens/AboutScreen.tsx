@@ -36,6 +36,8 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          accessibilityLabel="Geri"
+          accessibilityRole="button"
         >
           <Feather name="arrow-left" size={24} color="#1e293b" />
         </TouchableOpacity>
@@ -65,6 +67,8 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
                 source={require('../../assets/logo.png')}
                 style={styles.heroLogo}
                 resizeMode="cover"
+                accessibilityLabel="Sendika logosu"
+                accessibilityRole="image"
               />
             </View>
             <Text style={styles.heroTitle}>Türk Diyanet Vakıf-Sen</Text>
@@ -132,7 +136,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
         <View style={styles.footer}>
           <View style={styles.footerDivider} />
           <Text style={styles.footerText}>
-            © 2026 Türk Diyanet Vakıf-Sen Konya Şubesi
+            © {new Date().getFullYear()} Türk Diyanet Vakıf-Sen Konya Şubesi
           </Text>
           <Text style={styles.footerSubtext}>
             Tüm hakları saklıdır.
