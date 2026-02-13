@@ -17,7 +17,10 @@ import { Picker } from '@react-native-picker/picker';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch } from '../types';
 
@@ -48,10 +51,10 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
 
   const fetchBranches = async () => {
     try {
-      const data = await ApiService.getBranches();
-      setBranches(data);
+      const { items } = await ApiService.getBranches({ limit: 100 });
+      setBranches(items);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
     }
   };
 
@@ -67,9 +70,12 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     if (!formData.tcNo.trim()) {
       newErrors.tcNo = 'TC Kimlik No gereklidir';
       valid = false;
-    } else if (formData.tcNo.length !== 11) {
-      newErrors.tcNo = 'TC Kimlik No 11 haneli olmalıdır';
-      valid = false;
+    } else {
+      const tcValidation = validateTCKimlikNo(formData.tcNo.trim());
+      if (!tcValidation.valid) {
+        newErrors.tcNo = tcValidation.error || 'Geçersiz TC Kimlik No';
+        valid = false;
+      }
     }
 
     if (!formData.phone.trim()) {
@@ -123,7 +129,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
         [{ text: 'Tamam', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Bilgiler kaydedilemedi');
+      Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Bilgiler kaydedilemedi. Lütfen tekrar deneyin.'));
     } finally {
       setLoading(false);
     }

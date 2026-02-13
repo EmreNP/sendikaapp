@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -102,7 +103,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     try {
       await login(email, password);
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Giriş yapılamadı');
+      Alert.alert('Giriş Başarısız', getUserFriendlyErrorMessage(error, 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.'));
     } finally {
       setLoading(false);
     }
@@ -149,6 +150,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              accessibilityLabel="Geri"
+              accessibilityRole="button"
             >
               <Feather name="arrow-left" size={20} color="#ffffff" />
               <Text style={styles.backButtonText}>Geri</Text>
@@ -206,6 +209,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
+                      accessibilityLabel="E-posta adresi"
+                      accessibilityHint="Kayıt olurken kullandığınız e-posta adresini girin"
                     />
                   </View>
                   <Text style={styles.hintText}>Kayıt olurken kullandığınız e-posta adresini yazın</Text>
@@ -228,10 +233,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                       placeholderTextColor="#94a3b8"
                       secureTextEntry={!showPassword}
                       autoComplete="password"
+                      accessibilityLabel="Şifre"
+                      accessibilityHint="Hesap şifrenizi girin"
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
                       style={styles.eyeButton}
+                      accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                      accessibilityRole="button"
                     >
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color="#94a3b8" />
                     </TouchableOpacity>
@@ -246,6 +255,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   onPress={handleLogin}
                   disabled={loading}
                   activeOpacity={0.9}
+                  accessibilityLabel="Giriş yap"
+                  accessibilityRole="button"
+                  accessibilityHint="Hesabınıza giriş yapmak için dokunun"
                 >
                   <LinearGradient
                     colors={['#4338ca', '#1e40af']}
@@ -264,10 +276,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   </LinearGradient>
                 </TouchableOpacity>
 
+                {/* Forgot Password Link */}
+                <TouchableOpacity
+                  style={styles.forgotPasswordContainer}
+                  onPress={() => navigation.navigate('ForgotPassword' as never)}
+                  accessibilityLabel="Şifremi unuttum"
+                  accessibilityRole="link"
+                >
+                  <Feather name="key" size={14} color="#4338ca" style={{ marginRight: 4 }} />
+                  <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
+                </TouchableOpacity>
+
                 {/* Signup Link */}
                 <View style={styles.signupContainer}>
                   <Text style={styles.signupText}>Hesabınız yok mu? </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Signup')}
+                    accessibilityLabel="Kayıt ol"
+                    accessibilityRole="link"
+                    accessibilityHint="Yeni hesap oluşturmak için dokunun"
+                  >
                     <Text style={styles.signupLink}>Kayıt Ol</Text>
                   </TouchableOpacity>
                 </View>
@@ -348,7 +376,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: 40,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -356,7 +384,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-    borderRadius: 40,
   },
   logoImage: {
     width: 64,
@@ -445,10 +472,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
+  forgotPasswordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#4338ca',
+    fontWeight: '500',
+  },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 16,
   },
   signupText: {
     fontSize: 14,

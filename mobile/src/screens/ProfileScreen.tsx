@@ -1,5 +1,5 @@
 // Profile Screen - User Profile with Logout
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useNotificationBadge } from '../context/NotificationBadgeContext';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,6 +29,11 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout, role } = useAuth();
+  const { unreadCount, refreshUnreadCount } = useNotificationBadge();
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -50,12 +56,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
-  const menuItems = [
-    { icon: 'user', label: 'Profil Bilgileri', action: () => {} },
-    { icon: 'bell', label: 'Bildirimler', action: () => {} },
-    { icon: 'file-text', label: 'Belgelerim', action: () => {} },
-    { icon: 'calculator', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as any) },
-    { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as any) },
+  const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void; badge?: number }[] = [
+    { icon: 'user', label: 'Profil Bilgileri', action: () => navigation.navigate('Membership' as never) },
+    { icon: 'edit-2', label: 'Profil Düzenle', action: () => navigation.navigate('EditProfile' as never) },
+    { icon: 'bell', label: 'Bildirimler', action: () => navigation.navigate('Notifications' as never), badge: unreadCount },
+    { icon: 'file-text', label: 'Belgelerim', action: () => Alert.alert('Belgelerim', 'Bu özellik yakında aktif olacaktır.') },
+    { icon: 'hash', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as never) },
+    { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
   ];
 
@@ -64,7 +71,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     menuItems.splice(3, 0, {
       icon: 'briefcase',
       label: 'İlçe İşyeri Temsilcisi',
-      action: () => navigation.navigate('DistrictRepresentative' as any),
+      action: () => navigation.navigate('DistrictRepresentative' as never),
     });
   }
 
@@ -114,11 +121,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.menuIconContainer}>
-                  <Feather name={item.icon as any} size={20} color="#4338ca" />
+                  <Feather name={item.icon} size={20} color="#4338ca" />
                 </View>
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </View>
-              <Feather name="chevron-right" size={20} color="#94a3b8" />
+              <View style={styles.menuItemRight}>
+                {item.badge != null && item.badge > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Text>
+                  </View>
+                )}
+                <Feather name="chevron-right" size={20} color="#94a3b8" />
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -231,6 +247,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#0f172a',
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   logoutContainer: {
     marginTop: 24,

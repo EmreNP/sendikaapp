@@ -51,6 +51,18 @@ export const GET = asyncHandler(async (
       ...data,
     } as ContractedInstitution;
     
+    // Kategori adını çek
+    if (institution.categoryId) {
+      try {
+        const categoryDoc = await db.collection('institution_categories').doc(institution.categoryId).get();
+        if (categoryDoc.exists) {
+          institution.categoryName = categoryDoc.data()?.name || '';
+        }
+      } catch (e) {
+        logger.warn('Kategori adı alınamadı', { categoryId: institution.categoryId });
+      }
+    }
+    
     const serialized = serializeContractedInstitutionTimestamps(institution);
     
     return successResponse(

@@ -12,38 +12,21 @@ import {
   TextInput,
   Animated,
   Easing,
-  Dimensions,
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-// Konya ilçeleri
-const KONYA_DISTRICTS = [
-  'Ahırlı', 'Akören', 'Akşehir', 'Altınekin', 'Beyşehir', 'Bozkır', 'Cihanbeyli',
-  'Çeltik', 'Çumra', 'Derbent', 'Derebucak', 'Doğanhisar', 'Emirgazi', 'Ereğli',
-  'Güneysınır', 'Hadim', 'Halkapınar', 'Hüyük', 'Ilgın', 'Kadınhanı', 'Karapınar',
-  'Karatay', 'Kulu', 'Meram', 'Sarayönü', 'Selçuklu', 'Seydişehir', 'Taşkent',
-  'Tuzlukçu', 'Yalıhüyük', 'Yunak',
-];
-
-// Kadro ünvanları
-const POSITIONS = [
-  'Vaiz', 'Şube Müdürü', 'Murakıp', 'Din hizmetleri uzmanı', 'Şef', 'Tekniker',
-  'Kuran Kursu Öğreticisi', 'Teknisyen', 'İmam-Hatip', 'Veri Hazırlama ve Kontrol İşletmeni',
-  'Memur', 'Müezzin Kayyım', 'Bekçi', 'Hizmetli', 'Şöför', 'Manevi Danışman',
-  'Vakıf Çalışanı', 'Diyanet Akademi Aday Görevli', 'Öğrenci', 'Diğer',
-];
-
-const { width } = Dimensions.get('window');
+import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
+import { POSITIONS } from '../../../shared/constants/positions';
 
 type SignupScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;
@@ -192,7 +175,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         gender: formData.gender as 'male' | 'female',
       });
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Kayıt yapılamadı');
+      Alert.alert('Kayıt Başarısız', getUserFriendlyErrorMessage(error, 'Kayıt yapılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.'));
     } finally {
       setLoading(false);
     }
@@ -239,6 +222,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              accessibilityLabel="Geri"
+              accessibilityRole="button"
             >
               <Feather name="arrow-left" size={20} color="#ffffff" />
               <Text style={styles.backButtonText}>Geri</Text>
@@ -292,6 +277,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         placeholder="Adınız"
                         placeholderTextColor="#94a3b8"
                         autoCapitalize="words"
+                        accessibilityLabel="Ad"
                       />
                     </View>
                     {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
@@ -307,6 +293,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         placeholder="Soyadınız"
                         placeholderTextColor="#94a3b8"
                         autoCapitalize="words"
+                        accessibilityLabel="Soyad"
                       />
                     </View>
                     {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
@@ -325,6 +312,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholder="Örn: 05551234567"
                       placeholderTextColor="#94a3b8"
                       keyboardType="phone-pad"
+                      accessibilityLabel="Telefon"
                     />
                   </View>
                   <Text style={styles.hintText}>Başında 0 ile 11 hane (Örn: 05551234567)</Text>
@@ -344,6 +332,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholderTextColor="#94a3b8"
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      accessibilityLabel="E-posta"
                     />
                   </View>
                   <Text style={styles.hintText}>Gmail, Hotmail veya başka e-posta adresinizi yazın</Text>
@@ -363,6 +352,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       placeholderTextColor="#94a3b8"
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
+                      accessibilityLabel="Şifre"
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
                       <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
@@ -456,6 +446,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         formData.gender === 'male' && styles.genderSelected,
                       ]}
                       onPress={() => updateField('gender', 'male')}
+                      accessibilityLabel="Erkek"
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: formData.gender === 'male' }}
                     >
                       <Feather 
                         name="user" 
@@ -473,6 +466,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                         formData.gender === 'female' && styles.genderSelected,
                       ]}
                       onPress={() => updateField('gender', 'female')}
+                      accessibilityLabel="Kadın"
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: formData.gender === 'female' }}
                     >
                       <Feather 
                         name="user" 
@@ -493,6 +489,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   <TouchableOpacity 
                     style={styles.checkbox}
                     onPress={() => setKvkkAccepted(!kvkkAccepted)}
+                    accessibilityLabel="KVKK metnini okudum ve kabul ediyorum"
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: kvkkAccepted }}
                   >
                     <View style={[styles.checkboxBox, kvkkAccepted && styles.checkboxChecked]}>
                       {kvkkAccepted && <Feather name="check" size={14} color="#ffffff" />}
@@ -521,6 +520,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   onPress={handleSignup}
                   disabled={loading}
                   activeOpacity={0.9}
+                  accessibilityLabel="Kayıt ol"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: loading }}
                 >
                   <LinearGradient
                     colors={['#4338ca', '#1e40af']}
@@ -622,7 +624,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: 40,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -630,7 +632,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-    borderRadius: 40,
   },
   logoImage: {
     width: 64,

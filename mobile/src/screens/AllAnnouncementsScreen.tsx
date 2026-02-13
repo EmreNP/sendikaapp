@@ -1,5 +1,5 @@
 // All Announcements Screen - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
+import { HtmlContent, stripHtmlTags } from '../components/HtmlContent';
+import { CardSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Announcement } from '../types';
 
@@ -27,27 +33,52 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 25;
 
   useEffect(() => {
     fetchAnnouncements();
   }, []);
 
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getAnnouncements();
-      setAnnouncements(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getAnnouncements({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setAnnouncements(items);
+      } else {
+        setAnnouncements(prev => [...prev, ...items]);
+      }
+      setTotalCount(total);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching announcements:', error);
+      logger.error('Error fetching announcements:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Duyurular yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchAnnouncements();
+    await fetchAnnouncements(1);
     setRefreshing(false);
-  };
+  }, []);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchAnnouncements(page + 1);
+    }
+  }, [loadingMore, hasMore, page]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -91,13 +122,14 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     }
   };
 
-  const toggleAnnouncement = (id: string) => {
-    setSelectedAnnouncement(selectedAnnouncement === id ? null : id);
-  };
+  const toggleAnnouncement = useCallback((id: string) => {
+    setSelectedAnnouncement(prev => prev === id ? null : id);
+  }, []);
 
-  const renderAnnouncementItem = ({ item }: { item: Announcement }) => {
+  const renderAnnouncementItem = useCallback(({ item }: { item: Announcement }) => {
     const isExpanded = selectedAnnouncement === item.id;
     const priorityColors = getPriorityColor(item.priority);
+    const plainContent = item.content ? stripHtmlTags(item.content) : '';
 
     return (
       <TouchableOpacity
@@ -123,6 +155,14 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
                 color="#94a3b8" 
               />
             </View>
+
+            {/* Kapalıyken kısa özet (HTML tag'larından temizlenmiş) */}
+            {!isExpanded && plainContent.length > 0 && (
+              <Text style={styles.previewText} numberOfLines={2}>
+                {plainContent}
+              </Text>
+            )}
+
             <View style={styles.cardMeta}>
               <View style={[styles.priorityBadge, { backgroundColor: priorityColors[0] + '15' }]}>
                 <Feather name={getPriorityIcon(item.priority)} size={12} color={priorityColors[0]} style={{ marginRight: 4 }} />
@@ -138,14 +178,20 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
           </View>
         </View>
 
-        {isExpanded && item.content && (
+        {/* Açıldığında görsel ve HTML içerik */}
+        {isExpanded && (
           <View style={styles.expandedContent}>
-            <Text style={styles.contentText}>{item.content}</Text>
+            {item.imageUrl && (
+              <Image source={{ uri: item.imageUrl }} style={styles.announcementImage} />
+            )}
+            {item.content && <HtmlContent html={item.content} />}
           </View>
         )}
       </TouchableOpacity>
     );
-  };
+  }, [selectedAnnouncement]);
+
+  const keyExtractor = useCallback((item: Announcement) => item.id, []);
 
   if (loading) {
     return (
@@ -166,9 +212,7 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
           <Text style={styles.headerTitle}>Duyurular</Text>
           <View style={{ width: 40 }} />
         </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4338ca" />
-        </View>
+        <CardSkeleton count={4} />
       </SafeAreaView>
     );
   }
@@ -195,28 +239,53 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
       <FlatList
         data={announcements}
         renderItem={renderAnnouncementItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
         ListHeaderComponent={
           announcements.length > 0 ? (
             <Text style={styles.listHeader}>
-              {announcements.length} duyuru mevcut
+              {totalCount > 0 ? `${totalCount} duyuru mevcut` : `${announcements.length} duyuru mevcut`}
             </Text>
+          ) : null
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#4338ca" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#4338ca" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="bell" size={48} color="#4338ca" />
+              <Feather name={errorMessage ? 'alert-circle' : 'bell'} size={48} color={errorMessage ? '#ef4444' : '#4338ca'} />
             </View>
-            <Text style={styles.emptyTitle}>Henüz Duyuru Yok</Text>
+            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Duyuru Yok'}</Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              Yeni duyurular eklendiğinde burada görünecektir.
+              {errorMessage ? 'Lütfen tekrar deneyin.' : 'Yeni duyurular eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -279,6 +348,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
+  announcementImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    resizeMode: 'cover',
+    marginBottom: 12,
+  },
   cardHeader: {
     flexDirection: 'row',
   },
@@ -330,16 +406,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
   },
+  previewText: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 20,
+    marginTop: 6,
+  },
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
     padding: 16,
     backgroundColor: '#fafafa',
-  },
-  contentText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 22,
   },
   emptyContainer: {
     flex: 1,
@@ -366,5 +443,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(67, 56, 202, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 56, 202, 0.15)',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4338ca',
   },
 });

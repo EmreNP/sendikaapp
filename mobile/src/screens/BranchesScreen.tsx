@@ -1,5 +1,5 @@
 // Branches Screen - Branch List - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
+import { ListItemSkeleton } from '../components/SkeletonLoader';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,12 +31,20 @@ type BranchesScreenProps = {
   navigation: BranchesScreenNavigationProp;
 };
 
+const keyExtractorId = (item: { id: string }) => item.id;
+
 export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 25;
 
   useEffect(() => {
     fetchBranches();
@@ -52,25 +63,45 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
     }
   }, [searchQuery, branches]);
 
-  const fetchBranches = async () => {
+  const fetchBranches = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getBranches();
-      setBranches(data);
-      setFilteredBranches(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getBranches({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setBranches(items);
+        setFilteredBranches(items);
+      } else {
+        setBranches(prev => [...prev, ...items]);
+        setFilteredBranches(prev => searchQuery.trim() === '' ? [...prev, ...items] : prev);
+      }
+      setTotalCount(total);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Şubeler yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchBranches();
+    await fetchBranches(1);
     setRefreshing(false);
-  };
+  }, []);
 
-  const renderBranchItem = ({ item }: { item: Branch }) => (
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchBranches(page + 1);
+    }
+  }, [loadingMore, hasMore, page]);
+
+  const renderBranchItem = useCallback(({ item }: { item: Branch }) => (
     <TouchableOpacity
       style={styles.branchCard}
       onPress={() => navigation.navigate('BranchDetail', { branchId: item.id })}
@@ -88,7 +119,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         <View style={styles.branchInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.branchName}>{item.name}</Text>
-            {(item as any).isMainBranch && (
+            {item.isMainBranch && (
               <View style={styles.mainBadge}>
                 <Feather name="star" size={10} color="#ffffff" style={{ marginRight: 3 }} />
                 <Text style={styles.mainBadgeText}>Merkez</Text>
@@ -129,7 +160,13 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         </View>
       )}
     </TouchableOpacity>
-  );
+  ), [navigation]);
+
+  const getItemLayout = useCallback((_data: any, index: number) => ({
+    length: 140,
+    offset: 140 * index,
+    index,
+  }), []);
 
   if (loading) {
     return (
@@ -142,10 +179,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         >
           <Text style={styles.headerTitle}>Şubelerimiz</Text>
         </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Şubeler yükleniyor...</Text>
-        </View>
+        <ListItemSkeleton count={5} />
       </SafeAreaView>
     );
   }
@@ -160,7 +194,7 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
         end={{ x: 1, y: 0 }}
       >
         <Text style={styles.headerTitle}>Şubelerimiz</Text>
-        <Text style={styles.headerSubtitle}>{branches.length} şube ve temsilcilik</Text>
+        <Text style={styles.headerSubtitle}>{totalCount > 0 ? `${totalCount} şube ve temsilcilik` : `${branches.length} şube ve temsilcilik`}</Text>
         
         {/* Search Bar */}
         <View style={styles.searchBar}>
@@ -183,25 +217,53 @@ export const BranchesScreen: React.FC<BranchesScreenProps> = ({ navigation }) =>
       <FlatList
         data={filteredBranches}
         renderItem={renderBranchItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractorId}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        getItemLayout={getItemLayout}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        onEndReached={searchQuery.trim() === '' ? loadMore : undefined}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+        }
+        ListFooterComponent={
+          searchQuery.trim() === '' && hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#2563eb" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="map-pin" size={48} color="#cbd5e1" />
+              <Feather name={errorMessage ? 'alert-circle' : 'map-pin'} size={48} color={errorMessage ? '#ef4444' : '#cbd5e1'} />
             </View>
             <Text style={styles.emptyTitle}>
-              {searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
+              {errorMessage ? 'Bir Hata Oluştu' : searchQuery ? 'Sonuç Bulunamadı' : 'Henüz Şube Yok'}
             </Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              {searchQuery
-                ? 'Aradığınız kriterlere uygun şube bulunamadı.'
-                : 'Şubeler eklendiğinde burada görünecektir.'}
+              {errorMessage
+                ? 'Lütfen tekrar deneyin.'
+                : searchQuery
+                  ? 'Aradığınız kriterlere uygun şube bulunamadı.'
+                  : 'Şubeler eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#2563eb', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -377,5 +439,24 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
   },
 });

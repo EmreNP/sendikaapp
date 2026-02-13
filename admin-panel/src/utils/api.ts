@@ -62,6 +62,8 @@ export async function apiRequest<T = any>(
 
   // Status update endpoint'leri için detaylı log
   const isStatusUpdate = endpoint.includes('/status') && options?.method === 'PATCH';
+  // DELETE işlemleri için detaylı log
+  const isDeleteRequest = options?.method === 'DELETE';
   
   if (isStatusUpdate) {
     logger.log('🌐 API Request (Status Update):', {
@@ -83,6 +85,13 @@ export async function apiRequest<T = any>(
         logger.log('📦 Request body: (parse error)', e);
       }
     }
+  }
+  
+  if (isDeleteRequest) {
+    logger.log('🗑️ DELETE Request:', {
+      endpoint,
+      url: api.url(endpoint),
+    });
   }
   
   // İlk deneme: Cache'lenmiş token ile
@@ -209,6 +218,10 @@ export async function apiRequest<T = any>(
       logger.log('📡 Status update response status:', response.status, response.statusText);
     }
     
+    if (isDeleteRequest) {
+      logger.log('📡 DELETE response status:', response.status, response.statusText);
+    }
+    
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       const text = await response.text();
@@ -231,6 +244,14 @@ export async function apiRequest<T = any>(
           details: data.details,
         });
       }
+      if (isDeleteRequest) {
+        logger.error('❌ DELETE API error:', {
+          endpoint,
+          message: data.message,
+          code: data.code,
+          details: data.details,
+        });
+      }
       const error = new Error(data.message);
       (error as any).code = data.code;
       (error as any).details = data.details;
@@ -244,6 +265,14 @@ export async function apiRequest<T = any>(
         message: data.message,
         code: data.code,
         hasData: !!data.data,
+      });
+    }
+    
+    if (isDeleteRequest) {
+      logger.log('✅ DELETE API success:', {
+        endpoint,
+        message: data.message,
+        code: data.code,
       });
     }
     

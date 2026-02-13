@@ -1,41 +1,45 @@
 // Home Screen - Main Dashboard - Birebir Front/React Tasarımından React Native Çevirisi
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
+  useWindowDimensions,
   RefreshControl,
   FlatList,
   Animated,
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { HamburgerMenu } from '../components/HamburgerMenu';
+import { OfflineBanner } from '../components/OfflineBanner';
 import ApiService from '../services/api';
+import { cacheNews, cacheAnnouncements, getCachedNews, getCachedAnnouncements } from '../services/offlineCache';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { stripHtmlTags } from '../components/HtmlContent';
+import { logger } from '../utils/logger';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList, Announcement, News } from '../types';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 // Dinamik Layout Hesaplayıcı - Tüm öğeler ekrana otomatik sığar
-const calculateDynamicLayout = () => {
+const calculateDynamicLayout = (sw: number, sh: number) => {
   const statusBarHeight = 24; // Ortalama status bar
   const tabBarHeight = 60; // Bottom tab bar
   const headerHeight = 84; // Top navigation height
   const safeBottomPadding = 16;
   
   // Kullanılabilir ekran yüksekliği
-  const availableHeight = screenHeight - statusBarHeight - tabBarHeight - headerHeight - safeBottomPadding;
+  const availableHeight = sh - statusBarHeight - tabBarHeight - headerHeight - safeBottomPadding;
   
   // Bileşen oranları (toplam = 100%)
   const sliderRatio = 0.32; // %32 - Hero slider (biraz büyütüldü)
@@ -50,7 +54,7 @@ const calculateDynamicLayout = () => {
     // Quick Access
     quickAccessHeight: Math.floor(availableHeight * quickAccessRatio),
     quickAccessPadding: { vertical: 8, horizontal: 16 },
-    iconSize: Math.floor((screenWidth - 64) / 3 * 0.65), // İkon container boyutu
+    iconSize: Math.floor((sw - 64) / 3 * 0.65), // İkon container boyutu
     iconPadding: 6,
     
     // Announcements
@@ -62,7 +66,10 @@ const calculateDynamicLayout = () => {
   };
 };
 
-const LAYOUT = calculateDynamicLayout();
+// Initial dimensions for StyleSheet (fallback)
+const _initDim = Dimensions.get('window');
+const DEFAULT_LAYOUT = calculateDynamicLayout(_initDim.width, _initDim.height);
+const _initScreenWidth = _initDim.width;
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -73,24 +80,31 @@ type HomeScreenProps = {
   navigation: HomeScreenNavigationProp;
 };
 
+// Bundled fallback slider images
+const FALLBACK_SLIDER_IMAGES = [
+  require('../../assets/images/slider/slide_1.jpg'),
+  require('../../assets/images/slider/slide_2.jpg'),
+  require('../../assets/images/slider/slide_3.jpg'),
+];
+
 // Front ImageSlider - 3 slayt (front/src/components/ImageSlider.tsx'den birebir)
-// İslami / Sendika temalı görseller
+// İslami / Sendika temalı görseller - artık bundled
 const sliderImages = [
   { 
     id: '1', 
-    uri: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&h=400&fit=crop', // Cami/İslami mimari
+    source: FALLBACK_SLIDER_IMAGES[0],
     title: 'Sendika Etkinliklerimiz', 
     description: 'Üyelerimiz için düzenlenen toplantılar ve seminerler' 
   },
   { 
     id: '2', 
-    uri: 'https://images.unsplash.com/photo-1545167496-5a7bf7a7b3a8?w=800&h=400&fit=crop', // Toplantı/Konferans
+    source: FALLBACK_SLIDER_IMAGES[1],
     title: 'Yönetim Kurulu', 
     description: 'Sendikamızın önderliğinde güçlü birliktelik' 
   },
   { 
     id: '3', 
-    uri: 'https://images.unsplash.com/photo-1519817650390-64a93db51149?w=800&h=400&fit=crop', // İslami geometrik desen
+    source: FALLBACK_SLIDER_IMAGES[2],
     title: 'Hak ve Adalet Mücadelemiz', 
     description: 'Din görevlilerinin haklarını savunuyoruz' 
   },
@@ -99,11 +113,11 @@ const sliderImages = [
 // Front QuickAccessGrid - 6 buton (front/src/components/QuickAccessGrid.tsx'den birebir)
 // icon mapping: lucide-react -> Feather (birebir renk kodları)
 // Frontend renkleri: blue-600 #2563eb, blue-700 #1d4ed8, indigo-600 #4f46e5, indigo-700 #4338ca, cyan-600 #0891b2, cyan-700 #0e7490
-// Sıralama: 1-Bize Ulaşın, 2-Haberler, 3-Anlaşmalı, 4-5-6 Rastgele
+// Sıralama: 1-Bize Ulaşın, 2-Haberler, 3-Anlaşmalı Kurumlar, 4-5-6 Rastgele
 const quickAccessItems = [
   { id: '1', title: 'Bize Ulaşın', icon: 'phone', route: 'Contact', colors: ['#64748b', '#475569'] as [string, string] },
   { id: '2', title: 'Haberler', icon: 'book-open', route: 'News', colors: ['#4f46e5', '#4338ca'] as [string, string] },
-  { id: '3', title: 'Anlaşmalı', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
+  { id: '3', title: 'Anlaşmalı Kurumlar', icon: 'home', route: 'PartnerInstitutions', colors: ['#64748b', '#475569'] as [string, string] },
   { id: '4', title: 'Hutbeler', icon: 'book', route: 'Hutbeler', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
   { id: '5', title: 'Müktesep Hesaplama', icon: 'percent', route: 'Muktesep', colors: ['#2563eb', '#1d4ed8'] as [string, string] },
   { id: '6', title: 'DİBBYS', icon: 'database', route: 'DIBBYS', colors: ['#0891b2', '#0e7490'] as [string, string] },
@@ -148,7 +162,7 @@ const mockNews: News[] = [
     content: 'Genel Başkanımız Nurettin Karabulut, Konya Şubemizi ziyaret ederek üyelerimizle bir araya geldi.',
     summary: 'Genel Başkanımızın Konya ziyareti büyük ilgi gördü.',
     category: 'Etkinlik',
-    imageUrl: 'https://images.unsplash.com/photo-1577741314755-048d8525d31e?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date().toISOString(),
     publishedAt: new Date().toISOString(),
@@ -159,7 +173,7 @@ const mockNews: News[] = [
     content: 'Toplu sözleşme görüşmeleri sonucunda din görevlilerinin maaşlarına yüzde 30 zam yapılması kararlaştırıldı.',
     summary: 'Maaş artışı tüm din görevlilerini kapsayacak.',
     category: 'Duyuru',
-    imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     publishedAt: new Date(Date.now() - 86400000).toISOString(),
@@ -170,7 +184,7 @@ const mockNews: News[] = [
     content: 'Şubemiz tarafından düzenlenen Kur\'an-ı Kerim kursunu başarıyla tamamlayan kursiyerlere sertifikaları takdim edildi.',
     summary: '150 kursiyer sertifikalarını aldı.',
     category: 'Eğitim',
-    imageUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=600&h=400&fit=crop',
+    imageUrl: undefined,
     isPublished: true,
     createdAt: new Date(Date.now() - 259200000).toISOString(),
     publishedAt: new Date(Date.now() - 259200000).toISOString(),
@@ -179,6 +193,8 @@ const mockNews: News[] = [
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, isPendingDetails } = useAuth();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const LAYOUT = useMemo(() => calculateDynamicLayout(screenWidth, screenHeight), [screenWidth, screenHeight]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [news, setNews] = useState<News[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,6 +204,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const sliderRef = useRef<FlatList>(null);
   const [sliderNews, setSliderNews] = useState<News[]>([]);
+  const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     fetchData();
@@ -216,52 +233,69 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [announcementsRes, newsRes, featuredNewsRes] = await Promise.all([
-        ApiService.getAnnouncements().catch(() => []),
-        ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => []),
-        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => []),
+      const [announcementsData, newsData, featuredNewsData] = await Promise.all([
+        ApiService.getAnnouncements({ limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
       ]);
       // API verisi varsa kullan, yoksa mock data kullan
-      const fetchedAnnouncements = announcementsRes.slice(0, 5);
-      const fetchedNews = newsRes.slice(0, 3);
+      const fetchedAnnouncements = announcementsData.items.slice(0, 5);
+      const fetchedNews = newsData.items.slice(0, 3);
       setAnnouncements(fetchedAnnouncements.length > 0 ? fetchedAnnouncements : mockAnnouncements);
       setNews(fetchedNews.length > 0 ? fetchedNews : mockNews);
       
       // Slider için öne çıkan haberleri al (isFeatured=true)
-      setSliderNews(featuredNewsRes.length > 0 ? featuredNewsRes : (newsRes.length > 0 ? newsRes.slice(0, 3) : mockNews.slice(0, 3)));
+      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : (newsData.items.length > 0 ? newsData.items.slice(0, 3) : mockNews.slice(0, 3)));
+
+      // Cache successful data for offline use
+      if (fetchedAnnouncements.length > 0) await cacheAnnouncements(fetchedAnnouncements);
+      if (fetchedNews.length > 0) await cacheNews(newsData.items);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      // Hata durumunda mock data kullan
-      setAnnouncements(mockAnnouncements);
-      setNews(mockNews);
-      setSliderNews(mockNews.slice(0, 3));
+      logger.error('Error fetching data:', error);
+      // Try loading from cache first, then fall back to mock data
+      const cachedNewsData = await getCachedNews();
+      const cachedAnnouncementsData = await getCachedAnnouncements();
+      
+      if (cachedAnnouncementsData && cachedAnnouncementsData.length > 0) {
+        setAnnouncements(cachedAnnouncementsData);
+      } else {
+        setAnnouncements(mockAnnouncements);
+      }
+      
+      if (cachedNewsData && cachedNewsData.length > 0) {
+        setNews(cachedNewsData.slice(0, 3));
+        setSliderNews(cachedNewsData.slice(0, 3));
+      } else {
+        setNews(mockNews);
+        setSliderNews(mockNews.slice(0, 3));
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
-  };
+  }, []);
 
-  const handleQuickAccess = (route: string) => {
+  const handleQuickAccess = useCallback((route: string) => {
     if (route === 'Hutbeler') {
       Linking.openURL('https://dinhizmetleri.diyanet.gov.tr/kategoriler/yayinlarimiz/hutbeler/t%C3%BCrk%C3%A7e');
     } else if (route === 'DIBBYS') {
       // DİBBYS direkt login sayfasına yönlendir
       Linking.openURL('http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d');
     } else if (route === 'News') {
-      navigation.navigate('AllNews' as any);
+      navigation.navigate('AllNews' as never);
     } else if (route === 'Contact') {
-      navigation.navigate('Contact' as any);
+      navigation.navigate('Contact' as never);
     } else if (route === 'Muktesep') {
-      navigation.navigate('Muktesep' as any);
+      navigation.navigate('Muktesep' as never);
     } else if (route === 'PartnerInstitutions') {
-      navigation.navigate('PartnerInstitutions' as any);
+      navigation.navigate('PartnerInstitutions' as never);
     }
-  };
+  }, [navigation]);
 
   // Front AnnouncementSection'dan - Öncelik renkleri
   const getPriorityColor = (priority: string) => {
@@ -295,14 +329,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   // Front ImageSlider - rounded-2xl, shadow, overlay (Haberlerden)
-  const renderSliderItem = ({ item }: { item: News }) => (
+  const renderSliderItem = useCallback(({ item }: { item: News }) => (
     <TouchableOpacity 
-      style={styles.slideContainer}
-      onPress={() => navigation.navigate('AllNews' as any)}
+      style={[styles.slideContainer, { width: screenWidth - 32, height: LAYOUT.sliderHeight }]}
+      onPress={() => navigation.navigate('AllNews' as never)}
       activeOpacity={0.9}
+      accessibilityLabel={`Haber: ${item.title}`}
+      accessibilityRole="button"
+      accessibilityHint="Tüm haberleri görmek için dokunun"
     >
       <Image 
-        source={{ uri: item.imageUrl || 'https://images.unsplash.com/photo-1577741314755-048d8525d31e?w=800&h=400&fit=crop' }} 
+        source={item.imageUrl ? { uri: item.imageUrl } : FALLBACK_SLIDER_IMAGES[0]} 
         style={styles.slideImage} 
       />
       {/* Gradient overlay - from-black/70 via-black/30 to-transparent */}
@@ -312,10 +349,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       />
       <View style={styles.slideTextContainer}>
         <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDescription}>{item.summary || item.content.substring(0, 100)}</Text>
+        <Text style={styles.slideDescription}>{stripHtmlTags(item.summary || item.content).substring(0, 100)}</Text>
       </View>
     </TouchableOpacity>
-  );
+  ), [screenWidth, LAYOUT.sliderHeight, navigation]);
+
+  const sliderKeyExtractor = useCallback((item: News) => item.id, []);
 
   // Slider pagination dots
   const renderPagination = () => (
@@ -334,12 +373,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Front QuickAccessGrid - white card with gradient icon
   const renderQuickAccessItem = (item: typeof quickAccessItems[0]) => {
+    // Responsive genişlik: En az 100px, ideal 3 sütun
+    const cardWidth = Math.max(100, (screenWidth - 32 - 24) / 3);
+    
     return (
       <TouchableOpacity
         key={item.id}
-        style={styles.quickAccessCard}
+        style={[styles.quickAccessCard, { width: cardWidth }]}
         onPress={() => handleQuickAccess(item.route)}
         activeOpacity={0.8}
+        accessibilityLabel={item.title}
+        accessibilityRole="button"
       >
         <LinearGradient
           colors={item.colors}
@@ -347,7 +391,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Feather name={item.icon as any} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
+          <Feather name={item.icon as keyof typeof Feather.glyphMap} size={Math.floor(LAYOUT.iconSize * 0.5)} color="#ffffff" />
           {/* Shine overlay - from-white/20 to-transparent */}
           <View style={styles.iconShine} />
         </LinearGradient>
@@ -380,8 +424,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={styles.announcementCard}
-        onPress={() => navigation.navigate('AllAnnouncements' as any)}
+        onPress={() => navigation.navigate('AllAnnouncements' as never)}
         activeOpacity={0.9}
+        accessibilityLabel={`Duyuru: ${currentAnnouncement.title}`}
+        accessibilityRole="button"
+        accessibilityHint="Tüm duyuruları görmek için dokunun"
       >
         <View style={styles.announcementContent}>
           <View style={styles.announcementLeft}>
@@ -397,7 +444,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             
             <Text style={styles.announcementSummary} numberOfLines={3}>
-              {(currentAnnouncement as any).summary || currentAnnouncement.content}
+              {stripHtmlTags((currentAnnouncement as Announcement).summary || currentAnnouncement.content)}
             </Text>
             
             <View style={styles.announcementMeta}>
@@ -426,6 +473,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      <OfflineBanner />
+      
       {/* Front TopNavigation - logo ve marka */}
       <LinearGradient
         colors={['#ffffff', '#f8fafc']}
@@ -437,7 +487,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Image 
               source={require('../../assets/logo.png')}
               style={styles.logo}
-              resizeMode="cover"
+              contentFit="cover"
             />
           </View>
           {/* Marka İsmi */}
@@ -452,10 +502,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Sağ İkon: Hamburger Menu */}
         <View style={styles.headerRightIcons}>
           <HamburgerMenu
-            onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as any)}
-            onMembershipClick={() => navigation.navigate('Membership' as any)}
-            onNotificationsClick={() => navigation.navigate('Notifications' as any)} 
-            onAboutClick={() => navigation.navigate('About' as any)}
+            onDistrictRepClick={() => navigation.navigate('DistrictRepresentative' as never)}
+            onMembershipClick={() => navigation.navigate('Membership' as never)}
+            onNotificationsClick={() => navigation.navigate('Notifications' as never)} 
+            onAboutClick={() => navigation.navigate('About' as never)}
           />
         </View>
       </LinearGradient>
@@ -471,8 +521,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {isPendingDetails && (
           <TouchableOpacity
             style={styles.membershipBanner}
-            onPress={() => navigation.navigate('Membership' as any)}
+            onPress={() => navigation.navigate('Membership' as never)}
             activeOpacity={0.8}
+            accessibilityLabel="Üyeliğinizi tamamlayın"
+            accessibilityRole="button"
+            accessibilityHint="Üyelik başvurunuzu tamamlamak için dokunun"
           >
             <LinearGradient
               colors={['#fef3c7', '#fde68a']}
@@ -509,10 +562,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   ref={sliderRef}
                   data={sliderNews}
                   renderItem={renderSliderItem}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={sliderKeyExtractor}
                   horizontal
                   pagingEnabled
                   showsHorizontalScrollIndicator={false}
+                  removeClippedSubviews={true}
                   onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: false }
@@ -556,7 +610,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
             <TouchableOpacity 
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('AllAnnouncements' as any)}
+              onPress={() => navigation.navigate('AllAnnouncements' as never)}
+              accessibilityLabel="Tüm duyuruları gör"
+              accessibilityRole="button"
             >
               <Text style={styles.seeAllText}>Tümü</Text>
               <Feather name="arrow-right" size={16} color="#2563eb" />
@@ -697,12 +753,12 @@ const styles = StyleSheet.create({
   },
   // Image Slider - Premium Design
   sliderWrapper: {
-    paddingHorizontal: LAYOUT.sliderPadding.horizontal,
-    paddingTop: LAYOUT.sliderPadding.top,
-    paddingBottom: LAYOUT.sliderPadding.bottom,
+    paddingHorizontal: DEFAULT_LAYOUT.sliderPadding.horizontal,
+    paddingTop: DEFAULT_LAYOUT.sliderPadding.top,
+    paddingBottom: DEFAULT_LAYOUT.sliderPadding.bottom,
   },
   sliderContainer: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
@@ -714,13 +770,13 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   sliderLoading: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
   },
   sliderEmpty: {
-    height: LAYOUT.sliderHeight,
+    height: DEFAULT_LAYOUT.sliderHeight,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
@@ -730,8 +786,8 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   slideContainer: {
-    width: screenWidth - 32,
-    height: LAYOUT.sliderHeight,
+    width: _initScreenWidth - 32,
+    height: DEFAULT_LAYOUT.sliderHeight,
   },
   slideImage: {
     width: '100%',
@@ -792,8 +848,8 @@ const styles = StyleSheet.create({
   },
   // Quick Access - Premium Grid Design
   quickAccessSection: {
-    paddingHorizontal: LAYOUT.quickAccessPadding.horizontal,
-    paddingVertical: LAYOUT.quickAccessPadding.vertical,
+    paddingHorizontal: DEFAULT_LAYOUT.quickAccessPadding.horizontal,
+    paddingVertical: DEFAULT_LAYOUT.quickAccessPadding.vertical,
   },
   quickAccessGrid: {
     flexDirection: 'row',
@@ -801,18 +857,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickAccessCard: {
-    width: (screenWidth - 32 - 24) / 3, // 3 columns with gap
+    width: (_initScreenWidth - 32 - 24) / 3, // 3 columns with gap
     alignItems: 'center',
-    paddingVertical: LAYOUT.iconPadding,
-    paddingHorizontal: 4,
+    paddingVertical: DEFAULT_LAYOUT.iconPadding,
+    paddingHorizontal: 2,
+    minWidth: 100,
   },
   quickAccessIcon: {
-    width: LAYOUT.iconSize,
-    height: LAYOUT.iconSize,
+    width: DEFAULT_LAYOUT.iconSize,
+    height: DEFAULT_LAYOUT.iconSize,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: LAYOUT.iconPadding,
+    marginBottom: DEFAULT_LAYOUT.iconPadding,
     shadowColor: '#1e40af',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -821,12 +878,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   quickAccessIconDibbys: {
-    width: LAYOUT.iconSize,
-    height: LAYOUT.iconSize,
+    width: DEFAULT_LAYOUT.iconSize,
+    height: DEFAULT_LAYOUT.iconSize,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: LAYOUT.iconPadding,
+    marginBottom: DEFAULT_LAYOUT.iconPadding,
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#e2e8f0',
@@ -837,8 +894,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   dibbysLogo: {
-    width: Math.floor(LAYOUT.iconSize * 0.75),
-    height: Math.floor(LAYOUT.iconSize * 0.75),
+    width: Math.floor(DEFAULT_LAYOUT.iconSize * 0.75),
+    height: Math.floor(DEFAULT_LAYOUT.iconSize * 0.75),
   },
   iconShine: {
     position: 'absolute',
@@ -850,16 +907,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   quickAccessTitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#374151', // text-gray-700
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: 17,
+    paddingHorizontal: 2,
   },
   // Announcements Section - Front birebir
   announcementSection: {
-    paddingHorizontal: LAYOUT.announcementPadding.horizontal,
-    paddingVertical: LAYOUT.announcementPadding.vertical,
+    paddingHorizontal: DEFAULT_LAYOUT.announcementPadding.horizontal,
+    paddingVertical: DEFAULT_LAYOUT.announcementPadding.vertical,
   },
   announcementHeader: {
     flexDirection: 'row',
@@ -906,12 +964,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   announcementLoading: {
-    height: LAYOUT.announcementHeight * 0.8,
+    height: DEFAULT_LAYOUT.announcementHeight * 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   announcementEmpty: {
-    height: LAYOUT.announcementHeight * 0.7,
+    height: DEFAULT_LAYOUT.announcementHeight * 0.7,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -926,7 +984,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
-    minHeight: LAYOUT.announcementHeight * 0.75,
+    minHeight: DEFAULT_LAYOUT.announcementHeight * 0.75,
   },
   announcementContent: {
     flexDirection: 'row',
@@ -976,10 +1034,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 11,
-    color: '#6b7280',
-  },
-  emptyText: {
-    fontSize: 14,
     color: '#6b7280',
   },
 });

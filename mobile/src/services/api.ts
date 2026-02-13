@@ -2,7 +2,8 @@
 import { signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
-import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage } from '../types';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage, ContractedInstitution, InstitutionCategory } from '../types';
 
 class ApiService {
   private async getAuthToken(): Promise<string | null> {
@@ -44,6 +45,15 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+    }).catch((err: any) => {
+      // Network error - provide meaningful message
+      if (err.message?.includes('Network request failed') || err.message?.includes('Failed to fetch')) {
+        throw new Error('İnternet bağlantınız yok veya sunucuya ulaşılamıyor. Lütfen bağlantınızı kontrol edin.');
+      }
+      if (err.message?.includes('timeout') || err.message?.includes('Timeout')) {
+        throw new Error('İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+      }
+      throw new Error('Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.');
     });
 
     const contentType = response.headers.get('content-type') || '';
@@ -65,7 +75,30 @@ class ApiService {
     }
 
     if (!response.ok) {
-      throw new Error(data?.message || 'Bir hata oluştu');
+      // HTTP status koduna göre anlamlı hata mesajları
+      const serverMessage = data?.message;
+      switch (response.status) {
+        case 400:
+          throw new Error(serverMessage || 'Gönderilen bilgilerde bir hata var. Lütfen kontrol edip tekrar deneyin.');
+        case 401:
+          throw new Error(serverMessage || 'Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.');
+        case 403:
+          throw new Error(serverMessage || 'Bu işlem için yetkiniz bulunmamaktadır.');
+        case 404:
+          throw new Error(serverMessage || 'Aradığınız içerik bulunamadı.');
+        case 408:
+          throw new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        case 429:
+          throw new Error('Çok fazla istek gönderildi. Lütfen bir süre bekleyip tekrar deneyin.');
+        case 500:
+          throw new Error(serverMessage || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.');
+        case 502:
+        case 503:
+        case 504:
+          throw new Error('Sunucu şu anda kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin.');
+        default:
+          throw new Error(serverMessage || `Beklenmeyen bir hata oluştu (Kod: ${response.status}).`);
+      }
     }
 
     return data as T;
@@ -73,7 +106,11 @@ class ApiService {
 
   // Auth Methods
   async login(email: string, password: string): Promise<{ user: User }> {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      throw new Error(getUserFriendlyErrorMessage(error, 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.'));
+    }
     const user = await this.getCurrentUser();
     return { user };
   }
@@ -107,11 +144,15 @@ class ApiService {
 
     const customToken = response.data?.customToken;
 
-    if (customToken) {
-      await signInWithCustomToken(auth, customToken);
-    } else {
-      // Fallback: backend user'ı oluşturduğu için email/password ile login yapılabilir
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+    try {
+      if (customToken) {
+        await signInWithCustomToken(auth, customToken);
+      } else {
+        // Fallback: backend user'ı oluşturduğu için email/password ile login yapılabilir
+        await signInWithEmailAndPassword(auth, data.email, data.password);
+      }
+    } catch (error: any) {
+      throw new Error(getUserFriendlyErrorMessage(error, 'Kayıt başarılı ancak otomatik giriş yapılamadı. Lütfen giriş sayfasından tekrar deneyin.'));
     }
 
     const user = await this.getCurrentUser();
@@ -139,6 +180,28 @@ class ApiService {
     return { user: response.data };
   }
 
+  async requestPasswordReset(email: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.AUTH.PASSWORD_RESET_REQUEST,
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      },
+      false
+    );
+  }
+
+  async updateProfile(data: Record<string, any>): Promise<User> {
+    const response = await this.request<{ success: boolean; data: { user: User } }>(
+      API_ENDPOINTS.USERS.ME,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+    return response.data.user;
+  }
+
   async getCurrentUser(): Promise<User> {
     const response = await this.request<{ success: boolean; data: { user: User } }>(
       API_ENDPOINTS.USERS.ME
@@ -147,13 +210,25 @@ class ApiService {
   }
 
   // Trainings
-  async getTrainings(): Promise<Training[]> {
+  async getTrainings(params?: { page?: number; limit?: number }): Promise<{
+    items: Training[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+
+    const url = `${API_ENDPOINTS.TRAININGS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const response = await this.request<{
       success: boolean;
-      data: { trainings: Training[]; total: number; page: number; limit: number };
-    }>(API_ENDPOINTS.TRAININGS.BASE, {}, true);
+      data: { trainings: Training[]; total?: number; page?: number; limit?: number; hasMore?: boolean };
+    }>(url, {}, true);
 
-    return response.data.trainings;
+    const items = response.data.trainings || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   async getTraining(id: string): Promise<Training> {
@@ -200,9 +275,9 @@ class ApiService {
 
     // no type: fetch all three in parallel
     const [videosRes, docsRes, testsRes] = await Promise.all([
-      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ data: { videos: [] } } as any)),
-      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ data: { documents: [] } } as any)),
-      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ data: { tests: [] } } as any)),
+      this.request<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId)).catch(() => ({ success: false, data: { videos: [] } })),
+      this.request<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)).catch(() => ({ success: false, data: { documents: [] } })),
+      this.request<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId)).catch(() => ({ success: false, data: { tests: [] } })),
     ]);
 
     const combined = [
@@ -222,25 +297,48 @@ class ApiService {
   }
 
   // Branches
-  async getBranches(): Promise<Branch[]> {
+  async getBranches(params?: { page?: number; limit?: number; search?: string }): Promise<{
+    items: Branch[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.search) queryParams.append('search', params.search);
+
+    const url = `${API_ENDPOINTS.BRANCHES.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     // Backend may return different shapes:
     // - { success: true, branches: Branch[], total, page }
     // - { success: true, data: { branches: Branch[] } }
     // - { success: true, data: Branch[] }
-    const response = await this.request<any>(
-      API_ENDPOINTS.BRANCHES.BASE,
-      {},
-      true
-    );
+    const response = await this.request<any>(url, {}, true);
 
-    if (Array.isArray(response.branches)) return response.branches;
-    if (response.data) {
-      if (Array.isArray(response.data.branches)) return response.data.branches;
-      if (Array.isArray(response.data)) return response.data;
+    let items: Branch[] = [];
+    let total = 0;
+    let hasMore = false;
+
+    if (Array.isArray(response.branches)) {
+      items = response.branches;
+      total = response.total || items.length;
+      hasMore = response.hasMore ?? (response.page ? response.page * (response.limit || 25) < total : false);
+    } else if (response.data) {
+      if (Array.isArray(response.data.branches)) {
+        items = response.data.branches;
+        total = response.data.total || items.length;
+        hasMore = response.data.hasMore ?? false;
+      } else if (Array.isArray(response.data.items)) {
+        items = response.data.items;
+        total = response.data.total || items.length;
+        hasMore = response.data.hasMore ?? false;
+      } else if (Array.isArray(response.data)) {
+        items = response.data;
+        total = items.length;
+        hasMore = false;
+      }
     }
 
-    // Fallback empty list
-    return [];
+    return { items, total, hasMore };
   }
 
   async getBranch(id: string): Promise<Branch> {
@@ -261,19 +359,27 @@ class ApiService {
   }
 
   // News
-  async getNews(params?: { isFeatured?: boolean; isPublished?: boolean; limit?: number }): Promise<News[]> {
+  async getNews(params?: { isFeatured?: boolean; isPublished?: boolean; limit?: number; page?: number }): Promise<{
+    items: News[];
+    total: number;
+    hasMore: boolean;
+  }> {
     const queryParams = new URLSearchParams();
     if (params?.isFeatured !== undefined) queryParams.append('isFeatured', String(params.isFeatured));
     if (params?.isPublished !== undefined) queryParams.append('isPublished', String(params.isPublished));
     if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.page) queryParams.append('page', String(params.page));
     
     const url = `${API_ENDPOINTS.NEWS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await this.request<{ success: boolean; data: { news: News[]; total?: number } }>(
+    const response = await this.request<{ success: boolean; data: { news: News[]; total?: number; hasMore?: boolean; page?: number; limit?: number } }>(
       url,
       {},
       true
     );
-    return response.data.news || [];
+    const items = response.data.news || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   async getNewsItem(id: string): Promise<News> {
@@ -286,13 +392,25 @@ class ApiService {
   }
 
   // Announcements
-  async getAnnouncements(): Promise<Announcement[]> {
-    const response = await this.request<{ success: boolean; data: { announcements: Announcement[]; total?: number } }>(
-      API_ENDPOINTS.ANNOUNCEMENTS.BASE,
+  async getAnnouncements(params?: { page?: number; limit?: number }): Promise<{
+    items: Announcement[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+
+    const url = `${API_ENDPOINTS.ANNOUNCEMENTS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await this.request<{ success: boolean; data: { announcements: Announcement[]; total?: number; hasMore?: boolean; page?: number; limit?: number } }>(
+      url,
       {},
       true
     );
-    return response.data.announcements || [];
+    const items = response.data.announcements || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
   }
 
   // FAQ
@@ -363,7 +481,30 @@ class ApiService {
     );
   }
 
-  // Notifications
+  // Notifications - Token Management
+  async registerPushToken(token: string, deviceType: 'ios' | 'android', deviceId?: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.NOTIFICATIONS.TOKEN,
+      {
+        method: 'POST',
+        body: JSON.stringify({ token, deviceType, deviceId }),
+      },
+      true
+    );
+  }
+
+  async deactivatePushToken(token: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.NOTIFICATIONS.TOKEN,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ token }),
+      },
+      true
+    );
+  }
+
+  // Notifications - History
   async getNotifications(params?: { page?: number; limit?: number; type?: string }): Promise<{
     notifications: any[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
@@ -386,6 +527,47 @@ class ApiService {
       true
     );
     return response.data;
+  }
+
+  // Contracted Institutions
+  async getContractedInstitutions(params?: { page?: number; limit?: number; categoryId?: string }): Promise<{
+    items: ContractedInstitution[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.categoryId) queryParams.append('categoryId', params.categoryId);
+
+    const url = `${API_ENDPOINTS.CONTRACTED_INSTITUTIONS.BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await this.request<{ 
+      success: boolean; 
+      data: { institutions: ContractedInstitution[]; total?: number; hasMore?: boolean; page?: number; limit?: number } 
+    }>(url, {}, true);
+
+    const items = response.data.institutions || [];
+    const total = response.data.total || items.length;
+    const hasMore = response.data.hasMore ?? false;
+    return { items, total, hasMore };
+  }
+
+  async getContractedInstitution(id: string): Promise<ContractedInstitution> {
+    const response = await this.request<{ success: boolean; data: { institution: ContractedInstitution } }>(
+      API_ENDPOINTS.CONTRACTED_INSTITUTIONS.BY_ID(id),
+      {},
+      true
+    );
+    return response.data.institution;
+  }
+
+  async getInstitutionCategories(): Promise<InstitutionCategory[]> {
+    const response = await this.request<{ success: boolean; data: { categories: InstitutionCategory[] } }>(
+      `${API_ENDPOINTS.INSTITUTION_CATEGORIES.BASE}?activeOnly=true`,
+      {},
+      true
+    );
+    return response.data.categories || [];
   }
 }
 

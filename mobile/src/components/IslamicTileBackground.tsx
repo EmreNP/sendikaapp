@@ -1,15 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions, Image } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width, height } = Dimensions.get('window');
-
-// Unsplash Persian tile images - same as front
+// Bundled tile images - no network dependency
 const TILE_IMAGES = [
-  'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?w=400&q=80',
-  'https://images.unsplash.com/photo-1565280717-8fe267f9c6a4?w=400&q=80',
-  'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=400&q=80',
-  'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400&q=80',
+  require('../../assets/images/tiles/tile_1.jpg'),
+  require('../../assets/images/tiles/tile_2.jpg'),
+  require('../../assets/images/tiles/tile_3.jpg'),
+  require('../../assets/images/tiles/tile_4.jpg'),
 ];
 
 interface IslamicTileBackgroundProps {
@@ -29,16 +28,16 @@ export function IslamicTileBackground({ opacity = 0.1 }: IslamicTileBackgroundPr
       
       {/* Tile pattern overlay */}
       <View style={styles.tilesContainer}>
-        {TILE_IMAGES.map((uri, index) => (
+        {TILE_IMAGES.map((source, index) => (
           <Image
             key={index}
-            source={{ uri }}
+            source={source}
             style={[
               styles.tile,
               getTilePosition(index),
             ]}
             blurRadius={2}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ))}
       </View>

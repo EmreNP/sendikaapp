@@ -91,23 +91,22 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     }
     
     // 4. Branch Manager kontrolü
+    // Branch manager SADECE kendi şubesine (targetAudience: 'branch') bildirim gönderebilir
     if (userRole === USER_ROLE.BRANCH_MANAGER) {
-      if (targetAudience === 'all') {
+      if (targetAudience !== 'branch') {
         throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_ALL_FORBIDDEN);
       }
       
-      if (targetAudience === 'branch') {
-        if (!currentUserData!.branchId) {
-          throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_REQUIRED);
-        }
+      if (!currentUserData!.branchId) {
+        throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_REQUIRED);
+      }
 
-        if (branchId && branchId !== currentUserData!.branchId) {
-          throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
-        }
+      if (branchId && branchId !== currentUserData!.branchId) {
+        throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
+      }
 
-        if (branchIds && branchIds.some(id => id !== currentUserData!.branchId)) {
-          throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
-        }
+      if (branchIds && branchIds.some(id => id !== currentUserData!.branchId)) {
+        throw new AppValidationError(NOTIFICATION_ERROR_MESSAGE.BRANCH_MANAGER_OTHER_BRANCH);
       }
     }
     
@@ -128,6 +127,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     let tokens: string[] = [];
     let totalSent = 0;
     let totalFailed = 0;
+    let totalUsers = 0;
+    let totalTokens = 0;
 
     if (targetAudience === 'branch') {
       const branchIdsToSend = resolveBranchIds();
@@ -146,6 +147,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
           .get();
 
         const branchUserIds = branchUsersSnapshot.docs.map(doc => doc.id);
+        totalUsers += branchUserIds.length;
 
         if (branchUserIds.length > 0) {
           const chunkSize = 10;
@@ -171,6 +173,26 @@ export const POST = asyncHandler(async (request: NextRequest) => {
               }
             });
           });
+        }
+
+        totalTokens += tokens.length;
+
+        if (tokens.length === 0) {
+          // Token yoksa gönderimi atla, sadece history kaydet
+          await saveNotificationHistory({
+            title,
+            body: messageBody,
+            type,
+            contentId,
+            sentBy: user.uid,
+            targetAudience,
+            branchId: branchIdItem,
+            sentCount: 0,
+            failedCount: 0,
+            imageUrl,
+            data,
+          });
+          continue;
         }
 
         const result = await sendMulticastNotification(
@@ -210,6 +232,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         .get();
 
       const activeUserIds = activeUsersSnapshot.docs.map(doc => doc.id);
+      totalUsers = activeUserIds.length;
 
       if (activeUserIds.length === 0) {
         return successResponse(
@@ -259,6 +282,8 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     }
 
     if (targetAudience !== 'branch') {
+      totalTokens = tokens.length;
+      
       if (tokens.length === 0) {
         return successResponse(
           NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
@@ -317,6 +342,11 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       {
         sent: totalSent,
         failed: totalFailed,
+        totalUsers,
+        totalTokens,
+        ...(totalTokens === 0 && totalUsers > 0 
+          ? { message: 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.' } 
+          : {}),
       },
       200,
       NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT

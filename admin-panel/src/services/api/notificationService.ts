@@ -16,6 +16,9 @@ export interface SendNotificationRequest {
 export interface SendNotificationResponse {
   sent: number;
   failed: number;
+  totalUsers?: number;
+  totalTokens?: number;
+  message?: string;
 }
 
 export interface NotificationHistory {

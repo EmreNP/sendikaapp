@@ -1,6 +1,8 @@
 // Screen Exports
 export { WelcomeScreen } from './WelcomeScreen';
 export { LoginScreen } from './LoginScreen';
+export { ForgotPasswordScreen } from './ForgotPasswordScreen';
+export { EditProfileScreen } from './EditProfileScreen';
 export { SignupScreen } from './SignupScreen';
 export { HomeScreen } from './HomeScreen';
 export { CoursesScreen } from './CoursesScreen';
@@ -22,5 +24,4 @@ export { PartnerInstitutionsScreen } from './PartnerInstitutionsScreen';
 export { PartnerDetailScreen } from './PartnerDetailScreen';
 export { TestScreen } from './TestScreen';
 export { NotificationsScreen } from './NotificationsScreen';
-// export { PDFViewerScreen } from './PDFViewerScreen'; // Native PDF viewer - commented out due to stability issues
 export { DocumentScreen } from './DocumentScreen';

@@ -22,12 +22,12 @@ export default function TrainingDetailPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
+    isOpen: boolean;
     title: string;
     message: string;
     onConfirm: () => void;
   }>({
-    open: false,
+    isOpen: false,
     title: '',
     message: '',
     onConfirm: () => {},
@@ -69,10 +69,17 @@ export default function TrainingDetailPage() {
 
   const handleDeleteLesson = async (lessonId: string) => {
     try {
+      logger.log('🗑️ Deleting lesson:', lessonId);
       await lessonService.deleteLesson(lessonId);
+      logger.log('✅ Lesson deleted successfully');
       await loadLessons();
     } catch (err: any) {
-      logger.error('Delete lesson error:', err);
+      logger.error('❌ Delete lesson error:', err);
+      logger.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        status: err.status,
+      });
       alert(err.message || 'Ders silinirken bir hata oluştu');
     }
   };
@@ -262,12 +269,12 @@ export default function TrainingDetailPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setConfirmDialog({
-                                open: true,
+                                isOpen: true,
                                 title: 'Dersi Sil',
                                 message: `"${lesson.title}" dersini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                                 onConfirm: () => {
                                   handleDeleteLesson(lesson.id);
-                                  setConfirmDialog({ ...confirmDialog, open: false });
+                                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                                 },
                               });
                             }}
@@ -288,11 +295,11 @@ export default function TrainingDetailPage() {
 
         {/* Confirm Dialog */}
         <ConfirmDialog
-          open={confirmDialog.open}
+          isOpen={confirmDialog.isOpen}
           title={confirmDialog.title}
           message={confirmDialog.message}
           onConfirm={confirmDialog.onConfirm}
-          onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
         />
 
         {/* Lesson Form Modal */}
@@ -328,12 +335,12 @@ export default function TrainingDetailPage() {
             setIsDetailModalOpen(false);
             if (selectedLesson) {
               setConfirmDialog({
-                open: true,
+                isOpen: true,
                 title: 'Dersi Sil',
                 message: `"${selectedLesson.title}" dersini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
                 onConfirm: () => {
                   handleDeleteLesson(selectedLesson.id);
-                  setConfirmDialog({ ...confirmDialog, open: false });
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                   setSelectedLesson(null);
                 },
               });

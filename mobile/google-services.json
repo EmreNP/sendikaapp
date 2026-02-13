@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "805647677578",
+    "project_id": "sendikaapp",
+    "storage_bucket": "sendikaapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:805647677578:android:a49573",
+        "android_client_info": {
+          "package_name": "com.buyukfuat.sendikaapp"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdapALu0uxSKdL9_Ew99x08Y8SL-wavGY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

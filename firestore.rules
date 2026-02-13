@@ -22,6 +22,15 @@ service cloud.firestore {
               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'branch_manager');
     }
     
+    // Config collection (app version, maintenance mode vb.)
+    match /config/{configId} {
+      // Okuma: Tüm authenticated kullanıcılar sürüm bilgilerini okuyabilir
+      allow read: if isAuthenticated();
+      
+      // Yazma: Sadece server-side (admin SDK)
+      allow create, update, delete: if false;
+    }
+
     // Branches collection
     match /branches/{branchId} {
       // Okuma: Admin tümünü, branch_manager sadece kendi şubesini, user sadece aktif şubeleri

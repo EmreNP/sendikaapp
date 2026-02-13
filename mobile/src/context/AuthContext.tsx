@@ -3,6 +3,8 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import apiService from '../services/api';
+import { getStoredToken, clearStoredToken } from '../services/notificationService';
+import { logger } from '../utils/logger';
 import type { User, UserStatus, UserRole } from '../types';
 
 interface AuthContextType {
@@ -23,7 +25,10 @@ interface AuthContextType {
     password: string; 
     firstName: string; 
     lastName: string;
+    phone: string;
     birthDate: string;
+    district: string;
+    kadroUnvani: string;
     gender: 'male' | 'female';
   }) => Promise<void>;
   registerDetails: (data: any) => Promise<void>;
@@ -43,20 +48,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const userData = await apiService.getCurrentUser();
           setUser(userData);
 
-          // DEBUG: ID token ve kullanıcı status/role bilgilerini yazdır (geçici)
-          try {
-            const token = await auth.currentUser?.getIdToken();
-            const freshToken = await auth.currentUser?.getIdToken(true);
-            console.log('Auth debug - ID token (cached):', token);
-            console.log('Auth debug - ID token (fresh):', freshToken);
-          } catch (tokenErr) {
-            console.warn('Auth debug - token fetch failed:', tokenErr);
-          }
-
-          console.log('Auth debug - User status/role:', userData?.status, userData?.role);
-
         } catch (error) {
-          console.error('Failed to get user data:', error);
+          logger.error('Failed to get user data:', error);
           setUser(null);
         }
       } else {
@@ -74,6 +67,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    // Logout öncesi FCM token'ı deaktive et
+    try {
+      const storedToken = await getStoredToken();
+      if (storedToken) {
+        await apiService.deactivatePushToken(storedToken);
+        await clearStoredToken();
+        logger.log('✅ FCM token logout sırasında deaktive edildi');
+      }
+    } catch (error) {
+      logger.warn('FCM token deaktive edilemedi:', error);
+    }
     await apiService.logout();
     setUser(null);
   };
@@ -83,7 +87,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     password: string; 
     firstName: string; 
     lastName: string;
+    phone: string;
     birthDate: string;
+    district: string;
+    kadroUnvani: string;
     gender: 'male' | 'female';
   }) => {
     const { user: userData } = await apiService.registerBasic(data);
@@ -100,7 +107,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userData = await apiService.getCurrentUser();
       setUser(userData);
     } catch (error) {
-      console.error('Failed to refresh user:', error);
+      logger.error('Failed to refresh user:', error);
     }
   };
 

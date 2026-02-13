@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ApiService from '../services/api';
+import { logger } from '../utils/logger';
 import type { TestContentDetail, TestQuestion } from '../types';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -30,7 +31,7 @@ export const TestScreen: React.FC = () => {
       const data = await ApiService.getTest(testId);
       setTest(data);
     } catch (err) {
-      console.error('Error fetching test:', err);
+      logger.error('Error fetching test:', err);
       Alert.alert('Hata', 'Test yüklenemedi');
       navigation.goBack();
     } finally {

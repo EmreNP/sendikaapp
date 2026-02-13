@@ -7,7 +7,7 @@ const envApiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL;
 
-export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app/api').replace(/\/$/, '');
+export const API_BASE_URL = (envApiBaseUrl || 'https://sendikaapp.web.app').replace(/\/$/, '');
 
 
 export const API_ENDPOINTS = {
@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/api/auth/logout',
     REGISTER_BASIC: '/api/auth/register/basic',
     REGISTER_DETAILS: '/api/auth/register/details',
+    PASSWORD_RESET_REQUEST: '/api/auth/password/reset-request',
   },
   // Users
   USERS: {
@@ -76,5 +77,15 @@ export const API_ENDPOINTS = {
   NOTIFICATIONS: {
     HISTORY: '/api/notifications/history',
     TOKEN: '/api/notifications/token',
+  },
+  // Contracted Institutions
+  CONTRACTED_INSTITUTIONS: {
+    BASE: '/api/contracted-institutions',
+    BY_ID: (id: string) => `/api/contracted-institutions/${id}`,
+  },
+  // Institution Categories
+  INSTITUTION_CATEGORIES: {
+    BASE: '/api/institution-categories',
+    BY_ID: (id: string) => `/api/institution-categories/${id}`,
   },
 };

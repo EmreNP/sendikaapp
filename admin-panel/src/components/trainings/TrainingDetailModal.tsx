@@ -65,7 +65,7 @@ export default function TrainingDetailModal({
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 overflow-y-auto flex-1">
 
             <div className="space-y-4">
               {/* Başlık */}

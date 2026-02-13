@@ -328,6 +328,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                     source={require('../../assets/logo.png')}
                     style={styles.logoImage}
                     resizeMode="cover"
+                    accessibilityLabel="Türk Diyanet Vakıf-Sen Konya Şubesi logosu"
+                    accessibilityRole="image"
                   />
                 </View>
               </LinearGradient>
@@ -383,7 +385,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                       colors={['rgba(59, 130, 246, 0.25)', 'rgba(59, 130, 246, 0.1)']}
                       style={styles.featureIconBg}
                     >
-                      <Feather name={feature.icon as any} size={20} color="#60a5fa" />
+                      <Feather name={feature.icon as keyof typeof Feather.glyphMap} size={20} color="#60a5fa" />
                     </LinearGradient>
                   </View>
                   <Text style={styles.featureLabel}>{feature.label}</Text>
@@ -403,6 +405,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               style={styles.primaryButton}
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.9}
+              accessibilityLabel="Giriş yap"
+              accessibilityRole="button"
+              accessibilityHint="Hesabınıza giriş yapmak için dokunun"
             >
               <LinearGradient
                 colors={['#2563eb', '#3b82f6', '#2563eb']}
@@ -426,6 +431,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               style={styles.secondaryButton}
               onPress={() => navigation.navigate('Signup')}
               activeOpacity={0.8}
+              accessibilityLabel="Kayıt ol"
+              accessibilityRole="button"
+              accessibilityHint="Yeni hesap oluşturmak için dokunun"
             >
               <Feather name="user-plus" size={20} color="#60a5fa" style={styles.buttonIcon} />
               <Text style={styles.secondaryButtonText}>Kayıt Ol</Text>
@@ -447,7 +455,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         <Animated.View style={[styles.footerSection, { opacity: fadeAnim }]}>
           <View style={styles.footerDecorator} />
           <Text style={styles.footerText}>
-            © 2026 Türk Diyanet Vakıf-Sen Konya Şubesi
+            © {new Date().getFullYear()} Türk Diyanet Vakıf-Sen Konya Şubesi
           </Text>
         </Animated.View>
       </SafeAreaView>

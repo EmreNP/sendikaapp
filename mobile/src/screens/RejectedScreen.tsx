@@ -16,7 +16,7 @@ export const RejectedScreen: React.FC = () => {
   const { logout } = useAuth();
 
   const handleContact = () => {
-    Linking.openURL('mailto:info@sendika.com?subject=Üyelik%20Başvurusu%20Hakkında');
+    Linking.openURL('mailto:tdvskonya42@gmail.com?subject=Üyelik%20Başvurusu%20Hakkında');
   };
 
   return (
@@ -88,6 +88,9 @@ export const RejectedScreen: React.FC = () => {
               style={styles.contactButton}
               onPress={handleContact}
               activeOpacity={0.8}
+              accessibilityLabel="İletişime geç"
+              accessibilityRole="button"
+              accessibilityHint="E-posta ile iletişime geçmek için dokunun"
             >
               <Feather name="mail" size={20} color="#4338ca" />
               <Text style={styles.contactButtonText}>İletişime Geç</Text>
@@ -97,6 +100,8 @@ export const RejectedScreen: React.FC = () => {
               style={styles.logoutButton}
               onPress={logout}
               activeOpacity={0.8}
+              accessibilityLabel="Çıkış yap"
+              accessibilityRole="button"
             >
               <Feather name="log-out" size={18} color="#ffffff" />
               <Text style={styles.logoutButtonText}>Çıkış Yap</Text>

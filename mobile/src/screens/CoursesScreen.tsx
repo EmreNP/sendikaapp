@@ -1,5 +1,5 @@
 // Courses Screen - Training List - Redesigned to match front web design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
+import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -84,6 +87,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_LIMIT = 25;
 
   // Accordion / lessons state per training
   const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
@@ -96,25 +105,21 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       setLoadingLessons(trainingId);
       const lessons = await ApiService.getLessons(trainingId);
       
-      // Her lesson için içerik sayılarını hesapla
+      // Her lesson için içerik sayılarını hesapla - tek API çağrısı ile (all)
       const lessonsWithCounts = await Promise.all(
         lessons.map(async (lesson: any) => {
           try {
-            // Her lesson için video, document ve test sayılarını al
-            const [videos, documents, tests] = await Promise.all([
-              ApiService.getLessonContents(lesson.id, 'video').catch(() => []),
-              ApiService.getLessonContents(lesson.id, 'document').catch(() => []),
-              ApiService.getLessonContents(lesson.id, 'test').catch(() => []),
-            ]);
+            // Tek çağrıda tüm içerikleri al, type'a göre say
+            const allContents = await ApiService.getLessonContents(lesson.id).catch(() => []);
             
             return {
               ...lesson,
-              videoCount: videos.length,
-              documentCount: documents.length,
-              testCount: tests.length,
+              videoCount: allContents.filter((c: any) => c.type === 'video').length,
+              documentCount: allContents.filter((c: any) => c.type === 'document').length,
+              testCount: allContents.filter((c: any) => c.type === 'test').length,
             };
           } catch (err) {
-            console.error(`Error loading contents for lesson ${lesson.id}:`, err);
+            logger.error(`Error loading contents for lesson ${lesson.id}:`, err);
             return {
               ...lesson,
               videoCount: 0,
@@ -127,7 +132,8 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       
       setLessonsMap(prev => ({ ...prev, [trainingId]: lessonsWithCounts }));
     } catch (err) {
-      console.error('Error loading lessons:', err);
+      logger.error('Error loading lessons:', err);
+      Alert.alert('Hata', getUserFriendlyErrorMessage(err, 'Dersler yüklenemedi.'));
     } finally {
       setLoadingLessons(null);
     }
@@ -141,23 +147,42 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     }
   }, [canAccessTrainings]);
 
-  const fetchTrainings = async () => {
+  const fetchTrainings = async (pageNum = 1) => {
     try {
-      const data = await ApiService.getTrainings();
-      setTrainings(data);
+      if (pageNum === 1) setErrorMessage(null);
+      const { items, total, hasMore: more } = await ApiService.getTrainings({ page: pageNum, limit: PAGE_LIMIT });
+      if (pageNum === 1) {
+        setTrainings(items);
+      } else {
+        setTrainings(prev => [...prev, ...items]);
+      }
+      setTotalCount(total);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching trainings:', error);
+      logger.error('Error fetching trainings:', error);
+      if (pageNum === 1) {
+        setErrorMessage(getUserFriendlyErrorMessage(error, 'Eğitimler yüklenemedi.'));
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     if (!canAccessTrainings) return;
     setRefreshing(true);
-    await fetchTrainings();
+    await fetchTrainings(1);
     setRefreshing(false);
-  };
+  }, [canAccessTrainings]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchTrainings(page + 1);
+    }
+  }, [loadingMore, hasMore, page]);
 
   if (!canAccessTrainings) {
     return (
@@ -178,7 +203,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
           {isPendingDetails && (
             <TouchableOpacity
               style={styles.membershipButton}
-              onPress={() => navigation.navigate('Membership' as any)}
+              onPress={() => navigation.navigate('Membership' as never)}
               activeOpacity={0.9}
             >
               <LinearGradient
@@ -210,7 +235,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
     );
   }
 
-  const renderTrainingItem = ({ item, index }: { item: Training; index: number }) => {
+  const renderTrainingItem = useCallback(({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
     const isExpanded = expandedTrainingId === item.id;
     const lessons = lessonsMap[item.id] || [];
@@ -287,7 +312,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Feather name={icon as any} size={28} color="#ffffff" />
+            <Feather name={icon as keyof typeof Feather.glyphMap} size={28} color="#ffffff" />
           </LinearGradient>
 
           {/* Content */}
@@ -475,7 +500,9 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
         )}
       </View>
     );
-  };
+  }, [expandedTrainingId, lessonsMap, loadingLessons, navigation]);
+
+  const keyExtractor = useCallback((item: Training) => item.id, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -488,7 +515,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Eğitimler</Text>
-          <Text style={styles.headerSubtitle}>{trainings.length} eğitim</Text>
+          <Text style={styles.headerSubtitle}>{totalCount > 0 ? `${totalCount} eğitim` : `${trainings.length} eğitim`}</Text>
         </View>
       </LinearGradient>
 
@@ -496,21 +523,46 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       <FlatList
         data={trainings}
         renderItem={renderTrainingItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton} activeOpacity={0.7}>
+                  <Feather name="plus-circle" size={18} color="#2563eb" style={{ marginRight: 8 }} />
+                  <Text style={styles.loadMoreText}>Daha Fazla Yükle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Feather name="book-open" size={48} color="#94a3b8" />
+              <Feather name={errorMessage ? 'alert-circle' : 'book-open'} size={48} color={errorMessage ? '#ef4444' : '#94a3b8'} />
             </View>
-            <Text style={styles.emptyTitle}>Henüz Eğitim Yok</Text>
+            <Text style={styles.emptyTitle}>{errorMessage ? 'Bir Hata Oluştu' : 'Henüz Eğitim Yok'}</Text>
+            {errorMessage ? <Text style={styles.emptyText}>{errorMessage}</Text> : null}
             <Text style={styles.emptyText}>
-              Yeni eğitimler eklendiğinde burada görünecektir.
+              {errorMessage ? 'Lütfen tekrar deneyin.' : 'Yeni eğitimler eklendiğinde burada görünecektir.'}
             </Text>
+            {errorMessage && (
+              <TouchableOpacity onPress={onRefresh} style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#4338ca', borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tekrar Dene</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -806,5 +858,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 32,
+  },
+  footerContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
   },
 });

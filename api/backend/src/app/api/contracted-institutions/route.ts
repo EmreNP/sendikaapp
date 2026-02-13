@@ -49,6 +49,27 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       query = query.where('categoryId', '==', categoryId);
     }
 
+    // Kategori isimlerini çekmek için helper
+    const populateCategoryNames = async (items: ContractedInstitution[]): Promise<ContractedInstitution[]> => {
+      const categoryIds = [...new Set(items.map(i => i.categoryId).filter(Boolean))];
+      if (categoryIds.length === 0) return items;
+
+      const categoryMap = new Map<string, string>();
+      // Firestore 'in' query max 30 item destekler, batch halinde çek
+      for (let i = 0; i < categoryIds.length; i += 30) {
+        const batch = categoryIds.slice(i, i + 30);
+        const snap = await db.collection('institution_categories').where(admin.firestore.FieldPath.documentId(), 'in', batch).get();
+        snap.docs.forEach(doc => {
+          categoryMap.set(doc.id, doc.data().name || '');
+        });
+      }
+
+      return items.map(item => ({
+        ...item,
+        categoryName: categoryMap.get(item.categoryId) || item.categoryName || '',
+      }));
+    };
+
     // Search with batch-based pagination
     if (search) {
       const searchLower = search.toLowerCase();
@@ -66,7 +87,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         }
       );
       
-      const serializedItems = result.items.map(item => serializeContractedInstitutionTimestamps(item));
+      const itemsWithCategory = await populateCategoryNames(result.items);
+      const serializedItems = itemsWithCategory.map(item => serializeContractedInstitutionTimestamps(item));
       
       return successResponse('Anlaşmalı kurumlar başarıyla getirildi', {
         institutions: serializedItems,
@@ -87,7 +109,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       'order'
     );
     
-    const serializedItems = paginatedResult.items.map(item => serializeContractedInstitutionTimestamps(item));
+    const itemsWithCategoryPaged = await populateCategoryNames(paginatedResult.items);
+    const serializedItems = itemsWithCategoryPaged.map(item => serializeContractedInstitutionTimestamps(item));
     
     return successResponse(
       'Anlaşmalı kurumlar başarıyla getirildi',
