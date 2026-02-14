@@ -283,7 +283,6 @@ export const PATCH = asyncHandler(async (
         'education',
         'kurumSicil',
         'kadroUnvani',
-        'kadroUnvanKodu',
         'address',
         'city',
         'district',

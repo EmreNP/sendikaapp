@@ -130,7 +130,6 @@ Hata response'ları:
   "birthPlace": "Konya",
   "education": "lisans",
   "kurumSicil": "12345",
-  "kadroUnvanKodu": "M001",
   "isMemberOfOtherUnion": false
 }
 ```
@@ -146,7 +145,6 @@ Hata response'ları:
   "birthPlace": "Konya",
   "education": "lisans",
   "kurumSicil": "12345",
-  "kadroUnvanKodu": "M001",
   "isMemberOfOtherUnion": false,
   "firstName": "Ahmet",
   "lastName": "Yılmaz",
@@ -162,7 +160,6 @@ Hata response'ları:
 - `birthPlace`: Zorunlu, doğum yeri
 - `education`: Zorunlu, sadece `"ilkogretim"`, `"lise"`, `"on_lisans"`, `"lisans"`, `"yuksek_lisans"`, `"doktora"`
 - `kurumSicil`: Zorunlu, kurum sicil numarası
-- `kadroUnvanKodu`: Zorunlu, kadro ünvan kodu
 - `isMemberOfOtherUnion`: Opsiyonel, boolean
 - `userId`: Opsiyonel, sadece admin/superadmin kullanabilir - hedef kullanıcı ID
 - `firstName`, `lastName`, `email`: Opsiyonel, sadece admin override için
@@ -288,8 +285,7 @@ Bu proje için e-posta doğrulama özelliği devre dışı bırakıldı. `POST /
   "city": "İstanbul",
   "district": "Kadıköy",
   "kurumSicil": "12345",
-  "kadroUnvani": "Memur",
-  "kadroUnvanKodu": "M001"
+  "kadroUnvani": "Memur"
 }
 ```
 

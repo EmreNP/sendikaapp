@@ -79,7 +79,6 @@ export const PUT = asyncHandler(async (request: NextRequest) => {
         'education',
         'kurumSicil',
         'kadroUnvani',
-        'kadroUnvanKodu',
       ];
       
       // Güncellenemeyen alanları kontrol et
