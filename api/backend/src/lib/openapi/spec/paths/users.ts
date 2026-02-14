@@ -42,7 +42,6 @@ export const usersPaths = {
                 district: { type: 'string' },
                 kurumSicil: { type: 'string' },
                 kadroUnvani: { type: 'string' },
-                kadroUnvanKodu: { type: 'string' },
               },
             },
           },

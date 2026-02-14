@@ -15,6 +15,11 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppConflictError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface CompleteDetailsRequest {
   tcKimlikNo?: string;
   fatherName?: string;
@@ -23,7 +28,6 @@ interface CompleteDetailsRequest {
   education?: string;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
   phone?: string;
   address?: string;
   city?: string;
@@ -55,7 +59,6 @@ export const PATCH = asyncHandler(async (request: NextRequest, { params }: { par
       education,
       kurumSicil,
       kadroUnvani,
-      kadroUnvanKodu,
       phone,
       address,
       city,
@@ -153,7 +156,6 @@ export const PATCH = asyncHandler(async (request: NextRequest, { params }: { par
     if (education !== undefined) updateData.education = education as any;
     if (kurumSicil !== undefined) updateData.kurumSicil = kurumSicil;
     if (kadroUnvani !== undefined) updateData.kadroUnvani = kadroUnvani;
-    if (kadroUnvanKodu !== undefined) updateData.kadroUnvanKodu = kadroUnvanKodu;
     if (phone !== undefined) updateData.phone = phone;
     if (address !== undefined) updateData.address = address;
     if (city !== undefined) updateData.city = city;

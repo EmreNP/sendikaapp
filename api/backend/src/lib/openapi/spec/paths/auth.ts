@@ -59,7 +59,7 @@ export const authPaths = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['branchId', 'tcKimlikNo', 'fatherName', 'motherName', 'birthPlace', 'education', 'kurumSicil', 'kadroUnvanKodu'],
+              required: ['branchId', 'tcKimlikNo', 'fatherName', 'motherName', 'birthPlace', 'education', 'kurumSicil'],
               properties: {
                 branchId: { type: 'string', description: 'Şube ID (zorunlu, aktif şube olmalı)', example: 'branch-id-123' },
                 tcKimlikNo: { type: 'string', pattern: '^[0-9]{11}$', description: '11 haneli TC Kimlik No, algoritmik doğrulama yapılır', example: '12345678901' },
@@ -68,7 +68,6 @@ export const authPaths = {
                 birthPlace: { type: 'string', description: 'Doğum yeri', example: 'Konya' },
                 education: { type: 'string', enum: ['ilkogretim', 'lise', 'yuksekokul'], description: 'Öğrenim seviyesi', example: 'lise' },
                 kurumSicil: { type: 'string', description: 'Kurum sicil numarası', example: '12345' },
-                kadroUnvanKodu: { type: 'string', description: 'Kadro ünvan kodu', example: 'M001' },
                 isMemberOfOtherUnion: { type: 'boolean', description: 'Başka bir sendikaya üye mi? (opsiyonel)', example: false },
                 userId: { type: 'string', description: 'Admin için: hedef kullanıcı ID (opsiyonel, sadece admin/superadmin)', example: 'user-uid-456' },
                 firstName: { type: 'string', description: 'Admin override: kullanıcı adı (opsiyonel)', example: 'Ahmet' },

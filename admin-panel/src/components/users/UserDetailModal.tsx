@@ -30,7 +30,6 @@ interface UserDetail {
   education?: string;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
   address?: string;
   city?: string;
   district?: string;
@@ -294,7 +293,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       education: 'Eğitim Seviyesi',
       kurumSicil: 'Kurum Sicil',
       kadroUnvani: 'Kadro Unvanı',
-      kadroUnvanKodu: 'Kadro Unvan Kodu',
       district: 'İlçe',
       address: 'Adres',
       city: 'Şehir',
@@ -648,7 +646,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                 </div>
 
                 {/* Diğer Bilgiler */}
-                {(user.education || user.kurumSicil || user.kadroUnvani || user.kadroUnvanKodu || user.branchId) && (
+                {(user.education || user.kurumSicil || user.kadroUnvani || user.branchId) && (
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Briefcase className="w-5 h-5 text-slate-700" />
@@ -671,12 +669,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                         <div>
                           <label className="text-sm text-gray-600">Kadro Unvanı</label>
                           <div className="text-gray-900">{user.kadroUnvani}</div>
-                        </div>
-                      )}
-                      {user.kadroUnvanKodu && (
-                        <div>
-                          <label className="text-sm text-gray-600">Kadro Unvan Kodu</label>
-                          <div className="text-gray-900">{user.kadroUnvanKodu}</div>
                         </div>
                       )}
                       {user.branchId && (

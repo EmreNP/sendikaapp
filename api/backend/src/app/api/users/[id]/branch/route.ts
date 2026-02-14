@@ -12,6 +12,11 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import admin from 'firebase-admin';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // PATCH /api/users/[id]/branch - Kullanıcıya şube ata
 export const PATCH = asyncHandler(async (
   request: NextRequest,

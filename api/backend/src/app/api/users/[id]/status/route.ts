@@ -15,6 +15,11 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { isErrorWithMessage } from '@/lib/utils/response';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // PATCH /api/users/[id]/status - Kullanıcı durumunu güncelle
 export const PATCH = asyncHandler(async (
   request: NextRequest,

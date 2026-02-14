@@ -23,7 +23,6 @@ interface RegisterDetailsRequest {
   birthPlace: string;
   education: string; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil: string;
-  kadroUnvanKodu: string;
   isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
   branchId: string;
   // Admin overrides
@@ -45,7 +44,6 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         birthPlace,
         education,
         kurumSicil,
-        kadroUnvanKodu,
         isMemberOfOtherUnion,
         branchId,
         userId: targetUserIdParam,
@@ -164,10 +162,6 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         throw new AppValidationError('Kurum sicil numarası zorunludur');
       }
       
-      if (!kadroUnvanKodu || kadroUnvanKodu.trim() === '') {
-        throw new AppValidationError('Kadro ünvan kodu zorunludur');
-      }
-      
       // Branch'in gerçekten var olup olmadığını kontrol et
       const branchDoc = await db.collection('branches').doc(branchId).get();
       if (!branchDoc.exists) {
@@ -209,7 +203,6 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         birthPlace: birthPlace || '',
         education: education as any,
         kurumSicil: kurumSicil || '',
-        kadroUnvanKodu: kadroUnvanKodu || '',
         branchId: branchId,
         status: USER_STATUS.PENDING_BRANCH_REVIEW, // Onaya gönder
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -230,7 +223,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       // Boş string kontrolü - hiçbir zorunlu alan boş olmamalı
       const requiredFields = ['tcKimlikNo', 'fatherName', 'motherName', 'birthPlace', 'education', 
-                              'kurumSicil', 'kadroUnvanKodu', 'branchId'];
+                              'kurumSicil', 'branchId'];
       
       for (const field of requiredFields) {
         if (!updateData[field] || (typeof updateData[field] === 'string' && updateData[field].trim() === '')) {

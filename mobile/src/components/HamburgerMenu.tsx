@@ -30,7 +30,7 @@ interface HamburgerMenuProps {
 const socialLinks: { icon: keyof typeof Feather.glyphMap; label: string; href: string; fallbackHref?: string; color: string }[] = [
   { icon: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/share/17xcaDfcmz/?mibextid=wwXIfr', color: '#1877F2' },
   { icon: 'twitter', label: 'X', href: 'https://x.com/tdvskonya?s=11', color: '#000000' },
-  { icon: 'instagram', label: 'Instagram', href: 'instagram://user?username=tdvskonya', fallbackHref: 'https://www.instagram.com/tdvskonya', color: '#E1306C' },
+  { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/_u/tdvskonya/', fallbackHref: 'https://www.instagram.com/tdvskonya/', color: '#E1306C' },
   { icon: 'youtube', label: 'YouTube', href: 'https://youtube.com/@turkdiyanetvakif-senkonya?si=7sI8kUPWQu2pQsSw', color: '#FF0000' },
 ];
 

@@ -337,6 +337,14 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       message: `"${title.trim()}" bildirimi gönderildi (${totalSent} başarılı)`,
     });
 
+    // Duruma göre açıklayıcı mesaj oluştur
+    let responseMessage: string | undefined;
+    if (totalTokens === 0 && totalUsers > 0) {
+      responseMessage = 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.';
+    } else if (totalTokens > 0 && totalSent === 0 && totalFailed > 0) {
+      responseMessage = `Bildirim gönderildi ancak tüm cihaz token\'ları geçersiz (süresi dolmuş). ${totalFailed} token temizlendi. Kullanıcıların mobil uygulamayı yeniden açması gerekiyor.`;
+    }
+
     return successResponse(
       NOTIFICATION_RESPONSE_MESSAGE.NOTIFICATION_SENT,
       {
@@ -344,9 +352,7 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         failed: totalFailed,
         totalUsers,
         totalTokens,
-        ...(totalTokens === 0 && totalUsers > 0 
-          ? { message: 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.' } 
-          : {}),
+        ...(responseMessage ? { message: responseMessage } : {}),
       },
       200,
       NOTIFICATION_RESPONSE_CODE.NOTIFICATION_SENT

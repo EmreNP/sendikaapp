@@ -26,7 +26,6 @@ export interface User {
   education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
   kadroUnvani?: string; // Kadro Ünvanı (Step 1'de doldurulur)
-  kadroUnvanKodu?: string;
   phone?: string; // Telefon (Step 1'de doldurulur)
   district?: string; // Görev ilçesi (Step 1'de doldurulur)
   isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
@@ -67,7 +66,6 @@ export interface RegisterDetailsRequest {
   birthPlace?: string;
   education?: EducationLevel; // Öğrenim: ilköğretim, lise, yüksekokul
   kurumSicil?: string;
-  kadroUnvanKodu?: string;
   isMemberOfOtherUnion?: boolean; // Başka bir sendikaya üye mi?
 }
 
@@ -116,7 +114,6 @@ export interface UserProfileUpdateData {
   education?: EducationLevel;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
 }
 
 // User Register Details Update
@@ -131,7 +128,6 @@ export interface UserRegisterDetailsUpdateData {
   education?: EducationLevel;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
   phone?: string;
   address?: string;
   city?: string;

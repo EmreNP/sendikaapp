@@ -47,7 +47,7 @@ export default function SendNotificationSimpleModal({
   const [success, setSuccess] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [result, setResult] = useState<{ sent: number; failed: number; message?: string } | null>(null);
 
   const isBranchManager = user?.role === 'branch_manager';
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -155,13 +155,9 @@ export default function SendNotificationSimpleModal({
       setResult({
         sent: response.sent,
         failed: response.failed,
+        message: response.message,
       });
       setSuccess(true);
-      
-      // Token yoksa uyarı mesajı göster
-      if (response.message) {
-        setError(response.message);
-      }
 
       if (onSuccess) {
         onSuccess();
@@ -224,8 +220,8 @@ export default function SendNotificationSimpleModal({
                 </div>
                 <div className="text-sm">
                   {result.sent > 0 
-                    ? `Gönderilen: ${result.sent}, Başarısız: ${result.failed}`
-                    : 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.'
+                    ? `Gönderilen: ${result.sent}${result.failed > 0 ? `, Başarısız: ${result.failed}` : ''}`
+                    : (result.message || 'Hedef kullanıcıların hiçbirinde kayıtlı mobil cihaz bulunamadı. Kullanıcıların mobil uygulamayı açması gerekiyor.')
                   }
                 </div>
               </div>

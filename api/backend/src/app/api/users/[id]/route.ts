@@ -16,6 +16,11 @@ import { isErrorWithMessage } from '@/lib/utils/response';
 import { parseJsonBody } from '@/lib/utils/request';
 
 import { logger } from '../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET /api/users/[id] - Kullanıcı detayı
 export const GET = asyncHandler(async (
   request: NextRequest,
@@ -278,7 +283,6 @@ export const PATCH = asyncHandler(async (
         'education',
         'kurumSicil',
         'kadroUnvani',
-        'kadroUnvanKodu',
         'address',
         'city',
         'district',

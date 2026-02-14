@@ -18,12 +18,14 @@ export const activityService = {
     limit?: number;
     cursor?: string;
     search?: string;
+    branchId?: string;
   }) {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.cursor) queryParams.append('cursor', params.cursor);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.branchId) queryParams.append('branchId', params.branchId);
 
     const queryString = queryParams.toString();
     const endpoint = `/api/activities${queryString ? `?${queryString}` : ''}`;

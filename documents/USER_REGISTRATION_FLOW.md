@@ -161,7 +161,6 @@ POST /api/auth/register/details
   "birthPlace": "Konya",
   "education": "lisans",
   "kurumSicil": "12345",
-  "kadroUnvanKodu": "M001",
   "isMemberOfOtherUnion": false
 }
 ```
@@ -179,7 +178,6 @@ POST /api/auth/register/details
 | `birthPlace` | ✅ | Doğum yeri |
 | `education` | ✅ | `"ilkogretim"`, `"lise"`, `"on_lisans"`, `"lisans"`, `"yuksek_lisans"`, `"doktora"` |
 | `kurumSicil` | ✅ | Kurum sicil numarası |
-| `kadroUnvanKodu` | ✅ | Kadro ünvan kodu |
 | `isMemberOfOtherUnion` | ❌ | Boolean - başka bir sendikaya üye mi? |
 | `userId` | ❌ | Sadece admin/superadmin - hedef kullanıcı ID |
 | `firstName` | ❌ | Admin override için |
