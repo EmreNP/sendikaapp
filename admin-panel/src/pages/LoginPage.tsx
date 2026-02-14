@@ -47,7 +47,7 @@ export default function LoginPage() {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            TDV Konya Yönetim Paneli
+            TDVS Konya Yönetim Paneli
           </h1>
           <p className="text-gray-600">
             Admin ve İlçe Temsilcisi Girişi
@@ -167,7 +167,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-sm text-gray-500">
-            © 2025 TDV Konya. Tüm hakları saklıdır.
+            © 2025 TDVS Konya. Tüm hakları saklıdır.
           </p>
         </div>
       </div>

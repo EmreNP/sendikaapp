@@ -154,7 +154,7 @@ export default function Sidebar() {
           </div>
           {isExpanded && (
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 truncate">TDV Konya</h2>
+              <h2 className="text-lg font-semibold text-gray-900 truncate">TDVS Konya</h2>
               <p className="text-xs text-gray-500 truncate">
                 {user?.role === 'admin' || user?.role === 'superadmin' ? 'Admin Paneli' : 'Şube Paneli'}
               </p>

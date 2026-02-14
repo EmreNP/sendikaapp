@@ -369,6 +369,7 @@ async function fillTemplatePDF(
   options: { isReadOnly?: boolean } = {}
 ): Promise<PDFDocument> {
   const { isReadOnly = false } = options;
+  const isIstifaTemplate = templatePath.includes('istifaformu');
 
   const [templateResponse, fontResponse] = await Promise.all([
     fetch(`${templatePath}?t=${Date.now()}`),
@@ -417,12 +418,17 @@ async function fillTemplatePDF(
   };
 
   // ── Default values ──
-  setField('ilname', 'Konya');
-  setField('ilkodu', '42');
-  setField('sendikaadress', 'Cebeci - Ankara');
-  setField('kurumname', 'Diyanet');
-  setField('gybname', 'Müftülük');
-  setField('gybadress', userData.district || '');
+  // İstifa formu için kullanıcı isteğiyle bu alanlar artık otomatik doldurulmuyor:
+  // sendikaadress, kurumname/kurumunadi, gybname, gybadress, ilname, ilkodu
+  if (!isIstifaTemplate) {
+    setField('ilname', 'Konya');
+    setField('ilkodu', '42');
+    setField('sendikaadress', 'Cebeci - Ankara');
+    setField('kurumname', 'Diyanet');
+    setField('kurumunadi', 'Diyanet');
+    setField('gybname', 'Müftülük');
+    setField('gybadress', userData.district || '');
+  }
 
   // ── User personal info ──
   setField('ad', userData.firstName || '');
@@ -436,7 +442,10 @@ async function fillTemplatePDF(
   setField('dy', userData.birthPlace || '');
 
   // ── Work / position info ──
-  setField('ilcename', userData.district || '');
+  // İstifa formu için ilçe alanı otomatik doldurulmasın
+  if (!isIstifaTemplate) {
+    setField('ilcename', userData.district || '');
+  }
   setField('kurumsicil', userData.kurumSicil || '');
   setField('kadrounvan', userData.kadroUnvani || '');
 
