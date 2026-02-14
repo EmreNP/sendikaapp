@@ -143,7 +143,13 @@ if (getApps().length === 0) {
         }
       }
       
-      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || serviceAccount.storageBucket;
+      let storageBucket = process.env.FIREBASE_STORAGE_BUCKET || serviceAccount.storageBucket;
+      
+      if (!storageBucket && serviceAccount.project_id) {
+        // Firebase storage bucket format can be project-id.appspot.com or project-id.firebasestorage.app
+        storageBucket = `${serviceAccount.project_id}.firebasestorage.app`;
+        logger.warn(`⚠️  Storage bucket belirtilmemiş, varsayılan kullanılıyor: ${storageBucket}`);
+      }
       
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
@@ -161,7 +167,18 @@ if (getApps().length === 0) {
       logger.warn('⚠️  FCM notifications may not work without proper credentials!');
       
       // Fallback to default credentials
-      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+      let storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+      // Try to determine project ID from environment variables if bucket is not set
+      if (!storageBucket) {
+        const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+        if (projectId) {
+          // Firebase storage bucket format can be project-id.appspot.com or project-id.firebasestorage.app
+          // We default to firebasestorage.app as it appears to be the case for this project
+          storageBucket = `${projectId}.firebasestorage.app`;
+          logger.warn(`⚠️  Storage bucket belirtilmemiş, varsayılan kullanılıyor (from Project ID): ${storageBucket}`);
+        }
+      }
       
       admin.initializeApp({
         credential: admin.credential.applicationDefault(),
