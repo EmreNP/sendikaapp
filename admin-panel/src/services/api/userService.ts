@@ -17,7 +17,6 @@ export interface UpdateProfileRequest {
   education?: EducationLevel;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
 }
 
 export const userService = {

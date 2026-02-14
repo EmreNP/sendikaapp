@@ -35,7 +35,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     education: undefined,
     kurumSicil: '',
     kadroUnvani: '',
-    kadroUnvanKodu: '',
   });
 
   useEffect(() => {
@@ -105,7 +104,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           education: (sharedUser.education || undefined) as EducationLevel | undefined,
           kurumSicil: sharedUser.kurumSicil || '',
           kadroUnvani: sharedUser.kadroUnvani || '',
-          kadroUnvanKodu: sharedUser.kadroUnvanKodu || '',
         });
         setError(null);
         setSuccess(false);
@@ -133,7 +131,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     // Ensure all mandatory fields are filled (all fields are required per request)
     const mandatory: (keyof UpdateProfileRequest)[] = [
-      'firstName','lastName','birthDate','gender','phone','district','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani','kadroUnvanKodu'
+      'firstName','lastName','birthDate','gender','phone','district','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani'
     ];
     for (const k of mandatory) {
       const v = (formData as any)[k];
@@ -481,19 +479,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="text"
                     value={formData.kadroUnvani}
                     onChange={(e) => handleChange('kadroUnvani', e.target.value)}
-                    required
-                    aria-required="true"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kadro Unvan Kodu <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.kadroUnvanKodu}
-                    onChange={(e) => handleChange('kadroUnvanKodu', e.target.value)}
                     required
                     aria-required="true"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"

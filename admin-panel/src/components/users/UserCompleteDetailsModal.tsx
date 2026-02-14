@@ -35,7 +35,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
   const [education, setEducation] = useState('');
   const [kurumSicil, setKurumSicil] = useState('');
   const [kadroUnvani, setKadroUnvani] = useState('');
-  const [kadroUnvanKodu, setKadroUnvanKodu] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
@@ -118,7 +117,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       setEducation(data.user.education || '');
       setKurumSicil(data.user.kurumSicil || '');
       setKadroUnvani(data.user.kadroUnvani || '');
-      setKadroUnvanKodu(data.user.kadroUnvanKodu || '');
       setAddress(data.user.address || '');
       setCity(data.user.city || '');
       setDistrict(data.user.district || '');
@@ -203,7 +201,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
     if (education) body.education = education;
     if (kurumSicil) body.kurumSicil = kurumSicil;
     if (kadroUnvani) body.kadroUnvani = kadroUnvani;
-    if (kadroUnvanKodu) body.kadroUnvanKodu = kadroUnvanKodu;
     if (phone) body.phone = phone;
     if (address) body.address = address;
     if (city) body.city = city;
@@ -374,15 +371,6 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
                   <input
                     value={kadroUnvani}
                     onChange={(e) => setKadroUnvani(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                    disabled={loading}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kadro Ünvan Kodu</label>
-                  <input
-                    value={kadroUnvanKodu}
-                    onChange={(e) => setKadroUnvanKodu(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     disabled={loading}
                   />

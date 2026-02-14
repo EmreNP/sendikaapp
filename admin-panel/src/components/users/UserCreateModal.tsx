@@ -40,7 +40,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const [birthPlace, setBirthPlace] = useState('');
   const [education, setEducation] = useState('');
   const [kurumSicil, setKurumSicil] = useState('');
-  const [kadroUnvanKodu, setKadroUnvanKodu] = useState('');
   const [isMemberOfOtherUnion, setIsMemberOfOtherUnion] = useState<boolean | ''>('');
 
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       setBirthPlace('');
       setEducation('');
       setKurumSicil('');
-      setKadroUnvanKodu('');
       setIsMemberOfOtherUnion('');
 
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
@@ -159,7 +157,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     // Tüm zorunlu alanları kontrol et
     if (!branchId || !tcKimlikNo || !fatherName || !motherName || 
         !birthPlace || !education || !kurumSicil || 
-        !kadroUnvanKodu || isMemberOfOtherUnion === '') {
+        isMemberOfOtherUnion === '') {
       setError('Tüm alanlar zorunludur');
       return;
     }
@@ -178,7 +176,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       birthPlace,
       education,
       kurumSicil,
-      kadroUnvanKodu,
       isMemberOfOtherUnion: typeof isMemberOfOtherUnion === 'boolean' ? isMemberOfOtherUnion : undefined,
     };
 
@@ -508,17 +505,6 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                     <input
                       value={kurumSicil}
                       onChange={(e) => setKurumSicil(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kadro Ünvan Kodu <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={kadroUnvanKodu}
-                      onChange={(e) => setKadroUnvanKodu(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                       required
                     />

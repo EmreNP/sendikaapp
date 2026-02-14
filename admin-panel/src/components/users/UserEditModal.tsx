@@ -30,7 +30,6 @@ interface UserData {
   education?: string;
   kurumSicil?: string;
   kadroUnvani?: string;
-  kadroUnvanKodu?: string;
   address?: string;
   city?: string;
   district?: string;
@@ -70,7 +69,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
   const [education, setEducation] = useState('');
   const [kurumSicil, setKurumSicil] = useState('');
   const [kadroUnvani, setKadroUnvani] = useState('');
-  const [kadroUnvanKodu, setKadroUnvanKodu] = useState('');
   const [district, setDistrict] = useState('');
   const [isMemberOfOtherUnion, setIsMemberOfOtherUnion] = useState<boolean | ''>('');
   const [note, setNote] = useState('');
@@ -137,7 +135,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       setEducation(user.education || '');
       setKurumSicil(user.kurumSicil || '');
       setKadroUnvani(user.kadroUnvani || '');
-      setKadroUnvanKodu(user.kadroUnvanKodu || '');
       setDistrict(user.district || '');
       setIsMemberOfOtherUnion(user.isMemberOfOtherUnion === undefined ? '' : user.isMemberOfOtherUnion);
       setDocumentUrl(user.documentUrl || '');
@@ -189,7 +186,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     setEducation('');
     setKurumSicil('');
     setKadroUnvani('');
-    setKadroUnvanKodu('');
     setDistrict('');
     setIsMemberOfOtherUnion('');
     setNote('');
@@ -216,7 +212,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     if (showDetails || isMissingDoc) {
       if (!tcKimlikNo || !phone || !branchId || !birthDate || !gender || 
           !fatherName || !motherName || !birthPlace || !education || 
-          !kurumSicil || !kadroUnvani || !kadroUnvanKodu || 
+          !kurumSicil || !kadroUnvani || 
           !district || isMemberOfOtherUnion === '') {
         setError('Detay alanları zorunludur (Not alanı hariç)');
         return;
@@ -243,7 +239,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
        { key: 'education', val: education },
        { key: 'kurumSicil', val: kurumSicil },
        { key: 'kadroUnvani', val: kadroUnvani },
-       { key: 'kadroUnvanKodu', val: kadroUnvanKodu },
        { key: 'district', val: district },
        { key: 'note', val: note }
     ];
@@ -536,17 +531,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Kadro Ünvan Kodu <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={kadroUnvanKodu}
-                      onChange={(e) => setKadroUnvanKodu(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                         İlçe <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -667,7 +651,6 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                               education,
                               kurumSicil,
                               kadroUnvani,
-                              kadroUnvanKodu,
                               district,
                               branchId,
                               isMemberOfOtherUnion: typeof isMemberOfOtherUnion === 'boolean' ? isMemberOfOtherUnion : undefined,
