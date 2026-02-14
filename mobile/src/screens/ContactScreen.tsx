@@ -81,22 +81,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
 
   useEffect(() => {
     loadTopics();
-    checkBranchId();
   }, []);
-
-  const checkBranchId = () => {
-    // Kullanıcının branchId'si yoksa uyar
-    if (user && !user.branchId) {
-      Alert.alert(
-        'Şube Bilgisi Gerekli',
-        'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
-        [
-          { text: 'Tamam', style: 'cancel' },
-          { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
-        ]
-      );
-    }
-  };
 
   const loadTopics = async () => {
     try {
@@ -154,19 +139,6 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    // Şube kontrolü
-    if (!user?.branchId) {
-      Alert.alert(
-        'Şube Bilgisi Gerekli',
-        'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
-        [
-          { text: 'Tamam', style: 'cancel' },
-          { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
-        ]
-      );
-      return;
-    }
-
     setLoading(true);
     try {
       await ApiService.sendContactMessage({
@@ -180,23 +152,11 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
       );
     } catch (error: any) {
       console.error('Contact message error:', error);
-      
-      // Şube bilgisi hatası için özel mesaj
-      if (error?.message?.includes('Şube bilgisi') || error?.message?.includes('branch')) {
-        Alert.alert(
-          'Şube Bilgisi Gerekli',
-          'Mesaj gönderebilmek için profilinizde bir şube seçili olması gerekmektedir. Lütfen profilinizi güncelleyin veya yönetici ile iletişime geçin.',
-          [
-            { text: 'Tamam', style: 'cancel' },
-            { text: 'Profile Git', onPress: () => navigation.navigate('Profile' as any) }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Hata', 
-          getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.')
-        );
-      }
+
+      Alert.alert(
+        'Hata', 
+        getUserFriendlyErrorMessage(error, 'Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.')
+      );
     } finally {
       setLoading(false);
     }

@@ -249,14 +249,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       throw new AppAuthorizationError('Kullanıcı bilgileri alınamadı');
     }
 
-    if (!currentUserData.branchId) {
-      throw new AppValidationError('Şube bilgisi bulunamadı');
-    }
-
     // Mesaj oluştur
     const messageData = {
       userId: user.uid,
-      branchId: currentUserData.branchId,
+      ...(currentUserData.branchId ? { branchId: currentUserData.branchId } : {}),
       topicId,
       message: message.trim(),
       isRead: false,

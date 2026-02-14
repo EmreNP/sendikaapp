@@ -11,7 +11,7 @@ export interface Topic {
 export interface ContactMessage {
   id: string;
   userId: string;
-  branchId: string;
+  branchId?: string;
   topicId: string;
   message: string;
   isRead: boolean;

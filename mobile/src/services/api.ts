@@ -125,7 +125,10 @@ class ApiService {
     password: string; 
     firstName: string; 
     lastName: string;
+    phone: string;
     birthDate: string;
+    district: string;
+    kadroUnvani: string;
     gender: 'male' | 'female';
   }): Promise<{ user: User }> {
     // IMPORTANT:
@@ -167,13 +170,8 @@ class ApiService {
     birthPlace: string;
     education: string;
     kurumSicil: string;
-    kadroUnvanKodu: string;
     isMemberOfOtherUnion?: boolean;
     branchId: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    district?: string;
   }): Promise<{ user: User }> {
     const payload: Record<string, any> = {
       tcKimlikNo: data.tcKimlikNo,
@@ -182,13 +180,8 @@ class ApiService {
       birthPlace: data.birthPlace,
       education: data.education,
       kurumSicil: data.kurumSicil,
-      kadroUnvanKodu: data.kadroUnvanKodu,
       isMemberOfOtherUnion: data.isMemberOfOtherUnion,
       branchId: data.branchId,
-      phone: data.phone,
-      address: data.address,
-      city: data.city,
-      district: data.district,
     };
 
     // remove undefined keys

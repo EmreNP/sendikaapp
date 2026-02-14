@@ -14,9 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomInput } from '../components/CustomInput';
-import { CustomButton } from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
@@ -31,7 +29,7 @@ type MembershipScreenProps = {
 };
 
 export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }) => {
-  const { registerDetails, user } = useAuth();
+  const { registerDetails } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -40,20 +38,11 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     fatherName: '',
     motherName: '',
     birthPlace: '',
-    phone: '',
-    birthDate: '',
-    gender: '',
     education: '',
     kurumSicil: '',
-    kadroUnvanKodu: '',
     isMemberOfOtherUnion: false,
     branchId: '',
-    address: '',
-    city: '',
-    district: '',
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerDate, setDatePickerDate] = useState(new Date());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -90,7 +79,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
       }
     }
 
-    // Zorunlu kimlik / iletişim alanları (backend ile uyumlu)
+    // Zorunlu alanlar (backend ile uyumlu)
     if (!formData.fatherName || !formData.fatherName.trim()) {
       newErrors.fatherName = 'Baba adı gereklidir';
       valid = false;
@@ -108,41 +97,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
 
     if (!formData.kurumSicil || !formData.kurumSicil.trim()) {
       newErrors.kurumSicil = 'Kurum sicil numarası gereklidir';
-      valid = false;
-    }
-
-    if (!formData.kadroUnvanKodu || !formData.kadroUnvanKodu.trim()) {
-      newErrors.kadroUnvanKodu = 'Kadro ünvan kodu gereklidir';
-      valid = false;
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Telefon numarası gereklidir';
-      valid = false;
-    }
-
-    if (!formData.birthDate.trim()) {
-      newErrors.birthDate = 'Doğum tarihi gereklidir';
-      valid = false;
-    } else {
-      // Yaş kontrolü - signup ile tutarlı olmalı
-      const birthDate = new Date(formData.birthDate);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      const dayDiff = today.getDate() - birthDate.getDate();
-      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
-      if (age < 18) {
-        newErrors.birthDate = 'En az 18 yaşında olmalısınız';
-        valid = false;
-      } else if (age > 120) {
-        newErrors.birthDate = 'Geçerli bir doğum tarihi giriniz';
-        valid = false;
-      }
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Cinsiyet seçimi gereklidir';
       valid = false;
     }
 
@@ -178,13 +132,8 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
         birthPlace: formData.birthPlace,
         education: formData.education,
         kurumSicil: formData.kurumSicil,
-        kadroUnvanKodu: formData.kadroUnvanKodu,
         isMemberOfOtherUnion: !!formData.isMemberOfOtherUnion,
         branchId: formData.branchId,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        district: formData.district,
       });
       Alert.alert(
         'Başvurunuz alındı',
@@ -275,50 +224,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
             />
 
             <CustomInput
-              label="Telefon"
-              value={formData.phone}
-              onChangeText={(text) => updateField('phone', text)}
-              placeholder="Örn: 0532 123 45 67"
-              keyboardType="phone-pad"
-              error={errors.phone}
-              hint="Cep telefonu numaranız (0 ile başlayın)"
-              required
-            />
-
-            {/* Doğum Tarihi - takvim */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Doğum Tarihi</Text>
-              <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
-                style={[styles.inputWrapper, errors.birthDate ? styles.inputError : null]}
-              >
-                <Feather name="calendar" size={16} color="#94a3b8" style={styles.inputIcon} />
-                <Text style={[styles.datePickerText, !formData.birthDate && styles.datePickerPlaceholder]}>
-                  {formData.birthDate || 'YYYY-AA-GG (Örn: 1990-05-15)'}
-                </Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={datePickerDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
-                    if (!selectedDate) return;
-                    setDatePickerDate(selectedDate);
-                    const year = selectedDate.getFullYear();
-                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(selectedDate.getDate()).padStart(2, '0');
-                    updateField('birthDate', `${year}-${month}-${day}`);
-                  }}
-                  maximumDate={new Date()}
-                />
-              )}
-              <Text style={styles.hintText}>18 yaşından büyük olmalısınız. Takvimden tarihinizi seçin</Text>
-              {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
-            </View>
-
-            <CustomInput
               label="Doğum Yeri"
               value={formData.birthPlace}
               onChangeText={(text) => updateField('birthPlace', text)}
@@ -345,23 +250,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
               required
             />
 
-            {/* Gender Picker */}
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerLabel}>Cinsiyet *</Text>
-              <View style={[styles.pickerWrapper, errors.gender ? styles.pickerError : undefined]}>
-                <Picker
-                  selectedValue={formData.gender}
-                  onValueChange={(value) => updateField('gender', value)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Seçiniz..." value="" />
-                  <Picker.Item label="Erkek" value="male" />
-                  <Picker.Item label="Kadın" value="female" />
-                </Picker>
-              </View>
-              {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
-            </View>
-
             {/* Education Picker */}
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Eğitim Durumu *</Text>
@@ -386,15 +274,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
               onChangeText={(text) => updateField('kurumSicil', text)}
               placeholder="Örn: 12345"
               error={errors.kurumSicil}
-              required
-            />
-
-            <CustomInput
-              label="Kadro Ünvan Kodu"
-              value={formData.kadroUnvanKodu}
-              onChangeText={(text) => updateField('kadroUnvanKodu', text)}
-              placeholder="Örn: M001"
-              error={errors.kadroUnvanKodu}
               required
             />
 
@@ -431,16 +310,6 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
               </View>
               {errors.branchId && <Text style={styles.errorText}>{errors.branchId}</Text>}
             </View>
-
-            <CustomInput
-              label="Adres"
-              value={formData.address}
-              onChangeText={(text) => updateField('address', text)}
-              placeholder="Örn: Atatürk Mah. Cumhuriyet Cad. No:5 Kat:3"
-              hint="İkamet adresinizi yazın (mahalle, sokak, kapı no)"
-              multiline
-              numberOfLines={3}
-            />
 
             <TouchableOpacity
               style={styles.submitButton}
