@@ -332,24 +332,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const renderSliderItem = useCallback(({ item }: { item: News }) => (
     <TouchableOpacity 
       style={[styles.slideContainer, { width: screenWidth - 32, height: LAYOUT.sliderHeight }]}
-      onPress={() => navigation.navigate('AllNews' as never)}
+      onPress={() => navigation.navigate('NewsDetail' as never, { newsId: item.id } as never)}
       activeOpacity={0.9}
       accessibilityLabel={`Haber: ${item.title}`}
       accessibilityRole="button"
-      accessibilityHint="Tüm haberleri görmek için dokunun"
+      accessibilityHint="Haber detayını görmek için dokunun"
     >
       <Image 
         source={item.imageUrl ? { uri: item.imageUrl } : FALLBACK_SLIDER_IMAGES[0]} 
         style={styles.slideImage} 
       />
-      {/* Gradient overlay - from-black/70 via-black/30 to-transparent */}
+      {/* Gradient overlay - bottom to top, concentrated at bottom for title readability */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+        colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.88)']}
+        locations={[0, 0.38, 0.72, 1]}
         style={styles.slideOverlay}
       />
       <View style={styles.slideTextContainer}>
         <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDescription}>{stripHtmlTags(item.summary || item.content).substring(0, 100)}</Text>
       </View>
     </TouchableOpacity>
   ), [screenWidth, LAYOUT.sliderHeight, navigation]);
@@ -805,12 +805,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
+    paddingBottom: 36,
   },
   slideTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 4,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -826,9 +826,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     position: 'absolute',
-    bottom: 12,
+    bottom: 10,
     left: 0,
     right: 0,
+  },
+  seeAllBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#2563eb',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  seeAllBadgeText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   paginationDot: {
     width: 8,

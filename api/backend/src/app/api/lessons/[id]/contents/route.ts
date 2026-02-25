@@ -4,7 +4,7 @@ import admin from 'firebase-admin';
 import { withAuth, getCurrentUser } from '@/lib/middleware/auth';
 import { USER_ROLE } from '@shared/constants/roles';
 import type { Content, ContentType, VideoContent, DocumentContent } from '@shared/types/training';
-import { generatePublicUrl } from '@/lib/utils/storage';
+import { generatePublicUrl, generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeContentTimestamps
@@ -101,8 +101,10 @@ export const GET = asyncHandler(async (
       // Order'a göre sırala (tüm tipler birleştirildikten sonra)
       contents.sort((a, b) => a.order - b.order);
       
-      // Generate public URLs for all contents (files are already public via makePublic)
-      const contentsWithUrls = contents.map((content) => {
+      // Generate URLs for all contents
+      // Documents use signed URLs (7-day expiry) to bypass Storage security rules
+      // Videos use public URLs (files are made public on upload)
+      const contentsWithUrls = await Promise.all(contents.map(async (content) => {
         const result: Record<string, any> = { ...content };
         
         // Handle video content
@@ -116,16 +118,21 @@ export const GET = asyncHandler(async (
           }
         }
         
-        // Handle document content
+        // Handle document content — use signed URL so private files are always accessible
         if (content.type === 'document') {
           const docContent = content as DocumentContent;
           if (docContent.documentPath) {
-            result.documentUrl = generatePublicUrl(docContent.documentPath);
+            try {
+              result.documentUrl = await generateSignedUrl(docContent.documentPath, 7);
+            } catch (err) {
+              logger.warn(`[contents] Signed URL generation failed for ${docContent.documentPath}, falling back to public URL:`, err);
+              result.documentUrl = generatePublicUrl(docContent.documentPath);
+            }
           }
         }
         
         return result;
-      });
+      }));
       
       const serializedContents = contentsWithUrls.map(c => serializeContentTimestamps(c));
       

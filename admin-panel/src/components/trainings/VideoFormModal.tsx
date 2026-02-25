@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
-import { X, Upload, Video, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
-import { fileUploadService } from '@/services/api/fileUploadService';
-import type { VideoContent, CreateVideoContentRequest, UpdateVideoContentRequest, VideoSource } from '@/types/training';
+import type { VideoContent, CreateVideoContentRequest, UpdateVideoContentRequest } from '@/types/training';
 import { logger } from '@/utils/logger';
 
 interface VideoFormModalProps {
@@ -18,21 +17,12 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
     title: '',
     description: '',
     videoUrl: '',
-    videoPath: '',           // Storage path for uploaded videos (NEW)
-    videoSource: 'uploaded' as VideoSource, // Default olarak 'uploaded'
-    thumbnailUrl: '',
-    thumbnailPath: '',       // Storage path for thumbnails (NEW)
+    videoSource: 'youtube' as const,
     order: '' as string | number,
     isActive: true,
   });
-  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
-  const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   const isEditMode = !!video;
 
@@ -43,10 +33,7 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           title: video.title || '',
           description: video.description || '',
           videoUrl: video.videoUrl || '',
-          videoPath: (video as any).videoPath || '',
-          videoSource: video.videoSource || 'uploaded',
-          thumbnailUrl: video.thumbnailUrl || '',
-          thumbnailPath: (video as any).thumbnailPath || '',
+          videoSource: 'youtube' as const,
           order: video.order || '',
           isActive: video.isActive ?? true,
         });
@@ -55,76 +42,14 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           title: '',
           description: '',
           videoUrl: '',
-          videoPath: '',
-          videoSource: 'uploaded', // Default
-          thumbnailUrl: '',
-          thumbnailPath: '',
+          videoSource: 'youtube',
           order: '',
           isActive: true,
         });
       }
-      setSelectedVideoFile(null);
-      setSelectedThumbnailFile(null);
-      setUploadProgress(0);
       setError(null);
     }
   }, [isOpen, video]);
-
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Video dosyası kontrolü
-    const allowedTypes = ['video/mp4', 'video/webm'];
-    const maxSize = 500 * 1024 * 1024; // 500MB
-
-    if (!allowedTypes.includes(file.type)) {
-      setError('Sadece MP4 ve WebM video dosyaları yüklenebilir');
-      if (videoInputRef.current) {
-        videoInputRef.current.value = '';
-      }
-      return;
-    }
-
-    if (file.size > maxSize) {
-      setError('Video dosyası en fazla 500MB olabilir');
-      if (videoInputRef.current) {
-        videoInputRef.current.value = '';
-      }
-      return;
-    }
-
-    setSelectedVideoFile(file);
-    setError(null);
-  };
-
-  const handleThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Thumbnail dosyası kontrolü
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const maxSize = 2 * 1024 * 1024; // 2MB
-
-    if (!allowedTypes.includes(file.type)) {
-      setError('Sadece JPEG, PNG ve WebP görsel dosyaları yüklenebilir');
-      if (thumbnailInputRef.current) {
-        thumbnailInputRef.current.value = '';
-      }
-      return;
-    }
-
-    if (file.size > maxSize) {
-      setError('Thumbnail görseli en fazla 2MB olabilir');
-      if (thumbnailInputRef.current) {
-        thumbnailInputRef.current.value = '';
-      }
-      return;
-    }
-
-    setSelectedThumbnailFile(file);
-    setError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,90 +63,18 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
     try {
       setLoading(true);
       let videoUrl = formData.videoUrl;
-      let videoPath = formData.videoPath;
-      let thumbnailUrl = formData.thumbnailUrl;
-      let thumbnailPath = formData.thumbnailPath;
 
-      // Video yükleme (sadece uploaded kaynağı için)
-      if (formData.videoSource === 'uploaded') {
-        if (!isEditMode && !selectedVideoFile) {
-          setError('Lütfen bir video dosyası seçin');
-          setLoading(false);
-          return;
-        }
-
-        if (!isEditMode || selectedVideoFile) {
-          try {
-            setUploading(true);
-            setUploadProgress(0);
-
-            // Real progress tracking
-            const uploadResult = await fileUploadService.uploadVideo(
-              selectedVideoFile!,
-              (progress) => setUploadProgress(progress)
-            );
-            
-            videoPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
-            videoUrl = uploadResult.documentUrl;  // Display URL
-            setUploading(false);
-          } catch (uploadErr: any) {
-            logger.error('Video upload error:', uploadErr);
-            setError(uploadErr.message || 'Video yüklenirken bir hata oluştu');
-            setLoading(false);
-            setUploading(false);
-            setUploadProgress(0);
-            return;
-          }
-        }
-      } else {
-        // YouTube veya Vimeo için URL kontrolü
-        if (!formData.videoUrl.trim()) {
-          setError('Video URL zorunludur');
-          setLoading(false);
-          return;
-        }
-        videoUrl = formData.videoUrl.trim();
+      // YouTube URL kontrolü
+      if (!formData.videoUrl.trim()) {
+        setError('YouTube URL zorunludur');
+        setLoading(false);
+        return;
       }
+      videoUrl = formData.videoUrl.trim();
 
-      // Thumbnail yükleme
-      if (selectedThumbnailFile) {
-        try {
-          setUploading(true);
-          setUploadProgress(0);
 
-          // Real progress tracking
-          const uploadResult = await fileUploadService.uploadThumbnail(
-            selectedThumbnailFile,
-            (progress) => setUploadProgress(progress)
-          );
-          
-          thumbnailPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
-          thumbnailUrl = uploadResult.documentUrl;  // Display URL
-          setUploading(false);
-        } catch (uploadErr: any) {
-          logger.error('Thumbnail upload error:', uploadErr);
-          setError(uploadErr.message || 'Thumbnail yüklenirken bir hata oluştu');
-          setLoading(false);
-          setUploading(false);
-          setUploadProgress(0);
-          return;
-        }
-      }
-
-      // Edit modunda ve dosya seçilmemişse mevcut path/URL'leri kullan
-      if (isEditMode && video) {
-        if (!videoPath && !videoUrl) {
-          videoPath = (video as any).videoPath || video.videoUrl;
-          videoUrl = video.videoUrl;
-        }
-        if (!thumbnailPath && !thumbnailUrl) {
-          thumbnailPath = (video as any).thumbnailPath || '';
-          thumbnailUrl = video.thumbnailUrl || '';
-        }
-      }
-
-      if (!videoPath && !videoUrl) {
-        setError('Video path veya URL zorunludur');
+      if (!videoUrl) {
+        setError('Video URL zorunludur');
         setLoading(false);
         return;
       }
@@ -230,11 +83,11 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
         const updateData: UpdateVideoContentRequest = {
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          videoUrl: formData.videoSource === 'uploaded' ? undefined : videoUrl,  // Only for YouTube/Vimeo
-          videoPath: formData.videoSource === 'uploaded' ? videoPath : undefined,  // Only for uploaded
-          videoSource: formData.videoSource,
-          thumbnailUrl: undefined,  // Don't send URL
-          thumbnailPath: thumbnailPath || undefined,  // Send path
+          videoUrl: videoUrl,
+          videoPath: undefined,
+          videoSource: 'youtube',
+          thumbnailUrl: undefined,
+          thumbnailPath: undefined,
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,
         };
@@ -244,11 +97,11 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
           lessonId,
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
-          videoUrl: formData.videoSource === 'uploaded' ? undefined : videoUrl,  // Only for YouTube/Vimeo
-          videoPath: formData.videoSource === 'uploaded' ? videoPath : undefined,  // Only for uploaded
-          videoSource: formData.videoSource,
-          thumbnailUrl: undefined,  // Don't send URL
-          thumbnailPath: thumbnailPath || undefined,  // Send path
+          videoUrl: videoUrl,
+          videoPath: undefined,
+          videoSource: 'youtube',
+          thumbnailUrl: undefined,
+          thumbnailPath: undefined,
           order: formData.order === '' ? undefined : (typeof formData.order === 'number' ? formData.order : parseInt(formData.order.toString()) || undefined),
           isActive: formData.isActive,
         };
@@ -262,8 +115,6 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
       setError(err.message || 'Video kaydedilirken bir hata oluştu');
     } finally {
       setLoading(false);
-      setUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -328,132 +179,34 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 items-start">
-                  <div className="flex flex-col">
+                  <div className="flex flex-col col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Video Kaynağı <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.videoSource}
-                      onChange={(e) => setFormData({ ...formData, videoSource: e.target.value as VideoSource })}
-                      disabled={isEditMode}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10 disabled:bg-gray-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="uploaded">Yüklenen Video</option>
-                      <option value="youtube">YouTube</option>
-                      <option value="vimeo">Vimeo</option>
-                    </select>
-                  </div>
-
-                  {formData.videoSource === 'uploaded' ? (
-                    <div className="flex flex-col">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Video Dosyası <span className="text-red-500">*</span>
-                      </label>
-                      {isEditMode ? (
-                        <a
-                          href={formData.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors h-10 text-sm font-medium text-gray-700"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Linke Git
-                        </a>
-                      ) : (
-                        <>
-                          <input
-                            ref={videoInputRef}
-                            type="file"
-                            accept="video/mp4,video/webm"
-                            onChange={handleVideoFileChange}
-                            className="hidden"
-                            id="video-file"
-                            disabled={uploading}
-                          />
-                          <label
-                            htmlFor="video-file"
-                            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors h-10"
-                          >
-                            <Video className="w-5 h-5 text-gray-500" />
-                            <span className="text-sm text-gray-700 truncate">
-                              {selectedVideoFile ? selectedVideoFile.name : 'Video dosyası seçin (MP4, WebM - Max 500MB)'}
-                            </span>
-                          </label>
-                          {uploadProgress > 0 && uploadProgress < 100 && (
-                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                              <div
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${uploadProgress}%` }}
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Video URL <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="url"
-                        value={formData.videoUrl}
-                        onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                        readOnly={isEditMode}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10 ${isEditMode ? 'bg-gray-50' : ''}`}
-                        required
-                        placeholder={formData.videoSource === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://vimeo.com/...'}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 items-start">
-                  <div className="flex flex-col">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thumbnail Görseli
+                      YouTube Video URL <span className="text-red-500">*</span>
                     </label>
                     <input
-                      ref={thumbnailInputRef}
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleThumbnailFileChange}
-                      className="hidden"
-                      id="thumbnail-file"
-                      disabled={uploading}
+                      type="url"
+                      value={formData.videoUrl}
+                      onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                      readOnly={isEditMode}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10 ${isEditMode ? 'bg-gray-50' : ''}`}
+                      required
+                      placeholder="https://www.youtube.com/watch?v=..."
                     />
-                    <label
-                      htmlFor="thumbnail-file"
-                      className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors h-10"
-                    >
-                      <Upload className="w-5 h-5 text-gray-500" />
-                      <span className="text-sm text-gray-700 truncate">
-                        {selectedThumbnailFile ? selectedThumbnailFile.name : 'Thumbnail görseli seçin (JPEG, PNG, WebP - Max 2MB)'}
-                      </span>
-                    </label>
-                    {uploadProgress > 0 && uploadProgress < 100 && (
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                    )}
                   </div>
+                </div>
 
-                  <div className="flex flex-col">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Sıra
-                    </label>
-                      <input
-                        type="number"
-                        value={formData.order}
-                        onChange={(e) => setFormData({ ...formData, order: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10"
-                        min="1"
-                        placeholder="Otomatik"
-                      />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sıra
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.order}
+                    onChange={(e) => setFormData({ ...formData, order: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10"
+                    min="1"
+                    placeholder="Otomatik"
+                  />
                 </div>
 
                 <div>
@@ -474,10 +227,10 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
                 type="submit"
-                disabled={loading || uploading}
+                disabled={loading}
                 className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
               >
-                {loading || uploading ? 'Kaydediliyor...' : isEditMode ? 'Güncelle' : 'Oluştur'}
+                {loading ? 'Kaydediliyor...' : isEditMode ? 'Güncelle' : 'Oluştur'}
               </button>
               <button
                 type="button"

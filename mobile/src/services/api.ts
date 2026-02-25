@@ -279,61 +279,32 @@ class ApiService {
       return [];
     }
 
-    // Backend exposes separate endpoints for videos/documents/tests. Use them and normalize to LessonContent[]
-    const mapVideo = (v: any) => ({ id: v.id, lessonId: v.lessonId, title: v.title, description: v.description, type: 'video' as const, url: v.videoUrl, duration: v.duration ? String(v.duration) : undefined, order: v.order });
-    const mapDocument = (d: any) => ({ id: d.id, lessonId: d.lessonId, title: d.title, description: d.description, type: 'document' as const, url: d.documentUrl, order: d.order });
-    const mapTest = (t: any) => ({ id: t.id, lessonId: t.lessonId, title: t.title, description: t.description, type: 'test' as const, order: t.order });
-
-    const videosUrl = `${API_BASE_URL}${API_ENDPOINTS.LESSONS.VIDEOS(lessonId)}`;
-    const docsUrl = `${API_BASE_URL}${API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId)}`;
-    const testsUrl = `${API_BASE_URL}${API_ENDPOINTS.LESSONS.TESTS(lessonId)}`;
-
-    logger.info(`[getLessonContents] lessonId: ${lessonId}, type: ${type}`);
-    logger.info(`[getLessonContents] endpoints - videos: ${videosUrl}, docs: ${docsUrl}, tests: ${testsUrl}`);
-
-    const safeRequest = async <T,>(endpoint: string, fallbackData: any) => {
-      try {
-        return await this.request<T>(endpoint);
-      } catch (err: any) {
-        // Log concise message (avoid printing whole HTML error bodies)
-        logger.warn(`[getLessonContents] Request failed for ${endpoint}: ${err?.message || err}`);
-        return { success: false, data: fallbackData } as unknown as T;
+    // Normalize a raw content item to LessonContent regardless of its type
+    const mapContent = (c: any): LessonContent => {
+      if (c.type === 'video') {
+        return { id: c.id, lessonId: c.lessonId, title: c.title, description: c.description, type: 'video' as const, url: c.videoUrl || c.videoPath, videoSource: c.videoSource as 'youtube' | 'vimeo' | 'uploaded' | undefined, videoPath: c.videoPath, duration: c.duration ? String(c.duration) : undefined, order: c.order };
       }
+      if (c.type === 'document') {
+        return { id: c.id, lessonId: c.lessonId, title: c.title, description: c.description, type: 'document' as const, url: c.documentUrl, order: c.order };
+      }
+      return { id: c.id, lessonId: c.lessonId, title: c.title, description: c.description, type: 'test' as const, order: c.order };
     };
 
-    if (type === 'video') {
-      const response = await safeRequest<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId), { videos: [] });
-      return (response?.data?.videos || []).map(mapVideo);
+    // Use the single /contents endpoint to avoid 3 separate requests per lesson (N×3 → N×1)
+    const queryParams = type ? `?type=${type}` : '';
+    const endpoint = `${API_ENDPOINTS.LESSONS.CONTENTS(lessonId)}${queryParams}`;
+
+    logger.info(`[getLessonContents] lessonId: ${lessonId}, type: ${type || 'all'}, endpoint: ${endpoint}`);
+
+    try {
+      const response = await this.request<{ success: boolean; data: { contents: any[] } }>(endpoint);
+      const contents = response?.data?.contents || [];
+      logger.info(`[getLessonContents] Got ${contents.length} contents for lessonId: ${lessonId}`);
+      return contents.map(mapContent);
+    } catch (err: any) {
+      logger.warn(`[getLessonContents] Request failed for ${endpoint}: ${err?.message || err}`);
+      return [];
     }
-
-    if (type === 'document') {
-      const response = await safeRequest<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId), { documents: [] });
-      return (response?.data?.documents || []).map(mapDocument);
-    }
-
-    if (type === 'test') {
-      const response = await safeRequest<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId), { tests: [] });
-      return (response?.data?.tests || []).map(mapTest);
-    }
-
-    // no type: fetch all three in parallel (use safeRequest)
-    const [videosRes, docsRes, testsRes] = await Promise.all([
-      safeRequest<{ success: boolean; data: { videos: any[] } }>(API_ENDPOINTS.LESSONS.VIDEOS(lessonId), { videos: [] }),
-      safeRequest<{ success: boolean; data: { documents: any[] } }>(API_ENDPOINTS.LESSONS.DOCUMENTS(lessonId), { documents: [] }),
-      safeRequest<{ success: boolean; data: { tests: any[] } }>(API_ENDPOINTS.LESSONS.TESTS(lessonId), { tests: [] }),
-    ]);
-
-    logger.info(`[getLessonContents] All responses - Videos: ${(videosRes?.data?.videos || []).length}, Docs: ${(docsRes?.data?.documents || []).length}, Tests: ${(testsRes?.data?.tests || []).length}`);
-
-    const combined = [
-      ...(videosRes?.data?.videos || []).map(mapVideo),
-      ...(docsRes?.data?.documents || []).map(mapDocument),
-      ...(testsRes?.data?.tests || []).map(mapTest),
-    ];
-
-    // sort by order when available
-    combined.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-    return combined;
   }
 
   async getTest(testId: string): Promise<any> {

@@ -37,6 +37,7 @@ import {
   PartnerInstitutionsScreen,
   PartnerDetailScreen,
   DocumentScreen,
+  VideoScreen,
   NotificationsScreen,
 } from '../screens';
 
@@ -145,6 +146,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
             <Stack.Screen name="Test" component={TestScreen} />
             <Stack.Screen name="Document" component={DocumentScreen} />
+            <Stack.Screen name="Video" component={VideoScreen} />
             <Stack.Screen name="BranchDetail" component={BranchDetailScreen} />
             <Stack.Screen name="AllNews" component={AllNewsScreen} />
             <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />

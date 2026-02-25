@@ -1,5 +1,5 @@
 // Course Detail Screen
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,38 +21,87 @@ import { logger } from '../utils/logger';
 import { DetailSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import type { RootStackParamList, Training, Lesson } from '../types';
+import type { RootStackParamList, Training, Lesson, LessonContent } from '../types';
 
 type CourseDetailScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'CourseDetail'>;
   route: RouteProp<RootStackParamList, 'CourseDetail'>;
 };
 
+const BOTTOM_BAR_H = 82;
+
 export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
   navigation,
   route,
 }) => {
   const { trainingId: courseId } = route.params;
+  const { height: screenHeight } = useWindowDimensions();
+
   const [training, setTraining] = useState<Training | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+  const [showFullDesc, setShowFullDesc] = useState(false);
+  const DESCRIPTION_WORD_LIMIT = 40;
 
   // Content/tab state
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [contents, setContents] = useState<any[]>([]);
+  const [contents, setContents] = useState<LessonContent[]>([]);
+  const [allContents, setAllContents] = useState<LessonContent[]>([]);
+  const [lessonAllCache, setLessonAllCache] = useState<Record<string, LessonContent[]>>({});
+  const [lessonContentIdsByLesson, setLessonContentIdsByLesson] = useState<Record<string, string[]>>({});
   const [loadingContents, setLoadingContents] = useState(false);
   const [activeTab, setActiveTab] = useState<'all'|'videos'|'documents'|'tests'>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [stickyHeight, setStickyHeight] = useState(180);
+  const [completedLoaded, setCompletedLoaded] = useState(false);
+  const [didAutoSelectLesson, setDidAutoSelectLesson] = useState(false);
+  const loadRequestRef = useRef(0);
 
-  // Course-scoped storage key to prevent unbounded blob growth
   const storageKey = `@sendika_completed_${courseId}`;
 
+  // Handle completedContentId passed back from TestScreen
   useEffect(() => {
+    const completedContentId = route.params?.completedContentId;
+    if (completedContentId) {
+      markAsCompleted(completedContentId);
+      // Clear the param so it doesn't re-trigger
+      navigation.setParams({ completedContentId: undefined } as any);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.completedContentId]);
+
+  // Memoized progress — evaluated per-lesson, independent of active filter
+  const progress = useMemo(() => {
+    const done = allContents.filter(c => completedItems.has(c.id)).length;
+    const total = allContents.length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const isAllDone = total > 0 && done === total;
+    const isStarted = done > 0 && !isAllDone;
+    return { done, total, pct, isAllDone, isStarted };
+  }, [allContents, completedItems]);
+
+  // Exact min-height: enough to push header off-screen, no excess scroll
+  const contentMinHeight = Math.max(0, screenHeight - stickyHeight - BOTTOM_BAR_H);
+
+  useEffect(() => {
+    // Invalidate any in-flight loadContents calls from previous course
+    loadRequestRef.current += 1;
+    setSelectedLesson(null);
+    setContents([]);
+    setAllContents([]);
+    setLessonAllCache({});
+    setLessonContentIdsByLesson({});
+    setCompletedLoaded(false);
     fetchCourseDetails();
     loadCompletedItems();
+    setDidAutoSelectLesson(false);
   }, [courseId]);
+
+  // hide full desc when training changes
+  useEffect(() => {
+    setShowFullDesc(false);
+  }, [training]);
 
   useEffect(() => {
     // When course + lesson selection changes, load contents for the selected lesson
@@ -60,6 +109,123 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       loadContents(selectedLesson.id, activeTab);
     }
   }, [selectedLesson, activeTab]);
+
+  useEffect(() => {
+    if (lessons.length === 0) return;
+
+    let isMounted = true;
+    const prefetchLessonsInBackground = async () => {
+      try {
+        const missingLessons = lessons.filter((lesson) => !lessonAllCache[lesson.id]);
+        if (missingLessons.length === 0) return;
+
+        const entries = await Promise.all(
+          missingLessons.map(async (lesson) => {
+            const data = await ApiService.getLessonContents(lesson.id);
+            return [lesson.id, data || []] as const;
+          }),
+        );
+
+        if (!isMounted) return;
+        setLessonAllCache((prev) => {
+          const next = { ...prev };
+          for (const [lessonId, data] of entries) {
+            next[lessonId] = data;
+          }
+          return next;
+        });
+        setLessonContentIdsByLesson((prev) => {
+          const next = { ...prev };
+          for (const [lessonId, data] of entries) {
+            next[lessonId] = data.map((item) => item.id);
+          }
+          return next;
+        });
+      } catch (err) {
+        logger.error('Error prefetching lesson contents:', err);
+      }
+    };
+
+    prefetchLessonsInBackground();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [lessons]);
+
+  useEffect(() => {
+    if (!completedLoaded || lessons.length === 0 || didAutoSelectLesson) return;
+
+    let isMounted = true;
+    const pickInitialLesson = async () => {
+      try {
+        // Route param has priority
+        if (route.params.lessonId) {
+          const target = lessons.find((l) => l.id === route.params.lessonId);
+          if (target && isMounted) {
+            setSelectedLesson(target);
+            setDidAutoSelectLesson(true);
+            return;
+          }
+        }
+
+        const localCache = { ...lessonAllCache };
+        const missingLessons = lessons.filter((lesson) => !localCache[lesson.id]);
+
+        if (missingLessons.length > 0) {
+          const fetched = await Promise.all(
+            missingLessons.map(async (lesson) => {
+              const data = await ApiService.getLessonContents(lesson.id);
+              return [lesson.id, data || []] as const;
+            }),
+          );
+
+          for (const [lessonId, data] of fetched) {
+            localCache[lessonId] = data;
+          }
+
+          if (isMounted) {
+            setLessonAllCache((prev) => ({ ...prev, ...Object.fromEntries(fetched) }));
+            setLessonContentIdsByLesson((prev) => ({
+              ...prev,
+              ...Object.fromEntries(fetched.map(([lessonId, data]) => [lessonId, data.map((item) => item.id)])),
+            }));
+          }
+        }
+
+        for (const lesson of lessons) {
+          const data = localCache[lesson.id] || [];
+
+          const total = data.length;
+          const done = data.filter((item) => completedItems.has(item.id)).length;
+          if (total === 0 || done < total) {
+            if (isMounted) {
+              setSelectedLesson(lesson);
+              setDidAutoSelectLesson(true);
+            }
+            return;
+          }
+        }
+
+        if (isMounted) {
+          setSelectedLesson(lessons[0] || null);
+          setDidAutoSelectLesson(true);
+        }
+      } catch (err) {
+        logger.error('Error selecting initial lesson:', err);
+        if (isMounted) {
+          setSelectedLesson(lessons[0] || null);
+          setDidAutoSelectLesson(true);
+        }
+      }
+    };
+
+    pickInitialLesson();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [completedLoaded, lessons, didAutoSelectLesson, completedItems, route.params.lessonId]);
 
   // Navigation focus event - reload completed items when returning from Document/Test
   useEffect(() => {
@@ -78,11 +244,13 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       setTraining(foundTraining || null);
       setLessons(lessonsData || []);
 
-      // Set selected lesson: prefer route param, otherwise first lesson
-      const initialLesson = route.params.lessonId
+      // Immediate selection for better perceived performance
+      const immediateLesson = route.params.lessonId
         ? lessonsData.find((l: Lesson) => l.id === route.params.lessonId)
         : lessonsData[0];
-      setSelectedLesson(initialLesson || null);
+      if (immediateLesson) {
+        setSelectedLesson(immediateLesson);
+      }
     } catch (error) {
       logger.error('Error fetching course details:', error);
       Alert.alert('Hata', 'Eğitim detayları yüklenemedi');
@@ -97,29 +265,49 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
     await fetchCourseDetails();
   }, [courseId]);
 
-  const toggleLesson = useCallback((lessonId: string) => {
-    setExpandedLesson(prev => prev === lessonId ? null : lessonId);
-  }, []);
-
   const loadContents = async (lessonId: string, tab: 'all'|'videos'|'documents'|'tests') => {
+    const requestId = ++loadRequestRef.current;
+
     try {
       setLoadingContents(true);
       logger.info(`Loading contents for lesson ${lessonId}, tab: ${tab}`);
-      if (tab === 'all') {
-        const data = await ApiService.getLessonContents(lessonId);
-        logger.info(`Loaded ${(data || []).length} contents:`, JSON.stringify(data));
-        setContents(data || []);
-      } else {
-        const type: 'video' | 'document' | 'test' = tab === 'videos' ? 'video' : tab === 'documents' ? 'document' : 'test';
-        const data = await ApiService.getLessonContents(lessonId, type);
-        logger.info(`Loaded ${(data || []).length} ${type} contents:`, JSON.stringify(data));
-        setContents(data || []);
+
+      const filterByTab = (items: LessonContent[], currentTab: 'all'|'videos'|'documents'|'tests'): LessonContent[] => {
+        if (currentTab === 'all') return items;
+        if (currentTab === 'videos') return items.filter((item) => item.type === 'video');
+        if (currentTab === 'documents') return items.filter((item) => item.type === 'document');
+        return items.filter((item) => item.type === 'test');
+      };
+
+      // Cache-first per lesson: only one backend request for all tabs of a lesson
+      const allData = lessonAllCache[lessonId] ?? await ApiService.getLessonContents(lessonId);
+
+      // Drop stale response if a newer lesson/tab request already started
+      if (requestId !== loadRequestRef.current) {
+        return;
       }
+
+      if (!lessonAllCache[lessonId]) {
+        setLessonAllCache((prev) => ({ ...prev, [lessonId]: allData || [] }));
+      }
+
+      setAllContents(allData || []);
+      setLessonContentIdsByLesson((prev) => ({
+        ...prev,
+        [lessonId]: (allData || []).map((item) => item.id),
+      }));
+      setContents(filterByTab(allData || [], tab));
     } catch (err) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
       logger.error('Error loading contents:', err);
       setContents([]);
+      setAllContents([]);
     } finally {
-      setLoadingContents(false);
+      if (requestId === loadRequestRef.current) {
+        setLoadingContents(false);
+      }
     }
   };
 
@@ -130,6 +318,7 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         setCompletedItems(new Set(parsed));
+        setCompletedLoaded(true);
         return;
       }
 
@@ -147,6 +336,8 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
       }
     } catch (err) {
       logger.error('Error loading completed items:', err);
+    } finally {
+      setCompletedLoaded(true);
     }
   };
 
@@ -215,221 +406,228 @@ export const CourseDetailScreen: React.FC<CourseDetailScreenProps> = ({
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={lessons.length > 0 ? [1] : undefined}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
       >
-        {/* Header Image */}
-        {training.imageUrl ? (
-          <Image source={{ uri: training.imageUrl }} style={styles.headerImage} />
-        ) : (
-          <LinearGradient
-            colors={['#0f172a', '#312e81', '#4338ca']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.headerImage, styles.placeholderImage]}
-          >
-            <Feather name="book-open" size={56} color="rgba(255,255,255,0.4)" />
-          </LinearGradient>
-        )}
+        {/* 0: Header – scrolls away naturally */}
+        <View>
+          {training.imageUrl ? (
+            <Image source={{ uri: training.imageUrl }} style={styles.headerImage} />
+          ) : (
+            <LinearGradient
+              colors={['#0f172a', '#312e81', '#4338ca']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.headerImage, styles.placeholderImage]}
+            >
+              <Feather name="book-open" size={56} color="rgba(255,255,255,0.4)" />
+            </LinearGradient>
+          )}
 
-        {/* Back Button Overlay */}
-        <TouchableOpacity
-          style={styles.backOverlay}
-          onPress={() => navigation.goBack()}
-        >
-          <Feather name="arrow-left" size={22} color="#ffffff" />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.backOverlay} onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={22} color="#ffffff" />
+          </TouchableOpacity>
 
-        {/* Content */}
-        <View style={styles.content}>
-          <Text style={styles.title}>{training.title}</Text>
-          
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="book" size={18} color="#4338ca" />
-              </View>
-              <Text style={styles.statValue}>{lessons.length}</Text>
-              <Text style={styles.statLabel}>Ders</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="clock" size={18} color="#f59e0b" />
-              </View>
-              <Text style={styles.statValue}>{training.duration || 60}</Text>
-              <Text style={styles.statLabel}>Dakika</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="users" size={18} color="#22c55e" />
-              </View>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Katılımcı</Text>
-            </View>
-          </View>
-
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Açıklama</Text>
-            <Text style={styles.description}>{training.description}</Text>
-          </View>
-
-          {/* Lessons selector + Contents (tabs) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ders İçeriği</Text>
-
-            {lessons.length === 0 ? (
-              <View style={styles.emptyLessons}>
-                <Feather name="inbox" size={32} color="#94a3b8" />
-                <Text style={styles.emptyText}>Henüz ders eklenmemiş</Text>
-              </View>
-            ) : (
+          <View style={styles.content}>
+            <Text style={styles.title}>{training.title}</Text>
+            {training.description ? (
               <>
-                {/* Horizontal lesson selector */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ paddingHorizontal: 2 }}>
-                  {lessons.map((lesson, idx) => (
-                    <TouchableOpacity
-                      key={lesson.id}
-                      onPress={() => { setSelectedLesson(lesson); setActiveTab('all'); }}
-                      style={[styles.lessonSelector, selectedLesson?.id === lesson.id ? styles.lessonSelectorActive : {}]}
-                    >
-                      <Text style={[{ fontWeight: 600 }, selectedLesson?.id === lesson.id ? { color: '#312e81' } : { color: '#0f172a' }]}>{lesson.title}</Text>
-                      <Text style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{lesson.duration || 0} dk</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                {/* Progress bar for selected lesson */}
-                <View style={{ marginBottom: 12 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={{ fontWeight: '600', color: '#0f172a' }}>İçerik</Text>
-                    <Text style={{ color: '#64748b', fontWeight: '700' }}>{contents.length > 0 ? `${Math.round((Array.from(completedItems).length / contents.length) * 100)}%` : '0%'}</Text>
-                  </View>
-                  <View style={{ height: 8, backgroundColor: '#eef2ff', borderRadius: 8, overflow: 'hidden' }}>
-                    <View style={{ height: '100%', backgroundColor: '#4338ca', width: `${contents.length ? Math.round((Array.from(completedItems).length / contents.length) * 100) : 0}%` }} />
-                  </View>
-                </View>
-
-                {/* Tabs */}
-                <View style={styles.tabsRow}>
-                  <TouchableOpacity onPress={() => setActiveTab('all')} style={[styles.tabButton, activeTab === 'all' ? styles.tabButtonActive : {}]}>
-                    <Text style={activeTab === 'all' ? styles.tabTextActive : styles.tabText}>Tümü</Text>
+                <Text style={[styles.description, { marginTop: 12 }]}>
+                  {showFullDesc
+                    ? training.description
+                    : (() => {
+                        const words = training.description.split(' ');
+                        if (words.length <= DESCRIPTION_WORD_LIMIT) return training.description;
+                        return words.slice(0, DESCRIPTION_WORD_LIMIT).join(' ') + '...';
+                      })()}
+                </Text>
+                {training.description.split(' ').length > DESCRIPTION_WORD_LIMIT && (
+                  <TouchableOpacity onPress={() => setShowFullDesc(prev => !prev)}>
+                    <Text style={styles.showMoreText}>
+                      {showFullDesc ? 'Daha az göster' : 'Daha fazla göster'}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('videos')} style={[styles.tabButton, activeTab === 'videos' ? styles.tabButtonActive : {}]}>
-                    <Text style={activeTab === 'videos' ? styles.tabTextActive : styles.tabText}>Videolar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('documents')} style={[styles.tabButton, activeTab === 'documents' ? styles.tabButtonActive : {}]}>
-                    <Text style={activeTab === 'documents' ? styles.tabTextActive : styles.tabText}>Dokümanlar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('tests')} style={[styles.tabButton, activeTab === 'tests' ? styles.tabButtonActive : {}]}>
-                    <Text style={activeTab === 'tests' ? styles.tabTextActive : styles.tabText}>Testler</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Contents list */}
-                {loadingContents ? (
-                  <View style={{ padding: 12, alignItems: 'center' }}>
-                    <ActivityIndicator color="#4338ca" />
-                  </View>
-                ) : contents.length === 0 ? (
-                  <View style={{ padding: 12 }}>
-                    <Text style={{ color: '#64748b' }}>Bu derste henüz içerik bulunmuyor.</Text>
-                  </View>
-                ) : (
-                  contents.map((c) => (
-                    <TouchableOpacity key={c.id} onPress={async () => {
-                      try {
-                        if (c.type === 'test') {
-                          // navigate to Test screen with completion callback
-                          (navigation.navigate as (screen: string, params: object) => void)('Test', { 
-                            testId: c.id,
-                            contentId: c.id,
-                            onComplete: () => markAsCompleted(c.id)
-                          });
-                          return;
-                        }
-
-                        if (c.type === 'document' && c.url) {
-                          // Mark document as completed when opened
-                          await markAsCompleted(c.id);
-                          // open document using WebView-based Document screen
-                          (navigation.navigate as (screen: string, params: object) => void)('Document', { 
-                            url: c.url, 
-                            title: c.title,
-                            contentId: c.id
-                          });
-                          return;
-                        }
-
-                        if (c.url) {
-                          await Linking.openURL(c.url);
-                          // mark as completed when opened
-                          await markAsCompleted(c.id);
-                        } else {
-                          await toggleComplete(c.id);
-                        }
-                      } catch (err) {
-                        logger.error('Failed to open url:', err);
-                      }
-                    }} style={styles.contentItem} activeOpacity={0.8}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' }}>
-                          <Feather name={c.type === 'video' ? 'play' : c.type === 'document' ? 'file-text' : 'clipboard'} size={18} color="#4338ca" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontWeight: '600', color: '#0f172a' }}>{c.title}</Text>
-                          {c.description ? <Text style={{ color: '#64748b', marginTop: 6 }}>{c.description}</Text> : null}
-                        </View>
-                        <View style={{ marginLeft: 12 }}>
-                          {completedItems.has(c.id) ? <Feather name="check-circle" size={20} color="#16a34a" /> : <Feather name="circle" size={20} color="#94a3b8" />}
-                        </View>
-                      </View>
-
-                      {/* Action row */}
-                      {c.type === 'video' && c.url && (
-                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 12, color: '#64748b' }}>Video dersi başlat</Text>
-                          <Feather name="play" size={16} color="#4338ca" />
-                        </View>
-                      )}
-
-                      {c.type === 'document' && c.url && (
-                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 12, color: '#64748b' }}>Dokümanı görüntüle</Text>
-                          <Feather name="download" size={16} color="#059669" />
-                        </View>
-                      )}
-
-                      {c.type === 'test' && (
-                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 12, color: '#64748b' }}>Testi başlat</Text>
-                          <Feather name="arrow-right" size={16} color="#b45309" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))
                 )}
               </>
-            )}
+            ) : null}
           </View>
+        </View>
+
+        {/* 1: Sticky – lesson selector + progress + tabs */}
+        {lessons.length === 0 ? (
+          <View style={styles.emptyLessons}>
+            <Feather name="inbox" size={32} color="#94a3b8" />
+            <Text style={styles.emptyText}>Henüz ders eklenmemiş</Text>
+          </View>
+        ) : (
+          <View style={styles.stickySection} onLayout={(e) => setStickyHeight(e.nativeEvent.layout.height)}>
+            {/* Horizontal lesson selector */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}
+            >
+              {lessons.map((lesson) => {
+                const lessonIds = lessonContentIdsByLesson[lesson.id] || [];
+                const total = lessonIds.length;
+                const done = lessonIds.filter((id) => completedItems.has(id)).length;
+                const isLessonDone = total > 0 && done === total;
+                const isSelected = selectedLesson?.id === lesson.id;
+
+                return (
+                  <TouchableOpacity
+                    key={lesson.id}
+                    onPress={() => { setSelectedLesson(lesson); setActiveTab('all'); }}
+                    style={[styles.lessonSelector, isSelected ? styles.lessonSelectorActive : {}]}
+                  >
+                    <View style={styles.lessonTitleRow}>
+                      <Text style={[styles.lessonTitleText, isSelected ? styles.lessonTitleTextActive : null]} numberOfLines={1}>
+                        {lesson.title}
+                      </Text>
+                      {isLessonDone ? <Feather name="check-circle" size={14} color="#16a34a" /> : null}
+                    </View>
+                    <Text style={styles.lessonMetaText}>{total} içerik</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Progress bar */}
+            <View style={styles.progressSection}>
+              <View style={styles.progressRow}>
+                <Text style={styles.progressLabel}>İçerik</Text>
+                <Text style={styles.progressPct}>{progress.pct}%</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress.pct}%` }]} />
+              </View>
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabsRow}>
+              {(['all', 'videos', 'documents', 'tests'] as const).map((tab) => {
+                const labels = { all: 'Tümü', videos: 'Videolar', documents: 'Dokümanlar', tests: 'Testler' };
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    onPress={() => setActiveTab(tab)}
+                    style={[styles.tabButton, activeTab === tab ? styles.tabButtonActive : {}]}
+                  >
+                    <Text style={activeTab === tab ? styles.tabTextActive : styles.tabText}>{labels[tab]}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* 2: Content list – scrolls */}
+        <View style={[styles.contentListSection, lessons.length > 0 && { minHeight: contentMinHeight }]}>
+          {loadingContents ? (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <ActivityIndicator color="#4338ca" />
+            </View>
+          ) : contents.length === 0 ? (
+            <View style={{ padding: 24 }}>
+              <Text style={{ color: '#64748b' }}>Bu derste henüz içerik bulunmuyor.</Text>
+            </View>
+          ) : (
+            contents.map((c: LessonContent) => (
+              <TouchableOpacity key={c.id} onPress={async () => {
+                try {
+                  if (c.type === 'test') {
+                    (navigation.navigate as (screen: string, params: object) => void)('Test', {
+                      testId: c.id, contentId: c.id,
+                      trainingId: courseId,
+                      lessonId: selectedLesson?.id,
+                    });
+                    return;
+                  }
+                  if (c.type === 'document' && c.url) {
+                    await markAsCompleted(c.id);
+                    (navigation.navigate as (screen: string, params: object) => void)('Document', {
+                      url: c.url, title: c.title, contentId: c.id
+                    });
+                    return;
+                  }
+                  if (c.type === 'video' && (c.url || c.videoPath)) {
+                    await markAsCompleted(c.id);
+                    (navigation.navigate as (screen: string, params: object) => void)('Video', {
+                      url: c.url || c.videoPath, videoSource: c.videoSource,
+                      title: c.title, contentId: c.id
+                    });
+                    return;
+                  }
+                  await toggleComplete(c.id);
+                } catch (err) {
+                  logger.error('Failed to open content:', err);
+                }
+              }} style={styles.contentItem} activeOpacity={0.8}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' }}>
+                    <Feather name={c.type === 'video' ? 'play' : c.type === 'document' ? 'file-text' : 'clipboard'} size={18} color="#4338ca" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '600', color: '#0f172a' }}>{c.title}</Text>
+                    {c.description ? <Text style={{ color: '#64748b', marginTop: 6 }}>{c.description}</Text> : null}
+                  </View>
+                  <View style={{ marginLeft: 12 }}>
+                    {completedItems.has(c.id) ? <Feather name="check-circle" size={20} color="#16a34a" /> : <Feather name="circle" size={20} color="#94a3b8" />}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
 
-      {/* Start Button */}
+      {/* Bottom bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.startButton} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.startButton}
+          activeOpacity={progress.isAllDone ? 1 : 0.8}
+          onPress={() => {
+            if (progress.isAllDone) return;
+            const first = progress.isStarted
+              ? allContents.find(c => !completedItems.has(c.id))
+              : allContents[0];
+            if (!first) return;
+            if (first.type === 'test') {
+              (navigation.navigate as (screen: string, params: object) => void)('Test', {
+                testId: first.id, contentId: first.id,
+                trainingId: courseId,
+                lessonId: selectedLesson?.id,
+              });
+            } else if (first.type === 'document' && first.url) {
+              markAsCompleted(first.id);
+              (navigation.navigate as (screen: string, params: object) => void)('Document', {
+                url: first.url, title: first.title, contentId: first.id
+              });
+            } else if (first.type === 'video' && (first.url || first.videoPath)) {
+              markAsCompleted(first.id);
+              (navigation.navigate as (screen: string, params: object) => void)('Video', {
+                url: first.url || first.videoPath, videoSource: first.videoSource,
+                title: first.title, contentId: first.id
+              });
+            }
+          }}
+        >
           <LinearGradient
-            colors={['#4338ca', '#1e40af']}
+            colors={progress.isAllDone ? ['#16a34a', '#15803d'] : progress.isStarted ? ['#ea580c', '#c2410c'] : ['#4338ca', '#1e40af']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.startButtonGradient}
           >
-            <Feather name="play" size={20} color="#ffffff" />
-            <Text style={styles.startButtonText}>Eğitime Başla</Text>
+            <Feather
+              name={progress.isAllDone ? 'check-circle' : progress.isStarted ? 'pause-circle' : 'play'}
+              size={20}
+              color="#ffffff"
+            />
+            <Text style={styles.startButtonText}>
+              {progress.isAllDone ? 'Tamamlandı' : progress.isStarted ? 'Eğitime Devam Et' : 'Eğitime Başla'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -441,11 +639,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
@@ -517,61 +710,59 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 32,
   },
-  statsContainer: {
-    flexDirection: 'row',
+  stickySection: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
+  progressSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 8,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
+  progressLabel: {
     fontWeight: '600',
     color: '#0f172a',
-    marginBottom: 12,
+  },
+  progressPct: {
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 8,
+    backgroundColor: '#eef2ff',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4338ca',
+  },
+  contentListSection: {
+    padding: 16,
+    paddingBottom: 32,
   },
   description: {
     fontSize: 14,
     color: '#64748b',
     lineHeight: 22,
   },
-  /* New styles */
+  showMoreText: {
+    color: '#4338ca',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+    marginBottom: 12,
+  },
   lessonSelector: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -579,6 +770,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 8,
     minWidth: 120,
+  },
+  lessonTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  lessonTitleText: {
+    flex: 1,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  lessonTitleTextActive: {
+    color: '#312e81',
+  },
+  lessonMetaText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
   lessonSelectorActive: {
     backgroundColor: '#eef2ff',
@@ -588,7 +797,9 @@ const styles = StyleSheet.create({
   tabsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexWrap: 'wrap',
   },
   tabButton: {
     paddingHorizontal: 12,
@@ -615,69 +826,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 10,
-  },
-  lessonCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  lessonCardExpanded: {
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  lessonHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-  },
-  lessonNumber: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  lessonNumberText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  lessonInfo: {
-    flex: 1,
-  },
-  lessonTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  lessonMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 4,
-  },
-  lessonDuration: {
-    fontSize: 12,
-    color: '#94a3b8',
-  },
-  lessonContent: {
-    padding: 14,
-    paddingTop: 0,
-    backgroundColor: '#f8fafc',
-  },
-  lessonContentText: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 20,
   },
   emptyLessons: {
     padding: 32,

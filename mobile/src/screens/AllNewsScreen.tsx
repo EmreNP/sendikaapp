@@ -1,5 +1,5 @@
 // All News Screen
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +28,13 @@ type AllNewsScreenProps = {
 };
 
 export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const SLIDER_HEIGHT = Math.round(screenWidth * 0.52);
   const [news, setNews] = useState<News[]>([]);
+  const [featuredNews, setFeaturedNews] = useState<News[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const sliderRef = useRef<FlatList>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,12 +47,28 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
     fetchNews();
   }, []);
 
+  useEffect(() => {
+    if (featuredNews.length <= 1) return;
+    const interval = setInterval(() => {
+      const next = (currentSlide + 1) % featuredNews.length;
+      setCurrentSlide(next);
+      sliderRef.current?.scrollToOffset({ offset: next * (screenWidth - 32), animated: true });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [currentSlide, featuredNews.length]);
+
   const fetchNews = async (pageNum = 1) => {
     try {
       if (pageNum === 1) setErrorMessage(null);
-      const { items, total, hasMore: more } = await ApiService.getNews({ page: pageNum, limit: PAGE_LIMIT });
+      const [{ items, hasMore: more }, featuredData] = await Promise.all([
+        ApiService.getNews({ page: pageNum, limit: PAGE_LIMIT }),
+        pageNum === 1
+          ? ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => ({ items: [] }))
+          : Promise.resolve({ items: featuredNews }),
+      ]);
       if (pageNum === 1) {
         setNews(items);
+        setFeaturedNews(featuredData.items.length > 0 ? featuredData.items : items.slice(0, 3));
       } else {
         setNews(prev => [...prev, ...items]);
       }
@@ -83,49 +107,74 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
     });
   };
 
-  const renderNewsItem = useCallback(({ item, index }: { item: News; index: number }) => {
-    const isFeature = index === 0;
-    
-    if (isFeature) {
-      return (
-        <TouchableOpacity
-          style={styles.featuredCard}
-          onPress={() => navigation.navigate('NewsDetail', { newsId: item.id })}
-          activeOpacity={0.8}
-        >
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.featuredImage} />
-          ) : (
-            <LinearGradient
-              colors={['#4338ca', '#1e40af']}
-              style={[styles.featuredImage, styles.placeholderImage]}
-            >
-              <Feather name="file-text" size={48} color="rgba(255,255,255,0.6)" />
-            </LinearGradient>
-          )}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.featuredOverlay}
-          >
-            <LinearGradient
-              colors={['#4338ca', '#1e40af']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.featuredBadge}
-            >
-              <Feather name="star" size={10} color="#ffffff" />
-              <Text style={styles.featuredBadgeText}>ÖNE ÇIKAN</Text>
-            </LinearGradient>
-            <Text style={styles.featuredTitle} numberOfLines={2}>{item.title}</Text>
-            <View style={styles.featuredMeta}>
-              <Feather name="calendar" size={12} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.featuredDate}>{formatDate(item.createdAt || '')}</Text>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      );
-    }
+  const renderSliderItem = useCallback(({ item }: { item: News }) => (
+    <TouchableOpacity
+      style={[styles.slideContainer, { width: screenWidth - 32, height: SLIDER_HEIGHT }]}
+      onPress={() => navigation.navigate('NewsDetail', { newsId: item.id })}
+      activeOpacity={0.9}
+    >
+      {item.imageUrl ? (
+        <Image source={{ uri: item.imageUrl }} style={styles.slideImage} contentFit="cover" />
+      ) : (
+        <LinearGradient colors={['#1e3a8a', '#4338ca']} style={styles.slideImage} />
+      )}
+      <LinearGradient
+        colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.88)']}
+        locations={[0, 0.38, 0.72, 1]}
+        style={styles.slideOverlay}
+      />
+      <View style={styles.slideTextContainer}>
+        <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
+      </View>
+    </TouchableOpacity>
+  ), [screenWidth, SLIDER_HEIGHT, navigation]);
 
+  const renderPagination = () => (
+    <View style={styles.pagination}>
+      {featuredNews.map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.paginationDot,
+            currentSlide === index && styles.paginationDotActive,
+          ]}
+        />
+      ))}
+    </View>
+  );
+
+  const renderSlider = () => {
+    if (featuredNews.length === 0) return null;
+    return (
+      <>
+        <View style={styles.sliderWrapper}>
+          <View style={[styles.sliderContainer, { height: SLIDER_HEIGHT }]}>
+            <FlatList
+              ref={sliderRef}
+              data={featuredNews}
+              renderItem={renderSliderItem}
+              keyExtractor={(item) => `slider-${item.id}`}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              removeClippedSubviews={true}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: false }
+              )}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 32));
+                setCurrentSlide(index);
+              }}
+            />
+            {renderPagination()}
+          </View>
+        </View>
+      </>
+    );
+  };
+
+  const renderNewsItem = useCallback(({ item }: { item: News }) => {
     return (
       <TouchableOpacity
         style={styles.newsCard}
@@ -133,7 +182,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         activeOpacity={0.7}
       >
         {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.newsImage} />
+          <Image source={{ uri: item.imageUrl }} style={styles.newsImage} contentFit="cover" />
         ) : (
           <LinearGradient
             colors={['#4338ca', '#312e81']}
@@ -213,6 +262,7 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
         windowSize={5}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
+        ListHeaderComponent={renderSlider}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4338ca']} />
         }
@@ -283,65 +333,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  featuredCard: {
-    borderRadius: 20,
+  sliderWrapper: {
+    paddingHorizontal: 0,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  sliderContainer: {
+    borderRadius: 18,
     overflow: 'hidden',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#0f172a',
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 8,
   },
-  featuredImage: {
+  slideContainer: {
+    flex: 1,
+  },
+  slideImage: {
     width: '100%',
-    height: 220,
-    resizeMode: 'cover',
+    height: '100%',
   },
-  placeholderImage: {
-    justifyContent: 'center',
-    alignItems: 'center',
+  slideOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  featuredOverlay: {
+  slideTextContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
-    paddingTop: 60,
+    padding: 16,
+    paddingBottom: 36,
   },
-  featuredBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-    gap: 4,
-  },
-  featuredBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  featuredTitle: {
+  slideTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
     lineHeight: 24,
   },
-  featuredMeta: {
+  pagination: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
   },
-  featuredDate: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#ffffff',
+    width: 20,
   },
   newsCard: {
     flexDirection: 'row',
@@ -358,7 +416,6 @@ const styles = StyleSheet.create({
   newsImage: {
     width: 110,
     height: 100,
-    resizeMode: 'cover',
   },
   smallPlaceholder: {
     justifyContent: 'center',

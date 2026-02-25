@@ -24,8 +24,8 @@ service cloud.firestore {
     
     // Config collection (app version, maintenance mode vb.)
     match /config/{configId} {
-      // Okuma: Tüm authenticated kullanıcılar sürüm bilgilerini okuyabilir
-      allow read: if isAuthenticated();
+      // Okuma: Herkes sürüm bilgilerini okuyabilir (Login öncesi kontrol için gereklidir)
+      allow read: if true;
       
       // Yazma: Sadece server-side (admin SDK)
       allow create, update, delete: if false;

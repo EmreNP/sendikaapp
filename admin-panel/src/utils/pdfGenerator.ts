@@ -418,16 +418,17 @@ async function fillTemplatePDF(
   };
 
   // ── Default values ──
-  // İstifa formu için kullanıcı isteğiyle bu alanlar artık otomatik doldurulmuyor:
-  // sendikaadress, kurumname/kurumunadi, gybname, gybadress, ilname, ilkodu
+  // Ortak olarak her iki form için doldurulan alanlar
+  setField('ilname', 'Konya');
+  setField('ilkodu', '42');
+  setField('kurumname', 'Diyanet');
+  setField('gybname', 'Müftülük');
+  setField('gybadress', userData.district || '');
+
+  // Sadece kayıt formunda ek olarak sendika adresini veriyoruz
   if (!isIstifaTemplate) {
-    setField('ilname', 'Konya');
-    setField('ilkodu', '42');
     setField('sendikaadress', 'Cebeci - Ankara');
-    setField('kurumname', 'Diyanet');
     setField('kurumunadi', 'Diyanet');
-    setField('gybname', 'Müftülük');
-    setField('gybadress', userData.district || '');
   }
 
   // ── User personal info ──
@@ -442,10 +443,8 @@ async function fillTemplatePDF(
   setField('dy', userData.birthPlace || '');
 
   // ── Work / position info ──
-  // İstifa formu için ilçe alanı otomatik doldurulmasın
-  if (!isIstifaTemplate) {
-    setField('ilcename', userData.district || '');
-  }
+  // İlçe alanı her iki formda da doldurulsun
+  setField('ilcename', userData.district || '');
   setField('kurumsicil', userData.kurumSicil || '');
   setField('kadrounvan', userData.kadroUnvani || '');
 
@@ -499,7 +498,9 @@ export async function generateMergedRegistrationPDF(
       mergedDoc.addPage(page);
     }
 
-    const pdfBytes = await mergedDoc.save();
+    // Keep existing field appearances from source docs.
+    // Re-generating appearances here can distort comb-field text sizing on istifa form.
+    const pdfBytes = await mergedDoc.save({ updateFieldAppearances: false });
     const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 

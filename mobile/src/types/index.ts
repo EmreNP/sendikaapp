@@ -49,11 +49,37 @@ export interface LessonContent {
   description?: string;
   type: 'video' | 'document' | 'test' | 'text';
   url?: string;
+  videoSource?: 'youtube' | 'vimeo' | 'uploaded';
+  videoPath?: string;
   duration?: string; // e.g., "5:20" or seconds
   isActive?: boolean;
   order?: number;
   createdAt?: string;
-} 
+}
+
+export interface TestOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface TestQuestion {
+  id: string;
+  question: string;
+  options: TestOption[];
+  explanation?: string;
+}
+
+export interface TestContentDetail {
+  id: string;
+  lessonId: string;
+  title: string;
+  description?: string;
+  questions: TestQuestion[];
+  timeLimit?: number;
+  isActive?: boolean;
+  order?: number;
+}
 
 export interface Branch {
   id: string;
@@ -163,10 +189,11 @@ export type RootStackParamList = {
   EditProfile: undefined;
   PendingApproval: undefined;
   Rejected: undefined;
-  CourseDetail: { trainingId: string; lessonId?: string };
-  Test: { testId: string };
+  CourseDetail: { trainingId: string; lessonId?: string; completedContentId?: string };
+  Test: { testId: string; contentId?: string; trainingId?: string; lessonId?: string };
   PDFViewer: { url: string; title?: string };
   Document: { url: string; title?: string };
+  Video: { url: string; videoSource?: string; title?: string; contentId?: string };
   BranchDetail: { branchId: string };
   NewsDetail: { newsId: string };
   AllAnnouncements: undefined;

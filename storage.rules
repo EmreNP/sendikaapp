@@ -25,6 +25,24 @@ service firebase.storage {
       allow write: if isAdmin();
     }
     
+    // Lesson documents - public read (course materials, made public on upload)
+    match /lesson-documents/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Lesson videos - public read (made public on upload)
+    match /lesson-videos/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Videos (uploaded via file upload service) - public read
+    match /videos/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Default: deny all other access
     match /{allPaths=**} {
       allow read, write: if false;

@@ -13,9 +13,8 @@ export async function generateSignedUrl(
   expiresInDays: number = 7
 ): Promise<string> {
   try {
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
-    const bucket = bucketName ? storage.bucket(bucketName) : storage.bucket();
-    
+    // Always use the default bucket (already configured in admin.initializeApp)
+    const bucket = storage.bucket();
     const file = bucket.file(storagePath);
     
     // Check if file exists
@@ -59,6 +58,9 @@ export async function generateSignedUrls(
  * @returns The public URL
  */
 export function generatePublicUrl(storagePath: string): string {
-  const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'default-bucket';
+  // Use the bucket name from the already-initialized Admin SDK (avoids wrong fallback)
+  const bucketName = storage.bucket().name ||
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    'sendikaapp.firebasestorage.app';
   return `https://storage.googleapis.com/${bucketName}/${storagePath}`;
 }

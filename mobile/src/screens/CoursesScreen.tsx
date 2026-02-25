@@ -9,8 +9,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +22,6 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList, Training } from '../types';
 
-const { width } = Dimensions.get('window');
 
 type CoursesScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Courses'>,
@@ -94,69 +91,6 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_LIMIT = 25;
 
-  // Accordion / lessons state per training
-  const [expandedTrainingId, setExpandedTrainingId] = useState<string | null>(null);
-  const [lessonsMap, setLessonsMap] = useState<Record<string, any[]>>({});
-  const [loadingLessons, setLoadingLessons] = useState<string | null>(null);
-  
-  // lessonsMap'e ref olarak erişim için
-  const lessonsMapRef = React.useRef<Record<string, any[]>>({});
-  lessonsMapRef.current = lessonsMap;
-
-  const loadLessons = useCallback(async (trainingId: string) => {
-    // Ref üzerinden senkron kontrol yap
-    if (lessonsMapRef.current[trainingId]) {
-      logger.info(`[loadLessons] Already loaded for training: ${trainingId}`);
-      return;
-    }
-    
-    try {
-      setLoadingLessons(trainingId);
-      logger.info(`[loadLessons] Fetching lessons for training: ${trainingId}`);
-      const lessons = await ApiService.getLessons(trainingId);
-      logger.info(`[loadLessons] Got ${lessons?.length || 0} lessons:`, JSON.stringify(lessons));
-      
-      // Lessons boş ise hemen set et ve çık
-      if (!lessons || lessons.length === 0) {
-        logger.warn(`[loadLessons] No lessons found for training: ${trainingId}`);
-        setLessonsMap(prev => ({ ...prev, [trainingId]: [] }));
-        setLoadingLessons(null);
-        return;
-      }
-      
-      // Her lesson için içerik sayılarını hesapla - tek API çağrısı ile (all)
-      const lessonsWithCounts = await Promise.all(
-        lessons.map(async (lesson: any) => {
-          try {
-            // Tek çağrıda tüm içerikleri al, type'a göre say
-            const allContents = await ApiService.getLessonContents(lesson.id).catch(() => []);
-            
-            return {
-              ...lesson,
-              videoCount: allContents.filter((c: any) => c.type === 'video').length,
-              documentCount: allContents.filter((c: any) => c.type === 'document').length,
-              testCount: allContents.filter((c: any) => c.type === 'test').length,
-            };
-          } catch (err) {
-            logger.error(`Error loading contents for lesson ${lesson.id}:`, err);
-            return {
-              ...lesson,
-              videoCount: 0,
-              documentCount: 0,
-              testCount: 0,
-            };
-          }
-        })
-      );
-      
-      setLessonsMap(prev => ({ ...prev, [trainingId]: lessonsWithCounts }));
-    } catch (err) {
-      logger.error('Error loading lessons:', err);
-      Alert.alert('Hata', getUserFriendlyErrorMessage(err, 'Dersler yüklenemedi.'));
-    } finally {
-      setLoadingLessons(null);
-    }
-  }, []);
 
   useEffect(() => {
     if (canAccessTrainings) {
@@ -165,6 +99,8 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
       setLoading(false);
     }
   }, [canAccessTrainings]);
+
+  const keyExtractor = useCallback((item: Training) => item.id, []);
 
   const fetchTrainings = async (pageNum = 1) => {
     try {
@@ -206,275 +142,43 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
 
 
 
-  const keyExtractor = useCallback((item: Training) => item.id, []);
-
-
   const renderTrainingItem = useCallback(({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
-    const isExpanded = expandedTrainingId === item.id;
-    const lessons = lessonsMap[item.id] || [];
-    const isLoadingThisLessons = loadingLessons === item.id;
     const icon = getTrainingIcon(item.title);
 
-    // Gerçek değerler - API'den gelen lessons sayısı
-    const totalLessons = lessons.length > 0 ? lessons.length : 0;
-    
-    // Her ders için video, döküman ve test sayılarını hesapla
-    const calculateProgress = () => {
-      if (lessons.length === 0) return { completed: 0, total: 0, percent: 0, videoCount: 0, docCount: 0, testCount: 0 };
-      
-      let totalVideos = 0;
-      let totalDocs = 0;
-      let totalTests = 0;
-      let completedItems = 0;
-      let totalItems = 0;
-
-      lessons.forEach((lesson: any) => {
-        // loadLessons fonksiyonunda zaten hesapladık, direkt kullan
-        const lessonVideos = lesson.videoCount || 0;
-        const lessonDocs = lesson.documentCount || 0;
-        const lessonTests = lesson.testCount || 0;
-        
-        totalVideos += lessonVideos;
-        totalDocs += lessonDocs;
-        totalTests += lessonTests;
-        
-        const lessonItems = lessonVideos + lessonDocs + lessonTests;
-        totalItems += lessonItems;
-        
-        // Eğer lesson completed bilgisi varsa kullan
-        if (lesson.completed || lesson.progress === 100) {
-          completedItems += lessonItems;
-        } else if (lesson.progress) {
-          completedItems += Math.floor((lessonItems * lesson.progress) / 100);
-        }
-      });
-
-      const progressPercent = totalItems > 0 ? Math.floor((completedItems / totalItems) * 100) : 0;
-      
-      return {
-        completed: completedItems,
-        total: totalItems,
-        percent: progressPercent,
-        videoCount: totalVideos,
-        docCount: totalDocs,
-        testCount: totalTests
-      };
-    };
-
-    const stats = calculateProgress();
-
     return (
-      <View style={styles.trainingCard}>
-        {/* Training Header - Clickable */}
-        <TouchableOpacity
-          style={styles.trainingHeader}
-          onPress={() => {
-            if (isExpanded) {
-              setExpandedTrainingId(null);
-            } else {
-              setExpandedTrainingId(item.id);
-              loadLessons(item.id);
-            }
-          }}
-          activeOpacity={0.7}
+      <TouchableOpacity
+        style={styles.trainingCard}
+        onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id })}
+        activeOpacity={0.7}
+      >
+        <LinearGradient
+          colors={palette.gradient as [string, string]}
+          style={styles.iconContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          {/* Icon Container */}
-          <LinearGradient
-            colors={palette.gradient as [string, string]}
-            style={styles.iconContainer}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Feather name={icon as keyof typeof Feather.glyphMap} size={28} color="#ffffff" />
-          </LinearGradient>
+          <Feather name={icon as keyof typeof Feather.glyphMap} size={28} color="#ffffff" />
+        </LinearGradient>
 
-          {/* Content */}
-          <View style={styles.trainingContent}>
-            <Text style={styles.trainingTitle} numberOfLines={2}>
-              {item.title}
+        <View style={styles.trainingContent}>
+          <Text style={styles.trainingTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          {item.description && (
+            <Text style={styles.trainingDescription} numberOfLines={2}>
+              {item.description}
             </Text>
-            {item.description && (
-              <Text style={styles.trainingDescription} numberOfLines={2}>
-                {item.description}
-              </Text>
-            )}
-            
-            {/* İstatistikler Satırı */}
-            <View style={styles.trainingStats}>
-              {totalLessons > 0 && (
-                <Text style={styles.categoryText}>{totalLessons} alt kategori</Text>
-              )}
-              {isExpanded && stats.total > 0 && (
-                <>
-                  <Text style={styles.statsDivider}>•</Text>
-                  <View style={styles.statsRow}>
-                    <Feather name="play-circle" size={12} color="#64748b" />
-                    <Text style={styles.statsText}>{stats.videoCount} video</Text>
-                  </View>
-                  <View style={styles.statsRow}>
-                    <Feather name="file-text" size={12} color="#64748b" />
-                    <Text style={styles.statsText}>{stats.docCount} döküman</Text>
-                  </View>
-                  <View style={styles.statsRow}>
-                    <Feather name="clipboard" size={12} color="#64748b" />
-                    <Text style={styles.statsText}>{stats.testCount} test</Text>
-                  </View>
-                </>
-              )}
-            </View>
-            
-            {/* Progress Bar - Sadece expanded olduğunda */}
-            {isExpanded && stats.total > 0 && (
-              <View style={styles.trainingProgressContainer}>
-                <View style={styles.progressBarBg}>
-                  <View 
-                    style={[
-                      styles.progressBarFill, 
-                      { 
-                        width: `${stats.percent}%`,
-                        backgroundColor: stats.percent >= 65 ? '#f59e0b' : stats.percent > 0 ? '#ef4444' : '#e2e8f0'
-                      }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.trainingProgressText}>
-                  {stats.percent > 0 ? (
-                    <>
-                      <Feather name="award" size={11} color="#2563eb" /> %{stats.percent} Tamamlandı
-                    </>
-                  ) : (
-                    <>
-                      <Feather name="circle" size={11} color="#94a3b8" /> Başlanmadı
-                    </>
-                  )}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Chevron */}
-          {isLoadingThisLessons ? (
-            <ActivityIndicator size="small" color="#94a3b8" style={styles.chevron} />
-          ) : (
-            <Feather
-              name="chevron-down"
-              size={20}
-              color="#94a3b8"
-              style={[
-                styles.chevron,
-                { transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] },
-              ]}
-            />
           )}
-        </TouchableOpacity>
+          {item.lessonsCount != null && item.lessonsCount > 0 && (
+            <Text style={styles.categoryText}>{item.lessonsCount} ders</Text>
+          )}
+        </View>
 
-        {/* Lessons Accordion */}
-        {isExpanded && (
-          <View style={styles.lessonsContainer}>
-            {isLoadingThisLessons ? (
-              <View style={styles.lessonsLoading}>
-                <ActivityIndicator size="small" color={palette.text} />
-                <Text style={[styles.lessonsLoadingText, { color: palette.text }]}>
-                  Dersler yükleniyor...
-                </Text>
-              </View>
-            ) : lessons.length === 0 ? (
-              <View style={styles.lessonsEmpty}>
-                <Text style={styles.lessonsEmptyText}>
-                  Bu eğitimde henüz ders bulunmuyor.
-                </Text>
-              </View>
-            ) : (
-              lessons.map((lesson, lessonIndex) => {
-                // loadLessons'da hesapladığımız sayıları direkt kullan
-                const videoCount = lesson.videoCount || 0;
-                const docCount = lesson.documentCount || 0;
-                const testCount = lesson.testCount || 0;
-                
-                // Progress hesaplama
-                const lessonProgress = lesson.progress || 0;
-                const completed = lesson.completed || lessonProgress === 100;
-                const progressPercent = lessonProgress;
-                
-                return (
-                  <TouchableOpacity
-                    key={lesson.id}
-                    onPress={() => navigation.navigate('CourseDetail', { trainingId: item.id, lessonId: lesson.id })}
-                    style={styles.lessonCard}
-                    activeOpacity={0.7}
-                  >
-                    {/* Orta: İçerik */}
-                    <View style={styles.lessonMainContent}>
-                      <Text style={styles.lessonCardTitle} numberOfLines={2}>
-                        {lesson.title}
-                      </Text>
-                      {lesson.description && (
-                        <Text style={styles.lessonCardDescription} numberOfLines={1}>
-                          {lesson.description}
-                        </Text>
-                      )}
-                      
-                      {/* İkon Satırı */}
-                      <View style={styles.lessonMeta}>
-                        <View style={styles.metaItem}>
-                          <Feather name="play-circle" size={14} color="#64748b" />
-                          <Text style={styles.metaText}>{videoCount} video</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Feather name="file-text" size={14} color="#64748b" />
-                          <Text style={styles.metaText}>{docCount} döküman</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Feather name="clipboard" size={14} color="#64748b" />
-                          <Text style={styles.metaText}>{testCount} test</Text>
-                        </View>
-                      </View>
-
-                      {/* Progress Bar */}
-                      <View style={styles.progressBarContainer}>
-                        <View style={styles.progressBarBg}>
-                          <View 
-                            style={[
-                              styles.progressBarFill, 
-                              { 
-                                width: `${progressPercent}%`,
-                                backgroundColor: progressPercent >= 65 ? '#f59e0b' : progressPercent > 0 ? '#ef4444' : '#e2e8f0'
-                              }
-                            ]} 
-                          />
-                        </View>
-                        <Text style={styles.progressText}>
-                          {progressPercent > 0 ? (
-                            <>
-                              <Feather name="award" size={11} color="#2563eb" /> %{progressPercent} Tamamlandı
-                            </>
-                          ) : (
-                            <>
-                              <Feather name="circle" size={11} color="#94a3b8" /> Başlanmadı
-                            </>
-                          )}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Sağ: Chevron - lesson'ın durumuna göre ikon */}
-                    {completed ? (
-                      <View style={styles.completedBadge}>
-                        <Feather name="check-circle" size={20} color="#10b981" />
-                      </View>
-                    ) : (
-                      <Feather name="chevron-right" size={20} color="#cbd5e1" />
-                    )}
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
-        )}
-      </View>
+        <Feather name="chevron-right" size={20} color="#94a3b8" />
+      </TouchableOpacity>
     );
-  }, [expandedTrainingId, lessonsMap, loadingLessons, navigation, loadLessons]);
+  }, [navigation]);
 
   if (!canAccessTrainings) {
     return (
@@ -636,10 +340,14 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   trainingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
+    padding: 16,
+    gap: 12,
     shadowColor: '#1e40af',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -647,12 +355,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-  },
-  trainingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
   },
   iconContainer: {
     width: 64,
@@ -670,36 +372,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 6,
   },
-  trainingStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statsText: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  statsDivider: {
-    fontSize: 12,
-    color: '#cbd5e1',
-    marginHorizontal: 4,
-  },
-  trainingProgressContainer: {
-    gap: 6,
-    marginTop: 8,
-  },
-  trainingProgressText: {
-    fontSize: 11,
-    color: '#2563eb',
-    fontWeight: '600',
-  },
   categoryText: {
     fontSize: 12,
     color: '#64748b',
@@ -714,105 +386,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     lineHeight: 20,
-  },
-  chevron: {
-    marginLeft: 8,
-  },
-  lessonsContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    padding: 12,
-  },
-  lessonsLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  lessonsLoadingText: {
-    fontSize: 14,
-  },
-  lessonsEmpty: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  lessonsEmptyText: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  lessonCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  lessonMainContent: {
-    flex: 1,
-    gap: 8,
-  },
-  lessonCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    lineHeight: 22,
-  },
-  lessonCardDescription: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
-  },
-  completedBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#d1fae5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  lessonMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 4,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  progressBarContainer: {
-    gap: 6,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 11,
-    color: '#2563eb',
-    fontWeight: '600',
   },
   lockedContainer: {
     flex: 1,
