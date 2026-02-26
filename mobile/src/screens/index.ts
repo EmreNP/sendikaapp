@@ -26,3 +26,4 @@ export { TestScreen } from './TestScreen';
 export { NotificationsScreen } from './NotificationsScreen';
 export { DocumentScreen } from './DocumentScreen';
 export { VideoScreen } from './VideoScreen';
+export { ChangePasswordScreen } from './ChangePasswordScreen';

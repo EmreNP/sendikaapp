@@ -39,6 +39,7 @@ import {
   DocumentScreen,
   VideoScreen,
   NotificationsScreen,
+  ChangePasswordScreen,
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -161,6 +162,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           </>
         )}
       </Stack.Navigator>

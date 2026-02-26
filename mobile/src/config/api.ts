@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     REGISTER_BASIC: '/api/auth/register/basic',
     REGISTER_DETAILS: '/api/auth/register/details',
     PASSWORD_RESET_REQUEST: '/api/auth/password/reset-request',
+    PASSWORD_CHANGE: '/api/auth/password/change',
   },
   // Users
   USERS: {

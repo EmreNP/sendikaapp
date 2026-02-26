@@ -25,6 +25,7 @@ interface HamburgerMenuProps {
   onMembershipClick?: () => void;
   onNotificationsClick?: () => void;
   onAboutClick?: () => void;
+  onProfileClick?: () => void;
 }
 
 const socialLinks: { icon: keyof typeof Feather.glyphMap; label: string; href: string; fallbackHref?: string; color: string }[] = [
@@ -38,6 +39,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   onMembershipClick,
   onNotificationsClick,
   onAboutClick,
+  onProfileClick,
 }) => {
   const { width: screenWidth } = useWindowDimensions();
   const MENU_WIDTH = useMemo(() => screenWidth * 0.85, [screenWidth]);
@@ -342,7 +344,14 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
               {/* User Info & Logout */}
               <View style={styles.userSection}>
-                <View style={styles.userInfo}>
+                <TouchableOpacity
+                  style={styles.userInfo}
+                  onPress={() => {
+                    closeMenu();
+                    onProfileClick?.();
+                  }}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.userAvatar}>
                     <Text style={styles.userAvatarText}>
                       {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
@@ -358,7 +367,8 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                       {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : 'Üye'}
                     </Text>
                   </View>
-                </View>
+                  <Feather name="chevron-right" size={16} color="#94a3b8" />
+                </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={styles.logoutButton}

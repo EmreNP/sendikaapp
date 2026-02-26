@@ -205,6 +205,7 @@ export type RootStackParamList = {
   PartnerInstitutions: undefined;
   PartnerDetail: { partner?: import('../data/partners').Partner; institution?: ContractedInstitution };
   Notifications: undefined;
+  ChangePassword: undefined;
 };
 
 export type MainTabParamList = {

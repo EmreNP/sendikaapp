@@ -7,7 +7,8 @@ import { GENDER } from '@shared/constants/gender';
 import type { UserProfileUpdateData } from '@shared/types/user';
 import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
-  successResponse, 
+  successResponse,
+  serializeUserTimestamps,
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
@@ -44,7 +45,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       return successResponse(
         'Kullanıcı bilgileri başarıyla getirildi',
         {
-          user: userWithData,
+          user: serializeUserTimestamps(userWithData),
         }
       );
   });
@@ -199,3 +200,39 @@ export const PUT = asyncHandler(async (request: NextRequest) => {
   });
   });
 
+// DELETE /api/users/me - Kendi hesabını sil (Self-Delete)
+export const DELETE = asyncHandler(async (request: NextRequest) => {
+  return withAuth(request, async (req, user) => {
+    const userDoc = await db.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists) {
+      throw new AppNotFoundError('Kullanıcı');
+    }
+
+    logger.log(`🗑️ Self-deletion initiated for user: ${user.uid}`);
+
+    // Firebase Auth'dan sil
+    try {
+      const { auth: firebaseAuth } = await import('@/lib/firebase/admin');
+      await firebaseAuth.deleteUser(user.uid);
+      logger.log(`✅ Firebase Auth self-deleted: ${user.uid}`);
+    } catch (authError: unknown) {
+      const errorCode = (authError as any)?.code || 'unknown';
+      if (errorCode !== 'auth/user-not-found') {
+        logger.error(`⚠️ Firebase Auth self-delete error for ${user.uid}:`, authError);
+        throw new AppNotFoundError('Kimlik doğrulama hesabı silinemedi');
+      }
+    }
+
+    // Firestore'dan sil
+    await db.collection('users').doc(user.uid).delete();
+    logger.log(`✅ Firestore self-deleted: ${user.uid}`);
+
+    return successResponse(
+      'Hesabınız kalıcı olarak silindi',
+      undefined,
+      200,
+      'USER_SELF_DELETE_SUCCESS'
+    );
+  });
+});

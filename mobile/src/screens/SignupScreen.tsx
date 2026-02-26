@@ -26,7 +26,6 @@ import type { RootStackParamList } from '../types';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
-import { POSITIONS } from '../../../shared/constants/positions';
 
 type SignupScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;
@@ -460,20 +459,19 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                 {/* Kadro Unvani */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Kadro Ünvanı</Text>
-                  <View style={[styles.pickerWrapper, errors.kadroUnvani ? styles.inputError : null]}>
+                  <View style={[styles.inputWrapper, errors.kadroUnvani ? styles.inputError : null]}>
                     <Feather name="briefcase" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <Picker
-                      selectedValue={formData.kadroUnvani}
-                      onValueChange={(value) => updateField('kadroUnvani', value)}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Ünvan seçiniz..." value="" />
-                      {POSITIONS.map((position) => (
-                        <Picker.Item key={position} label={position} value={position} />
-                      ))}
-                    </Picker>
+                    <TextInput
+                      style={styles.input}
+                      value={formData.kadroUnvani}
+                      onChangeText={(text) => updateField('kadroUnvani', text)}
+                      placeholder="Kadro ünvanınızı giriniz"
+                      placeholderTextColor="#94a3b8"
+                      autoCapitalize="words"
+                      accessibilityLabel="Kadro Ünvanı"
+                    />
                   </View>
-                  <Text style={styles.hintText}>Diyanet İşleri'ndeki görev unvanınızı seçin</Text>
+                  <Text style={styles.hintText}>Diyanet İşleri'ndeki görev unvanınızı giriniz</Text>
                   {errors.kadroUnvani ? <Text style={styles.errorText}>{errors.kadroUnvani}</Text> : null}
                 </View>
 

@@ -15,136 +15,184 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
+import { EDUCATION_LEVEL_OPTIONS } from '../../../shared/constants/education';
 import { CustomInput } from '../components/CustomInput';
 import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import ApiService from '../services/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, User } from '../types';
+import type { RootStackParamList } from '../types';
 
 type EditProfileScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
 };
 
+type BasicForm = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  gender: string;
+  birthDate: string;
+  district: string;
+  kadroUnvani: string;
+};
+
+type DetailForm = {
+  tcKimlikNo: string;
+  fatherName: string;
+  motherName: string;
+  birthPlace: string;
+  education: string;
+  kurumSicil: string;
+};
+
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
-  const { user, refreshUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user, refreshUser, isActive } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [formData, setFormData] = useState({
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerDate, setDatePickerDate] = useState(new Date());
+
+  const [basicForm, setBasicForm] = useState<BasicForm>({
     firstName: '',
     lastName: '',
     phone: '',
-    address: '',
-    city: '',
-    district: '',
     gender: '',
-    education: '',
-    kadroUnvani: '',
     birthDate: '',
+    district: '',
+    kadroUnvani: '',
   });
-  const [originalData, setOriginalData] = useState<typeof formData | null>(null);
+  const [originalBasic, setOriginalBasic] = useState<BasicForm | null>(null);
+
+  const [detailForm, setDetailForm] = useState<DetailForm>({
+    tcKimlikNo: '',
+    fatherName: '',
+    motherName: '',
+    birthPlace: '',
+    education: '',
+    kurumSicil: '',
+  });
+  const [originalDetail, setOriginalDetail] = useState<DetailForm | null>(null);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
-      const data = {
+      const basic: BasicForm = {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         phone: user.phone || '',
-        address: (user as User & { address?: string }).address || '',
-        city: (user as User & { city?: string }).city || '',
-        district: user.district || '',
         gender: user.gender || '',
-        education: user.education || '',
+        birthDate: (() => {
+          if (!user.birthDate) return '';
+          const raw = user.birthDate as any;
+          let d: Date | null = null;
+          if (raw?.toDate) {
+            d = raw.toDate();
+          } else if (raw?._seconds !== undefined) {
+            // Firestore Timestamp JSON: {_seconds, _nanoseconds}
+            d = new Date(raw._seconds * 1000);
+          } else if (raw?.seconds !== undefined) {
+            d = new Date(raw.seconds * 1000);
+          } else if (typeof raw === 'string' && raw.length >= 10) {
+            // ISO string veya YYYY-MM-DD
+            d = new Date(raw.includes('T') ? raw : `${raw}T12:00:00.000Z`);
+          } else if (raw instanceof Date) {
+            d = raw;
+          }
+          if (!d || isNaN(d.getTime())) return '';
+          const y = d.getUTCFullYear();
+          const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${day}`;
+          setDatePickerDate(new Date(`${dateStr}T12:00:00.000Z`));
+          return dateStr;
+        })(),
+        district: user.district || '',
         kadroUnvani: user.kadroUnvani || '',
-        birthDate: user.birthDate ? String(user.birthDate) : '',
       };
-      setFormData(data);
-      setOriginalData(data);
+      const detail: DetailForm = {
+        tcKimlikNo: user.tcKimlikNo || '',
+        fatherName: user.fatherName || '',
+        motherName: user.motherName || '',
+        birthPlace: user.birthPlace || '',
+        education: user.education || '',
+        kurumSicil: user.kurumSicil || '',
+      };
+      setBasicForm(basic);
+      setOriginalBasic(basic);
+      setDetailForm(detail);
+      setOriginalDetail(detail);
     }
   }, [user]);
 
-  const updateField = (field: string, value: string) => {
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
-    setErrors({ ...errors, [field]: '' });
-    
-    // Check if there are changes
-    if (originalData) {
-      const changed = Object.keys(newData).some(
-        key => newData[key as keyof typeof newData] !== originalData[key as keyof typeof originalData]
-      );
-      setHasChanges(changed);
-    }
+  const hasBasicChanges = originalBasic
+    ? (Object.keys(basicForm) as (keyof BasicForm)[]).some(k => basicForm[k] !== originalBasic[k])
+    : false;
+
+  const hasDetailChanges = isActive && originalDetail
+    ? (Object.keys(detailForm) as (keyof DetailForm)[]).some(k => detailForm[k] !== originalDetail[k])
+    : false;
+
+  const hasChanges = hasBasicChanges || hasDetailChanges;
+
+  const updateBasic = (field: keyof BasicForm, value: string) => {
+    setBasicForm(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
-  const validateForm = () => {
-    let valid = true;
+  const updateDetail = (field: keyof DetailForm, value: string) => {
+    setDetailForm(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Ad gereklidir';
-      valid = false;
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Soyad gereklidir';
-      valid = false;
-    }
-
-    if (formData.phone && !/^0[0-9]{10}$/.test(formData.phone.replace(/\s/g, ''))) {
+    if (!basicForm.firstName.trim()) newErrors.firstName = 'Ad gereklidir';
+    if (!basicForm.lastName.trim()) newErrors.lastName = 'Soyad gereklidir';
+    if (basicForm.phone && !/^0[0-9]{10}$/.test(basicForm.phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Geçerli bir telefon numarası girin (0XXX XXX XX XX)';
-      valid = false;
     }
 
     setErrors(newErrors);
-    return valid;
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!validateForm()) return;
-    if (!hasChanges) {
-      navigation.goBack();
-      return;
-    }
+    if (!hasChanges) { navigation.goBack(); return; }
 
     setSaving(true);
     try {
-      // Only send changed fields
-      const changedFields: Record<string, string> = {};
-      if (originalData) {
-        Object.keys(formData).forEach(key => {
-          const k = key as keyof typeof formData;
-          if (formData[k] !== originalData[k]) {
-            changedFields[key] = formData[k];
-          }
+      const changedFields: Record<string, any> = {};
+
+      if (originalBasic) {
+        (Object.keys(basicForm) as (keyof BasicForm)[]).forEach(k => {
+          if (basicForm[k] !== originalBasic[k]) changedFields[k] = basicForm[k];
+        });
+      }
+      if (isActive && originalDetail) {
+        (Object.keys(detailForm) as (keyof DetailForm)[]).forEach(k => {
+          if (detailForm[k] !== originalDetail[k]) changedFields[k] = detailForm[k];
         });
       }
 
       await ApiService.updateProfile(changedFields);
       await refreshUser();
-      
-      Alert.alert(
-        'Başarılı',
-        'Profil bilgileriniz güncellendi.',
-        [{ text: 'Tamam', onPress: () => navigation.goBack() }]
-      );
+      Alert.alert('Başarılı', 'Profil bilgileriniz güncellendi.', [
+        { text: 'Tamam', onPress: () => navigation.goBack() },
+      ]);
     } catch (error: any) {
-      Alert.alert(
-        'Hata',
-        getUserFriendlyErrorMessage(error, 'Bilgileriniz güncellenemedi. Lütfen tekrar deneyin.')
-      );
+      Alert.alert('Hata', getUserFriendlyErrorMessage(error, 'Bilgileriniz güncellenemedi. Lütfen tekrar deneyin.'));
     } finally {
       setSaving(false);
     }
   };
 
   const confirmDiscard = () => {
-    if (!hasChanges) {
-      navigation.goBack();
-      return;
-    }
+    if (!hasChanges) { navigation.goBack(); return; }
     Alert.alert(
       'Değişiklikleri İptal Et',
       'Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?',
@@ -157,7 +205,6 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <LinearGradient
         colors={['#312e81', '#4338ca', '#1e40af']}
         start={{ x: 0, y: 0 }}
@@ -165,7 +212,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
         style={styles.header}
       >
         <TouchableOpacity style={styles.backButton} onPress={confirmDiscard}>
-          <Feather name="x" size={24} color="#ffffff" />
+          <Feather name="arrow-left" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profil Düzenle</Text>
         <TouchableOpacity
@@ -183,24 +230,10 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
         </TouchableOpacity>
       </LinearGradient>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Info Banner */}
-          <View style={styles.infoBanner}>
-            <Feather name="info" size={16} color="#3b82f6" />
-            <Text style={styles.infoText}>
-              E-posta adresi ve rol bilgisi değiştirilemez. Değişiklik için yönetici ile iletişime geçin.
-            </Text>
-          </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* Email (read-only) */}
+          {/* E-posta (salt okunur) */}
           <View style={styles.readOnlyField}>
             <Text style={styles.readOnlyLabel}>E-posta Adresi</Text>
             <View style={styles.readOnlyValue}>
@@ -209,45 +242,20 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
             </View>
           </View>
 
-          {/* Form */}
+          {/* ── Temel Bilgiler ── */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Temel Bilgiler</Text>
+          </View>
+
           <View style={styles.formContainer}>
-            <CustomInput
-              label="Ad"
-              value={formData.firstName}
-              onChangeText={(text) => updateField('firstName', text)}
-              placeholder="Adınız"
-              error={errors.firstName}
-              required
-            />
+            <CustomInput label="Ad" value={basicForm.firstName} onChangeText={v => updateBasic('firstName', v)} placeholder="Adınız" error={errors.firstName} required />
+            <CustomInput label="Soyad" value={basicForm.lastName} onChangeText={v => updateBasic('lastName', v)} placeholder="Soyadınız" error={errors.lastName} required />
+            <CustomInput label="Telefon" value={basicForm.phone} onChangeText={v => updateBasic('phone', v)} placeholder="Örn: 0532 123 45 67" keyboardType="phone-pad" error={errors.phone} hint="Cep telefonu numaranız" />
 
-            <CustomInput
-              label="Soyad"
-              value={formData.lastName}
-              onChangeText={(text) => updateField('lastName', text)}
-              placeholder="Soyadınız"
-              error={errors.lastName}
-              required
-            />
-
-            <CustomInput
-              label="Telefon"
-              value={formData.phone}
-              onChangeText={(text) => updateField('phone', text)}
-              placeholder="Örn: 0532 123 45 67"
-              keyboardType="phone-pad"
-              error={errors.phone}
-              hint="Cep telefonu numaranız"
-            />
-
-            {/* Gender Picker */}
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Cinsiyet</Text>
               <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={formData.gender}
-                  onValueChange={(value) => updateField('gender', value)}
-                  style={styles.picker}
-                >
+                <Picker selectedValue={basicForm.gender} onValueChange={v => updateBasic('gender', v)} style={styles.picker}>
                   <Picker.Item label="Seçiniz..." value="" />
                   <Picker.Item label="Erkek" value="male" />
                   <Picker.Item label="Kadın" value="female" />
@@ -255,68 +263,88 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
               </View>
             </View>
 
-            {/* Education Picker */}
             <View style={styles.pickerContainer}>
-              <Text style={styles.pickerLabel}>Eğitim Durumu</Text>
+              <Text style={styles.pickerLabel}>Doğum Tarihi</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                style={styles.datePickerTouchable}
+              >
+                <Feather name="calendar" size={16} color="#94a3b8" />
+                <Text style={[styles.datePickerValue, !basicForm.birthDate && styles.datePickerPlaceholder]}>
+                  {basicForm.birthDate || 'Tarih seçiniz...'}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={datePickerDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setDatePickerDate(selectedDate);
+                      const y = selectedDate.getFullYear();
+                      const mo = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                      const d = String(selectedDate.getDate()).padStart(2, '0');
+                      updateBasic('birthDate', `${y}-${mo}-${d}`);
+                    }
+                  }}
+                  maximumDate={new Date()}
+                />
+              )}
+            </View>
+
+            <View style={styles.pickerContainer}>
+              <Text style={styles.pickerLabel}>Görev İlçesi</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={formData.education}
-                  onValueChange={(value) => updateField('education', value)}
+                  selectedValue={basicForm.district}
+                  onValueChange={v => updateBasic('district', v)}
                   style={styles.picker}
                 >
+                  <Picker.Item label="İlçe seçiniz..." value="" />
+                  {KONYA_DISTRICTS.map(d => (
+                    <Picker.Item key={d} label={d} value={d} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            <CustomInput label="Kadro Ünvanı" value={basicForm.kadroUnvani} onChangeText={v => updateBasic('kadroUnvani', v)} placeholder="Örn: Vaiz, Müezzin, İmam" />
+          </View>
+
+          {/* ── Detaylı Bilgiler ── */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Detaylı Bilgiler</Text>
+            {!isActive && (
+              <View style={styles.sectionLockBadge}>
+                <Feather name="lock" size={12} color="#64748b" />
+                <Text style={styles.sectionLockText}>Üyelik onaylandıktan sonra düzenlenebilir</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={[styles.formContainer, !isActive && styles.formContainerDisabled]}>
+            <CustomInput label="TC Kimlik No" value={detailForm.tcKimlikNo} onChangeText={v => updateDetail('tcKimlikNo', v)} placeholder="11 haneli TC kimlik numaranız" keyboardType="numeric" editable={isActive} />
+            <CustomInput label="Baba Adı" value={detailForm.fatherName} onChangeText={v => updateDetail('fatherName', v)} placeholder="Babanızın adı" editable={isActive} />
+            <CustomInput label="Anne Adı" value={detailForm.motherName} onChangeText={v => updateDetail('motherName', v)} placeholder="Annenizin adı" editable={isActive} />
+            <CustomInput label="Doğum Yeri" value={detailForm.birthPlace} onChangeText={v => updateDetail('birthPlace', v)} placeholder="Doğduğunuz şehir" editable={isActive} />
+
+            <View style={[styles.pickerContainer, !isActive && styles.pickerDisabled]}>
+              <Text style={styles.pickerLabel}>Eğitim Durumu</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker selectedValue={detailForm.education} onValueChange={v => isActive && updateDetail('education', v)} style={styles.picker} enabled={isActive}>
                   <Picker.Item label="Seçiniz..." value="" />
-                  <Picker.Item label="İlkokul" value="primary" />
-                  <Picker.Item label="Ortaokul" value="middle" />
-                  <Picker.Item label="Lise" value="high" />
-                  <Picker.Item label="Ön Lisans" value="associate" />
-                  <Picker.Item label="Lisans" value="bachelor" />
-                  <Picker.Item label="Yüksek Lisans" value="master" />
-                  <Picker.Item label="Doktora" value="phd" />
+                  {EDUCATION_LEVEL_OPTIONS.map(opt => (
+                    <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
+                  ))}
                 </Picker>
               </View>
             </View>
 
-            <CustomInput
-              label="Kadro Ünvanı"
-              value={formData.kadroUnvani}
-              onChangeText={(text) => updateField('kadroUnvani', text)}
-              placeholder="Örn: Vaiz, Müezzin, İmam"
-              hint="Resmi görev ünvanınız"
-            />
-
-            <CustomInput
-              label="Doğum Tarihi"
-              value={formData.birthDate}
-              onChangeText={(text) => updateField('birthDate', text)}
-              placeholder="Örn: 15/03/1980"
-              hint="Gün/Ay/Yıl formatında"
-            />
-
-            <CustomInput
-              label="İl"
-              value={formData.city}
-              onChangeText={(text) => updateField('city', text)}
-              placeholder="Örn: Konya"
-            />
-
-            <CustomInput
-              label="İlçe"
-              value={formData.district}
-              onChangeText={(text) => updateField('district', text)}
-              placeholder="Örn: Selçuklu"
-            />
-
-            <CustomInput
-              label="Adres"
-              value={formData.address}
-              onChangeText={(text) => updateField('address', text)}
-              placeholder="Açık adresiniz"
-              multiline
-              numberOfLines={3}
-            />
+            <CustomInput label="Kurum Sicil No" value={detailForm.kurumSicil} onChangeText={v => updateDetail('kurumSicil', v)} placeholder="Kurum sicil numaranız" editable={isActive} />
           </View>
 
-          {/* Save Button */}
+          {/* Kaydet */}
           <TouchableOpacity
             style={[styles.submitButton, (!hasChanges || saving) && styles.submitButtonDisabled]}
             onPress={handleSave}
@@ -333,13 +361,12 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
               ) : (
                 <>
                   <Feather name="check" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.submitButtonText}>
-                    {hasChanges ? 'Değişiklikleri Kaydet' : 'Değişiklik Yok'}
-                  </Text>
+                  <Text style={styles.submitButtonText}>{hasChanges ? 'Değişiklikleri Kaydet' : 'Değişiklik Yok'}</Text>
                 </>
               )}
             </LinearGradient>
           </TouchableOpacity>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -347,10 +374,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -359,125 +383,62 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
   saveHeaderButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  saveHeaderButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveHeaderText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  saveHeaderTextDisabled: {
-    opacity: 0.7,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    gap: 10,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1e40af',
-    lineHeight: 18,
-  },
+  saveHeaderButtonDisabled: { opacity: 0.5 },
+  saveHeaderText: { fontSize: 14, fontWeight: '600', color: '#ffffff' },
+  saveHeaderTextDisabled: { opacity: 0.7 },
+  keyboardView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
   readOnlyField: {
-    marginBottom: 16,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    padding: 14,
+    marginBottom: 20, backgroundColor: '#f1f5f9',
+    borderRadius: 12, padding: 14,
   },
-  readOnlyLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
-    marginBottom: 4,
+  readOnlyLabel: { fontSize: 12, fontWeight: '500', color: '#64748b', marginBottom: 4 },
+  readOnlyValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  readOnlyText: { fontSize: 15, color: '#94a3b8' },
+  sectionHeader: { marginBottom: 10, marginTop: 4 },
+  sectionTitle: {
+    fontSize: 13, fontWeight: '700', color: '#475569',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4,
   },
-  readOnlyValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  readOnlyText: {
-    fontSize: 15,
-    color: '#94a3b8',
-  },
+  sectionLockBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  sectionLockText: { fontSize: 12, color: '#64748b' },
   formContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#ffffff', borderRadius: 16,
+    padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
-  pickerContainer: {
-    marginBottom: 16,
-  },
-  pickerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#334155',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
+  formContainerDisabled: { opacity: 0.55 },
+  pickerContainer: { marginBottom: 16 },
+  pickerDisabled: { opacity: 0.6 },
+  pickerLabel: { fontSize: 14, fontWeight: '500', color: '#334155', marginBottom: 8, marginLeft: 4 },
   pickerWrapper: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    overflow: 'hidden',
+    backgroundColor: '#f1f5f9', borderRadius: 12,
+    borderWidth: 1, borderColor: '#e2e8f0', overflow: 'hidden',
   },
-  picker: {
-    height: 48,
+  picker: { height: 48 },
+  datePickerTouchable: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#f1f5f9', borderRadius: 12,
+    borderWidth: 1, borderColor: '#e2e8f0',
+    paddingHorizontal: 14, paddingVertical: 13,
   },
-  submitButton: {
-    marginTop: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  submitButtonDisabled: {
-    opacity: 0.8,
-  },
+  datePickerValue: { fontSize: 14, color: '#0f172a', flex: 1 },
+  datePickerPlaceholder: { color: '#94a3b8' },
+  submitButton: { borderRadius: 12, overflow: 'hidden' },
+  submitButtonDisabled: { opacity: 0.8 },
   submitButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 14,
   },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
+  submitButtonText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
 });

@@ -59,6 +59,8 @@ export async function sendMulticastNotification(
       notification: {
         sound: 'default',
         channelId: 'default',
+        icon: 'notification_icon',
+        color: '#2563eb',
       },
     },
     apns: {

@@ -227,6 +227,23 @@ class ApiService {
     return response.data.user;
   }
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.AUTH.PASSWORD_CHANGE,
+      {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }
+    );
+  }
+
+  async deleteAccount(): Promise<void> {
+    await this.request(
+      API_ENDPOINTS.USERS.ME,
+      { method: 'DELETE' }
+    );
+  }
+
   // Trainings
   async getTrainings(params?: { page?: number; limit?: number }): Promise<{
     items: Training[];

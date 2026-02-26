@@ -12,7 +12,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { useNotificationBadge } from '../context/NotificationBadgeContext';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,11 +28,6 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout, role } = useAuth();
-  const { unreadCount, refreshUnreadCount } = useNotificationBadge();
-
-  useEffect(() => {
-    refreshUnreadCount();
-  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -56,13 +50,48 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
-  const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void; badge?: number }[] = [
-    { icon: 'user', label: 'Profil Bilgileri', action: () => navigation.navigate('Membership' as never) },
-    { icon: 'edit-2', label: 'Profil Düzenle', action: () => navigation.navigate('EditProfile' as never) },
-    { icon: 'bell', label: 'Bildirimler', action: () => navigation.navigate('Notifications' as never), badge: unreadCount },
-    { icon: 'file-text', label: 'Belgelerim', action: () => Alert.alert('Belgelerim', 'Bu özellik yakında aktif olacaktır.') },
-    { icon: 'hash', label: 'Muktesep Hesaplama', action: () => navigation.navigate('Muktesep' as never) },
-    { icon: 'briefcase', label: 'Anlaşmalı Kurumlar', action: () => navigation.navigate('PartnerInstitutions' as never) },
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Hesabı Sil',
+      'Hesabınızı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz silinir.',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Evet, Hesabımı Sil',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Son Onay',
+              'Bu işlemi onaylıyor musunuz? Hesabınız ve tüm üyelik bilgileriniz kalıcı olarak silinecek.',
+              [
+                { text: 'Vazgeç', style: 'cancel' },
+                {
+                  text: 'Kalıcı Olarak Sil',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const ApiService = (await import('../services/api')).default;
+                      await ApiService.deleteAccount();
+                      await logout();
+                    } catch (error: any) {
+                      Alert.alert(
+                        'Hata',
+                        error?.message || 'Hesap silinirken bir hata oluştu. Lütfen tekrar deneyin.'
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void }[] = [
+    { icon: 'user', label: 'Profil', action: () => navigation.navigate('EditProfile' as never) },
+    { icon: 'lock', label: 'Şifre Değiştir', action: () => navigation.navigate('ChangePassword' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
   ];
 
@@ -117,13 +146,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </View>
               <View style={styles.menuItemRight}>
-                {item.badge != null && item.badge > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {item.badge > 99 ? '99+' : item.badge}
-                    </Text>
-                  </View>
-                )}
                 <Feather name="chevron-right" size={20} color="#94a3b8" />
               </View>
             </TouchableOpacity>
@@ -139,6 +161,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           >
             <Feather name="log-out" size={20} color="#dc2626" />
             <Text style={styles.logoutText}>Çıkış Yap</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteAccountText}>Hesabımı Sil</Text>
           </TouchableOpacity>
         </View>
 
@@ -277,6 +307,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#dc2626',
     marginLeft: 8,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginLeft: 6,
+    textDecorationLine: 'underline',
   },
   versionText: {
     textAlign: 'center',

@@ -505,6 +505,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             onMembershipClick={() => navigation.navigate('Membership' as never)}
             onNotificationsClick={() => navigation.navigate('Notifications' as never)} 
             onAboutClick={() => navigation.navigate('About' as never)}
+            onProfileClick={() => navigation.navigate('Profile' as never)}
           />
         </View>
       </LinearGradient>
