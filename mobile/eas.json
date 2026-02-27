@@ -22,20 +22,20 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://tdvs-konya.web.app"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle",
         "env": {
-          "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
+          "EXPO_PUBLIC_API_BASE_URL": "https://tdvs-konya.web.app"
         }
       },
       "ios": {
         "autoIncrement": true,
         "env": {
-          "EXPO_PUBLIC_API_BASE_URL": "https://sendikaapp.web.app"
+          "EXPO_PUBLIC_API_BASE_URL": "https://tdvs-konya.web.app"
         }
       }
     }

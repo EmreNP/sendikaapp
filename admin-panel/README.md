@@ -47,7 +47,7 @@ Build çıktısı `dist` klasöründe olacaktır.
 
 ## Environment Variables
 
-- `VITE_API_BASE_URL`: Backend API base URL'i (production default: `/api` — Firebase Hosting proxies `/api/**` to Cloud Run). Hosted admin panel: https://sendikaapp.web.app
+- `VITE_API_BASE_URL`: Backend API base URL'i (production default: `/api` — Firebase Hosting proxies `/api/**` to Cloud Run). Hosted admin panel: https://tdvs-konya.web.app
 
 ## Özellikler
 
