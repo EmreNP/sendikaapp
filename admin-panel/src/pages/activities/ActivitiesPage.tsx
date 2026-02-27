@@ -10,7 +10,7 @@ import CategoryFormModal from '@/components/activities/CategoryFormModal';
 import { activityService } from '@/services/api/activityService';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
-import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
+import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest, CreateActivityCategoryRequest, UpdateActivityCategoryRequest } from '@/types/activity';
 import { formatDate } from '@/utils/dateFormatter';
 
 interface BranchOption {
@@ -63,8 +63,8 @@ export default function ActivitiesPage() {
       });
       setActivities(response.activities);
       setTotal(response.total || 0);
-    } catch (err: any) {
-      setError(err.message || 'Aktiviteler yüklenirken hata oluştu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Aktiviteler yüklenirken hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -76,8 +76,8 @@ export default function ActivitiesPage() {
       setCategoriesLoading(true);
       const response = await activityService.getCategories();
       setCategories(response.categories);
-    } catch (err: any) {
-      setError(err.message || 'Kategoriler yüklenirken hata oluştu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kategoriler yüklenirken hata oluştu'));
     } finally {
       setCategoriesLoading(false);
     }
@@ -170,8 +170,8 @@ export default function ActivitiesPage() {
       }
       setDeleteConfirmOpen(false);
       setItemToDelete(null);
-    } catch (err: any) {
-      setError(err.message || 'Silme işlemi başarısız oldu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Silme işlemi başarısız oldu'));
     } finally {
       setProcessing(false);
     }
@@ -189,26 +189,26 @@ export default function ActivitiesPage() {
       setIsFormModalOpen(false);
       setSelectedActivity(null);
       await fetchActivities();
-    } catch (err: any) {
-      setError(err.message || 'Kaydetme işlemi başarısız oldu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kaydetme işlemi başarısız oldu'));
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleCategoryFormSubmit = async (data: any) => {
+  const handleCategoryFormSubmit = async (data: CreateActivityCategoryRequest | UpdateActivityCategoryRequest) => {
     try {
       setProcessing(true);
       if (selectedCategory) {
         await activityService.updateCategory(selectedCategory.id, data);
       } else {
-        await activityService.createCategory(data);
+        await activityService.createCategory(data as CreateActivityCategoryRequest);
       }
       setIsCategoryFormModalOpen(false);
       setSelectedCategory(null);
       await fetchCategories();
-    } catch (err: any) {
-      setError(err.message || 'Kaydetme işlemi başarısız oldu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kaydetme işlemi başarısız oldu'));
     } finally {
       setProcessing(false);
     }
@@ -238,7 +238,7 @@ export default function ActivitiesPage() {
 
         {/* Tabs (NewsPage style) */}
         <div className="border-b border-gray-200 mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('activities')}
@@ -292,7 +292,7 @@ export default function ActivitiesPage() {
         {activeTab === 'activities' && (
           <div>
             {/* Filters Card (TrainingsPage style) */}
-            <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div className="flex-1 relative max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input

@@ -6,7 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { DocumentContent, CreateDocumentContentRequest } from '@shared/types/training';
 import { validateCreateDocumentContent } from '@/lib/utils/validation/documentContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
-import { generatePublicUrl } from '@/lib/utils/storage';
+import { generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeDocumentContentTimestamps
@@ -55,13 +55,21 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as DocumentContent[];
       
-      // Generate public URLs (files are already public via makePublic)
-      const documentsWithUrls = documents.map((doc) => {
-        if (doc.documentPath) {
-          return { ...doc, documentUrl: generatePublicUrl(doc.documentPath) };
-        }
-        return doc;
-      });
+      // Generate signed URLs (7-day expiry) — lesson-documents are private, no public ACL
+      const documentsWithUrls = await Promise.all(
+        documents.map(async (doc) => {
+          if (doc.documentPath) {
+            try {
+              const documentUrl = await generateSignedUrl(doc.documentPath, 7);
+              return { ...doc, documentUrl };
+            } catch (err) {
+              logger.warn(`[documents] Signed URL failed for ${doc.documentPath}:`, err);
+              return doc;
+            }
+          }
+          return doc;
+        })
+      );
       
       const serializedDocuments = documentsWithUrls.map(d => serializeDocumentContentTimestamps(d));
       
@@ -156,9 +164,13 @@ export const POST = asyncHandler(async (
         ...docData,
       } as DocumentContent;
       
-      // Generate public URL for response
+      // Generate signed URL for response (7-day expiry)
       if (document.documentPath) {
-        document.documentUrl = generatePublicUrl(document.documentPath);
+        try {
+          document.documentUrl = await generateSignedUrl(document.documentPath, 7);
+        } catch (err) {
+          logger.warn(`[documents] Signed URL failed for ${document.documentPath}:`, err);
+        }
       }
       
       const serializedDocument = serializeDocumentContentTimestamps(document);

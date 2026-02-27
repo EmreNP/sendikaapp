@@ -23,6 +23,27 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // JS-level validation
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('E-posta adresi giriniz');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('Geçerli bir e-posta adresi giriniz');
+      return;
+    }
+    if (!password) {
+      setError('Şifre giriniz');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -31,8 +52,8 @@ export default function LoginPage() {
       
       // Girişten sonra kullanıcı listesine yönlendir
       navigate('/admin/users');
-    } catch (err: any) {
-      setError(err.message || 'Giriş başarısız');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Giriş başarısız'));
     } finally {
       setIsSubmitting(false);
     }

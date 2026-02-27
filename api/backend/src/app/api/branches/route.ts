@@ -315,10 +315,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       
       const branchRef = await db.collection('branches').add(branchData);
       
-      const branch: Branch = {
+      const branch = {
         id: branchRef.id,
         ...branchData,
-      } as Branch;
+      } as unknown as Branch;
       
       return successResponse(
         'Şube başarıyla oluşturuldu',

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
-import { X, Upload, FileText, ExternalLink } from 'lucide-react';
+import { useEffect, useState, useRef, memo } from 'react';
+import { X, Upload, ExternalLink } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
 import { fileUploadService } from '@/services/api/fileUploadService';
 import type { DocumentContent, CreateDocumentContentRequest, UpdateDocumentContentRequest } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface DocumentFormModalProps {
   document: DocumentContent | null;
@@ -13,7 +14,8 @@ interface DocumentFormModalProps {
   onSuccess: () => void;
 }
 
-export default function DocumentFormModal({ document, lessonId, isOpen, onClose, onSuccess }: DocumentFormModalProps) {
+function DocumentFormModal({ document, lessonId, isOpen, onClose, onSuccess }: DocumentFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -38,7 +40,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           title: document.title || '',
           description: document.description || '',
           documentUrl: document.documentUrl || '',
-          documentPath: (document as any).documentPath || '',  // Storage path
+          documentPath: (document as unknown as { documentPath?: string }).documentPath || '',  // Storage path
           order: document.order || '',
           isActive: document.isActive ?? true,
         });
@@ -101,7 +103,6 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
     try {
       setLoading(true);
       let documentPath = formData.documentPath;
-      let documentUrl = formData.documentUrl;
 
       // Yeni döküman için dosya yükleme
       if (!isEditMode) {
@@ -123,11 +124,10 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
           );
           
           documentPath = uploadResult.storagePath || uploadResult.documentUrl;  // Use storagePath
-          documentUrl = uploadResult.documentUrl;  // Display URL
           setUploading(false);
-        } catch (uploadErr: any) {
+        } catch (uploadErr: unknown) {
           logger.error('File upload error:', uploadErr);
-          setError(uploadErr.message || 'Dosya yüklenirken bir hata oluştu');
+          setError((uploadErr instanceof Error ? (uploadErr instanceof Error ? uploadErr.message : String(uploadErr)) : 'Dosya yüklenirken bir hata oluştu'));
           setLoading(false);
           setUploading(false);
           setUploadProgress(0);
@@ -137,7 +137,7 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
 
       // Edit modunda dosya yüklenmemişse mevcut path/URL'i kullan
       if (isEditMode && !documentPath && document) {
-        documentPath = (document as any).documentPath || document.documentUrl;
+        documentPath = (document as unknown as { documentPath?: string }).documentPath || document.documentUrl || '';
       }
 
       if (!documentPath) {
@@ -171,9 +171,9 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save document error:', err);
-      setError(err.message || 'Döküman kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Döküman kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
       setUploading(false);
@@ -193,9 +193,9 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="document-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="document-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Dökümanı Düzenle' : 'Yeni Döküman Ekle'}
             </h3>
             <button
@@ -381,3 +381,4 @@ export default function DocumentFormModal({ document, lessonId, isOpen, onClose,
   );
 }
 
+export default memo(DocumentFormModal);

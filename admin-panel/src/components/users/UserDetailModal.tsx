@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, Upload, File, Clock, History, Trash2, Edit, FileText, ExternalLink } from 'lucide-react';
+import { useEffect, useState, memo} from 'react';
+import { X, User as UserIcon, Mail, Phone, Calendar, Briefcase, Building2, CheckCircle, XCircle, ArrowLeft, ArrowRight, File, Clock, History, Trash2, Edit } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
-import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { batchFetchUserNames } from '@/services/api/userNameService';
 import UserStatusModal from './UserStatusModal';
 import { EDUCATION_LEVEL_LABELS } from '@shared/constants/education';
 import { formatDate } from '@/utils/dateFormatter';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface UserDetail {
   uid: string;
@@ -21,7 +21,7 @@ interface UserDetail {
   documentUrl?: string;
   isActive: boolean;
   emailVerified?: boolean;
-  birthDate?: any;
+  birthDate?: string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
   gender?: string;
   tcKimlikNo?: string;
   fatherName?: string;
@@ -34,8 +34,8 @@ interface UserDetail {
   city?: string;
   district?: string;
   isMemberOfOtherUnion?: boolean;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
+  updatedAt?: string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
 }
 
 interface RegistrationLog {
@@ -53,9 +53,9 @@ interface RegistrationLog {
     branchId?: string;
     email?: string;
     updatedFields?: string[];
-    fieldChanges?: Record<string, { oldValue: any; newValue: any }>;
+    fieldChanges?: Record<string, { oldValue: unknown; newValue: unknown }>;
   };
-  timestamp: any;
+  timestamp: string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
 }
 
 interface UserDetailModalProps {
@@ -66,8 +66,9 @@ interface UserDetailModalProps {
   onUserDeleted?: () => void;
 }
 
-export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 'details', onUserDeleted }: UserDetailModalProps) {
+function UserDetailModal({ userId, isOpen, onClose, initialTab = 'details', onUserDeleted }: UserDetailModalProps) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,9 +119,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       if (data.user?.branchId) {
         await fetchBranchById(data.user.branchId);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error fetching user details:', err);
-      setError(err.message || 'Kullanıcı bilgileri yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kullanıcı bilgileri yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     try {
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error fetching branches:', err);
     }
   };
@@ -145,7 +146,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       if (data.branch) {
         setBranches(prev => [...prev, data.branch]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error fetching branch by id:', err);
     }
   };
@@ -154,7 +155,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     try {
       const names = await batchFetchUserNames(userIds);
       setUserNames((prev) => ({ ...prev, ...names }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error batch fetching user names:', err);
     }
   };
@@ -174,9 +175,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       if (userIds.length > 0) {
         await fetchUserNames(userIds);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching logs:', err);
-      setError(err.message || 'Loglar yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Loglar yüklenirken bir hata oluştu'));
       setLogs([]);
     } finally {
       setLoadingLogs(false);
@@ -305,7 +306,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     return labels[field] || field;
   };
 
-  const formatFieldValue = (field: string, value: any): string => {
+  const formatFieldValue = (field: string, value: unknown): string => {
     if (value === null || value === undefined) return '-';
     if (value === '') return '(Boş)';
     
@@ -313,6 +314,8 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     if (typeof value === 'boolean') {
       return value ? 'Evet' : 'Hayır';
     }
+
+    const strValue = typeof value === 'string' ? value : String(value);
     
     // Tarih alanları
     if (field === 'birthDate') {
@@ -321,25 +324,26 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
           const date = new Date(value);
           return date.toLocaleDateString('tr-TR');
         }
-        if (value.toDate) {
-          return value.toDate().toLocaleDateString('tr-TR');
+        const dateObj = value as { toDate?: () => Date };
+        if (typeof dateObj.toDate === 'function') {
+          return dateObj.toDate().toLocaleDateString('tr-TR');
         }
       } catch (e) {
-        return String(value);
+        return strValue;
       }
     }
     
     // Enum değerler
     if (field === 'gender') {
-      return value === 'male' ? 'Erkek' : value === 'female' ? 'Kadın' : value;
+      return value === 'male' ? 'Erkek' : value === 'female' ? 'Kadın' : strValue;
     }
     
     if (field === 'education') {
-      return (EDUCATION_LEVEL_LABELS as Record<string, string>)[value] || value;
+      return (EDUCATION_LEVEL_LABELS as Record<string, string>)[strValue] || strValue;
     }
     
     if (field === 'status') {
-      return getStatusLabel(value);
+      return getStatusLabel(strValue);
     }
     
     if (field === 'role') {
@@ -349,12 +353,12 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
         'admin': 'Admin',
         'superadmin': 'Süper Admin',
       };
-      return roleLabels[value] || value;
+      return roleLabels[strValue] || strValue;
     }
     
     // Şube ID'si - isim olarak göster
     if (field === 'branchId') {
-      return getBranchName(value);
+      return getBranchName(strValue);
     }
     
     // URL alanları
@@ -427,45 +431,6 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
     setShowStatusModal(true);
   };
 
-  // Branch Manager için izin verilen status geçişleri
-  const canBranchManagerChangeStatus = (currentStatus: string, newStatus: string): boolean => {
-    // Branch manager aktif kullanıcıların durumunu değiştiremez
-    if (currentStatus === 'active') {
-      return false;
-    }
-    
-    // Aktif olmayan tüm durumlarda değişiklik yapabilir
-    if (currentStatus === 'pending_branch_review') {
-      return newStatus === 'active' || newStatus === 'rejected' || newStatus === 'pending_details';
-    }
-    if (currentStatus === 'pending_details') {
-      return newStatus === 'pending_branch_review' || newStatus === 'active' || newStatus === 'rejected';
-    }
-    if (currentStatus === 'rejected') {
-      return newStatus === 'pending_details' || newStatus === 'pending_branch_review' || newStatus === 'active';
-    }
-    return false;
-  };
-
-  // Mevcut kullanıcının status değiştirme yetkisi var mı?
-  const canChangeStatus = (newStatus: string): boolean => {
-    if (!user || !currentUser) return false;
-    
-    if (currentUser.role === 'superadmin' || currentUser.role === 'admin') {
-      return true; // Superadmin ve Admin her şeyi yapabilir
-    }
-    
-    if (currentUser.role === 'branch_manager') {
-      // Branch Manager sadece kendi şubesindeki kullanıcıları yönetebilir
-      if (user.branchId !== currentUser.branchId) {
-        return false;
-      }
-      return canBranchManagerChangeStatus(user.status, newStatus);
-    }
-    
-    return false;
-  };
-
   // Kullanıcı silme fonksiyonu
   const handleDeleteUser = async () => {
     if (!userId || !user) return;
@@ -480,9 +445,9 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
       if (onUserDeleted) {
         onUserDeleted();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error deleting user:', err);
-      setError(err.message || 'Kullanıcı silinirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kullanıcı silinirken bir hata oluştu'));
     } finally {
       setDeletingUser(false);
       setShowDeleteConfirm(false);
@@ -501,10 +466,10 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Kullanıcı Detayları</h2>
+            <h2 id="user-detail-modal-title" className="text-sm font-medium text-white">Kullanıcı Detayları</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
@@ -563,7 +528,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
                 {/* Kişisel Bilgiler */}
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 id="user-detail-modal-title-1" className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <UserIcon className="w-5 h-5 text-slate-700" />
                       Kişisel Bilgiler
                     </h3>
@@ -867,7 +832,7 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
           {/* Delete Confirmation Modal */}
           {showDeleteConfirm && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title-1" className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Kullanıcıyı Sil</h3>
                 <p className="text-sm text-gray-600 mb-4">
                   {user?.firstName} {user?.lastName} kullanıcısını kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
@@ -906,3 +871,4 @@ export default function UserDetailModal({ userId, isOpen, onClose, initialTab = 
   );
 }
 
+export default memo(UserDetailModal);

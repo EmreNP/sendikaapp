@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { TestContent } from '@/types/training';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface TestQuestionsModalProps {
   test: TestContent | null;
@@ -10,6 +11,7 @@ interface TestQuestionsModalProps {
 export default function TestQuestionsModal({ test, isOpen, onClose }: TestQuestionsModalProps) {
   if (!isOpen || !test) return null;
 
+  useEscapeKey(isOpen, onClose);
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
@@ -20,9 +22,9 @@ export default function TestQuestionsModal({ test, isOpen, onClose }: TestQuesti
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="test-questions-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="test-questions-modal-title" className="text-sm font-medium text-white">
               {test.title} - Sorular
             </h3>
             <button

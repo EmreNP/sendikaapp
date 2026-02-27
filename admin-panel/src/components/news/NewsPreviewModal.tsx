@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Newspaper, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import { X, Calendar, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import type { News } from '@/types/news';
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
 import { formatDate } from '@/utils/dateFormatter';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface NewsPreviewModalProps {
   news: News | null;
@@ -13,6 +14,7 @@ interface NewsPreviewModalProps {
 }
 
 export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [createdByUser, setCreatedByUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
               role: '',
               status: 'deleted',
               isActive: false,
-            } as any);
+            } as unknown as User);
           }
         })
         .catch(() => {
@@ -42,7 +44,7 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
             role: '',
             status: 'deleted',
             isActive: false,
-          } as any);
+          } as unknown as User);
         });
     }
   }, [news?.createdBy]);
@@ -59,10 +61,10 @@ export default function NewsPreviewModal({ news, isOpen, onClose }: NewsPreviewM
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="news-preview-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Haber Önizleme</h2>
+            <h2 id="news-preview-modal-title" className="text-sm font-medium text-white">Haber Önizleme</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"

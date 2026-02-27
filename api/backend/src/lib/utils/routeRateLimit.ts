@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from './logger';
 import { errorResponse } from './response';
 import { addCorsHeaders } from './cors';
+import { rateLimitConfigs } from './rateLimit';
 
 // Re-export configs from existing file so callers don't need two imports
 export { rateLimitConfigs, type RateLimitConfig } from './rateLimit';
@@ -149,9 +150,11 @@ async function getStore(): Promise<RateLimitStore> {
 
   // Fallback to in-memory
   if (process.env.NODE_ENV === 'production') {
-    logger.warn(
-      '⚠️ Rate limiter: In-memory store kullanılıyor. ' +
-      'Çoklu instance ortamında (Cloud Run vb.) REDIS_URL env var ayarlayın.'
+    logger.error(
+      '🚨 CRITICAL: Rate limiter: Redis bağlantısı yok! ' +
+      'In-memory store ÇOKLU INSTANCE ortamında (Cloud Run, Kubernetes vb.) ÇALIŞMAZ — ' +
+      'her instance kendi bağımsız sayacını tutar, saldırgan instance başına tam limiti kullanabilir. ' +
+      'REDIS_URL environment variable\'ı ayarlayarak çözün.'
     );
   }
   storeInstance = new InMemoryStore();
@@ -168,6 +171,113 @@ function getClientIp(request: NextRequest): string {
 }
 
 // ==================== Public API ====================
+
+/**
+ * Path + method bazlı otomatik rate limit uygular.
+ * asyncHandler tarafından çağrılır — route dosyalarına dokunmak gerekmez.
+ *
+ * Kurallar:
+ *  - /api/health          → sınır yok
+ *  - auth endpoints       → özel, düşük limitler (brute-force koruması)
+ *  - file upload          → fileUpload config
+ *  - bulk / batch         → bulk config (yalnızca admin erişir → daha yüksek limit)
+ *  - stats / reports      → stats config
+ *  - GET /me              → readMe config
+ *  - GET *                → readGeneral config
+ *  - POST *               → writeCreate config
+ *  - PUT / PATCH *        → writeUpdate config
+ *  - DELETE *             → writeDelete config
+ */
+export async function autoRateLimit(request: NextRequest): Promise<NextResponse | null> {
+  const path = request.nextUrl.pathname;
+  const method = request.method;
+
+  // ── Health check – rate limiting yok ──────────────────────────────────────
+  if (path === '/api/health') return null;
+
+  // ── OpenAPI docs ───────────────────────────────────────────────────────────
+  if (path === '/api/openapi') {
+    return withRateLimit(request, rateLimitConfigs.openapi);
+  }
+
+  // ── Auth: kayıt ───────────────────────────────────────────────────────────
+  if (path === '/api/auth/register/basic') {
+    try {
+      const body = await request.clone().json().catch(() => null);
+      if (body?.email) {
+        return withRateLimit(request, rateLimitConfigs.authRegister, `register:${body.email}`);
+      }
+    } catch {}
+    return withRateLimit(request, rateLimitConfigs.authRegister);
+  }
+
+  if (path === '/api/auth/register/details') {
+    return withRateLimit(request, rateLimitConfigs.authRegisterDetails);
+  }
+
+  // ── Auth: şifre sıfırlama / değiştirme ────────────────────────────────────
+  if (path === '/api/auth/password/reset-request') {
+    try {
+      const body = await request.clone().json().catch(() => null);
+      if (body?.email) {
+        return withRateLimit(request, rateLimitConfigs.authPasswordReset, `password-reset:${body.email}`);
+      }
+    } catch {}
+    return withRateLimit(request, rateLimitConfigs.authPasswordReset);
+  }
+
+  if (path === '/api/auth/password/change') {
+    return withRateLimit(request, rateLimitConfigs.authPasswordChange);
+  }
+
+  // ── Auth: e-posta doğrulama ───────────────────────────────────────────────
+  if (path === '/api/auth/verify-email/send') {
+    return withRateLimit(request, rateLimitConfigs.authEmailVerification);
+  }
+
+  // ── Dosya yükleme ─────────────────────────────────────────────────────────
+  if (path.includes('/upload')) {
+    return withRateLimit(request, rateLimitConfigs.fileUpload);
+  }
+
+  // ── Toplu işlemler (bulk / batch) – yalnızca admin erişir ─────────────────
+  if (path.includes('/bulk') || path.includes('/batch') || path.includes('batch-names')) {
+    return withRateLimit(request, rateLimitConfigs.bulk);
+  }
+
+  // ── İstatistikler ve raporlar (ağır sorgular) ──────────────────────────────
+  if (path.includes('/stats') || path.includes('/reports') || path.includes('/performance')) {
+    return withRateLimit(request, rateLimitConfigs.stats);
+  }
+
+  // ── Bildirim gönderimi ────────────────────────────────────────────────────
+  if (path.includes('/notifications/send')) {
+    return withRateLimit(request, rateLimitConfigs.writeCreate);
+  }
+
+  // ── Genel CRUD: method bazlı ──────────────────────────────────────────────
+  if (method === 'GET') {
+    if (path.includes('/me')) {
+      return withRateLimit(request, rateLimitConfigs.readMe);
+    }
+    return withRateLimit(request, rateLimitConfigs.readGeneral);
+  }
+
+  if (method === 'POST') {
+    return withRateLimit(request, rateLimitConfigs.writeCreate);
+  }
+
+  if (method === 'PUT' || method === 'PATCH') {
+    return withRateLimit(request, rateLimitConfigs.writeUpdate);
+  }
+
+  if (method === 'DELETE') {
+    return withRateLimit(request, rateLimitConfigs.writeDelete);
+  }
+
+  // ── Varsayılan fallback ───────────────────────────────────────────────────
+  return withRateLimit(request, rateLimitConfigs.readGeneral);
+}
 
 /**
  * Route handler içinde rate limit kontrol eder.

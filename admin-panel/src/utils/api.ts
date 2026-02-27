@@ -1,10 +1,27 @@
 import { logger } from '@/utils/logger';
 
 /**
+ * Custom API Error with code and details
+ */
+export class ApiError extends Error {
+  code?: string;
+  details?: string;
+  response?: Response;
+
+  constructor(message: string, opts?: { code?: string; details?: string; response?: Response }) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = opts?.code;
+    this.details = opts?.details;
+    this.response = opts?.response;
+  }
+}
+
+/**
  * API Response Types
  * Backend'den dönen standart response formatları
  */
-export interface ApiSuccessResponse<T = any> {
+export interface ApiSuccessResponse<T = unknown> {
   success: true;
   message: string;
   data?: T;
@@ -18,7 +35,7 @@ export interface ApiErrorResponse {
   details?: string;
 }
 
-export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
+export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 // ==================== Request Configuration ====================
 const REQUEST_TIMEOUT_MS = 30_000; // 30 saniye timeout
@@ -53,7 +70,7 @@ function sleep(ms: number): Promise<void> {
  * @param options Fetch options
  * @returns Parsed data veya error throw eder
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -202,9 +219,9 @@ export async function apiRequest<T = any>(
           window.location.href = '/login';
           throw new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
         }
-      } catch (refreshError: any) {
+      } catch (refreshError: unknown) {
         // Token refresh sırasında hata (hesap disable, silinen hesap vs.)
-        if (refreshError.message?.includes('Oturumunuz sona erdi')) {
+        if (refreshError instanceof Error && refreshError.message?.includes('Oturumunuz sona erdi')) {
           throw refreshError;
         }
         logger.error('❌ Token refresh error:', refreshError);
@@ -226,11 +243,10 @@ export async function apiRequest<T = any>(
     if (!contentType.includes('application/json')) {
       const text = await response.text();
       const snippet = text.slice(0, 300);
-      const error = new Error(
-        `Unexpected non-JSON response (${response.status} ${response.statusText}) from ${url}. Content-Type=${contentType}. Body starts with: ${snippet}`
+      throw new ApiError(
+        `Unexpected non-JSON response (${response.status} ${response.statusText}) from ${url}. Content-Type=${contentType}. Body starts with: ${snippet}`,
+        { response }
       );
-      (error as any).response = response;
-      throw error;
     }
 
     const data: ApiResponse<T> = await response.json();
@@ -252,10 +268,11 @@ export async function apiRequest<T = any>(
           details: data.details,
         });
       }
-      const error = new Error(data.message);
-      (error as any).code = data.code;
-      (error as any).details = data.details;
-      (error as any).response = response;
+      const error = new ApiError(data.message, {
+        code: data.code,
+        details: data.details,
+        response,
+      });
       throw error;
     }
     
@@ -277,13 +294,14 @@ export async function apiRequest<T = any>(
     }
     
     return data.data as T;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isStatusUpdate) {
+      const apiErr = error instanceof ApiError ? error : (error instanceof Error ? error : null);
       logger.error('❌ Status update API request failed:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack,
+        message: apiErr?.message,
+        code: error instanceof ApiError ? error.code : undefined,
+        details: error instanceof ApiError ? error.details : undefined,
+        stack: apiErr?.stack,
       });
     }
     throw error;
@@ -294,12 +312,12 @@ export async function apiRequest<T = any>(
  * API response'u manuel olarak parse etmek için
  * apiRequest kullanılamadığında bu kullanılabilir
  */
-export function parseApiResponse<T = any>(response: ApiResponse<T>): T {
+export function parseApiResponse<T = unknown>(response: ApiResponse<T>): T {
   if (!response.success) {
-    const error = new Error(response.message);
-    (error as any).code = response.code;
-    (error as any).details = response.details;
-    throw error;
+    throw new ApiError(response.message, {
+      code: response.code,
+      details: response.details,
+    });
   }
   
   return response.data as T;

@@ -118,9 +118,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
         }
         onUserCacheUpdate(newUserCache);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching announcements:', error);
-      setError(error.message || 'Duyurular yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Duyurular yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.'));
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -178,9 +178,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
         newSet.delete(announcementId);
         return newSet;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting announcement:', error);
-      setError(error.message || 'Duyuru silinirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Duyuru silinirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -193,9 +193,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
         isPublished: !currentPublished,
       });
       await fetchAnnouncements();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error toggling announcement published:', error);
-      setError(error.message || 'Duyuru durumu güncellenirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Duyuru durumu güncellenirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -217,9 +217,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
       }
 
       setSelectedAnnouncementIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk deleting announcements:', error);
-      setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu silme işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -238,9 +238,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
 
       await fetchAnnouncements();
       setSelectedAnnouncementIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk publishing announcements:', error);
-      setError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu yayınlama işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -259,9 +259,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
 
       await fetchAnnouncements();
       setSelectedAnnouncementIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk unpublishing announcements:', error);
-      setError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -286,9 +286,9 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
       </div>
 
       {/* Filters */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Search Bar */}
-        <div className="flex-1 relative max-w-md">
+        <div className="flex-1 relative max-w-md w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -693,14 +693,14 @@ export default function AnnouncementsTab({ userCache, onUserCacheUpdate }: Annou
 
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div role="dialog" aria-modal="true" aria-labelledby="announcements-tab-title-1" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                     <Megaphone className="w-5 h-5 text-white" />
                   </div>
-                  <h2 className="text-lg font-bold text-white">Duyuru Önizleme</h2>
+                  <h2 id="announcements-tab-title" className="text-lg font-bold text-white">Duyuru Önizleme</h2>
                 </div>
                 <button
                   onClick={() => {

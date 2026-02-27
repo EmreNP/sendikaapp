@@ -50,13 +50,13 @@ export default function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="flex items-start justify-between p-6 border-b">
           <div className="flex items-start gap-3">
             <div className={`p-2 rounded-lg ${variantColors[variant]}`}>
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            <h2 id="confirm-modal-title" className="text-xl font-semibold text-gray-900">{title}</h2>
           </div>
           <button
             onClick={onCancel}

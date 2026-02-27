@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, MapPin, Building2, FileText, Save, User as UserIcon } from 'lucide-react';
+import { useState, useEffect, memo} from 'react';
+import { X, Building2, FileText, Save, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { userService, UpdateProfileRequest } from '@/services/api/userService';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
@@ -7,14 +7,16 @@ import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import type { EducationLevel } from '@shared/types/user';
 import type { User as SharedUser } from '@shared/types/user';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
+function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { user, setUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         const sharedUser = resp.user as unknown as SharedUser;
         // Safely parse birthDate coming from different sources (Date | Firebase Timestamp | ISO string | seconds/nanoseconds object)
         let birthDate = '';
-        const parseBirthDate = (raw: any): string => {
+        const parseBirthDate = (raw: unknown): string => {
           if (!raw) return '';
           try {
             // Date instance
@@ -62,22 +64,23 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             }
 
             // Firestore Timestamp with toDate()
-            if (raw?.toDate && typeof raw.toDate === 'function') {
-              const d = raw.toDate();
+            const rawObj = raw as Record<string, unknown>;
+            if (typeof rawObj.toDate === 'function') {
+              const d = (rawObj.toDate as () => Date)();
               if (d instanceof Date && !isNaN(d.getTime())) return d.toISOString().split('T')[0];
             }
 
             // Plain object with seconds/nanoseconds (from serialized Timestamp)
             if (typeof raw === 'object') {
-              const seconds = Number(raw.seconds ?? raw._seconds);
-              const nanoseconds = Number(raw.nanoseconds ?? raw._nanoseconds ?? 0);
+              const seconds = Number(rawObj.seconds ?? rawObj._seconds);
+              const nanoseconds = Number(rawObj.nanoseconds ?? rawObj._nanoseconds ?? 0);
               if (!isNaN(seconds)) {
                 const d = new Date(seconds * 1000 + Math.floor(nanoseconds / 1e6));
                 if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
               }
 
               // As a last resort, try Date constructor
-              const d2 = new Date(raw as any);
+              const d2 = new Date(raw as unknown as string);
               if (!isNaN(d2.getTime())) return d2.toISOString().split('T')[0];
             }
           } catch (err) {
@@ -107,7 +110,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         });
         setError(null);
         setSuccess(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error('Error loading profile:', err);
         setError('Profil bilgileri yüklenirken bir hata oluştu');
       } finally {
@@ -118,7 +121,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  const handleChange = (field: keyof UpdateProfileRequest, value: any) => {
+  const handleChange = (field: keyof UpdateProfileRequest, value: string | boolean | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
     setSuccess(false);
@@ -134,7 +137,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       'firstName','lastName','birthDate','gender','phone','district','tcKimlikNo','fatherName','motherName','birthPlace','education','kurumSicil','kadroUnvani'
     ];
     for (const k of mandatory) {
-      const v = (formData as any)[k];
+      const v = formData[k as keyof typeof formData];
       // Check for undefined, null, empty string, or whitespace-only string
       if (!v || (typeof v === 'string' && v.trim() === '')) {
         setError('Lütfen tüm zorunlu alanları doldurun');
@@ -181,7 +184,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
 
     // Ensure district choice is valid
-    if (!KONYA_DISTRICTS.includes(formData.district || '')) {
+    if (!(KONYA_DISTRICTS as readonly string[]).includes(formData.district || '')) {
       setError('Lütfen geçerli bir görev ilçesi seçin');
       return;
     }
@@ -191,9 +194,9 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     
     // Add all mandatory fields
     mandatory.forEach((k) => {
-      const val = (formData as any)[k];
+      const val = formData[k as keyof typeof formData];
       if (val !== undefined && val !== null && val !== '') {
-        (payload as any)[k] = val;
+        (payload as Record<string, unknown>)[k] = val;
       }
     });
 
@@ -210,8 +213,8 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setTimeout(() => {
         onClose();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'Profil güncellenirken bir hata oluştu');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Profil güncellenirken bir hata oluştu'));
     } finally {
       setSaving(false);
     }
@@ -229,10 +232,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-          <h2 className="text-sm font-medium text-white">Profil Bilgilerim</h2>
+          <h2 id="profile-modal-title" className="text-sm font-medium text-white">Profil Bilgilerim</h2>
           <button
             type="button"
             onClick={onClose}
@@ -523,3 +526,4 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   );
 }
 
+export default memo(ProfileModal);

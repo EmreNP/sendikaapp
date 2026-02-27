@@ -96,9 +96,9 @@ export default function ContactMessagesPage() {
       setTopicsError(null);
       const data = await contactService.getTopics();
       setTopicsList(data.topics || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching topics:', err);
-      setTopicsError(err.message || 'Konular yüklenirken bir hata oluştu');
+      setTopicsError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Konular yüklenirken bir hata oluştu'));
       setTopicsList([]);
     } finally {
       setTopicsLoading(false);
@@ -138,9 +138,9 @@ export default function ContactMessagesPage() {
       const data = await contactService.getContactMessages(params);
       setMessages(data.messages || []);
       setTotal(data.total || 0);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching messages:', err);
-      setMessagesError(err.message || 'Mesajlar yüklenirken bir hata oluştu');
+      setMessagesError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Mesajlar yüklenirken bir hata oluştu'));
       setMessages([]);
     } finally {
       setMessagesLoading(false);
@@ -174,9 +174,9 @@ export default function ContactMessagesPage() {
           await contactService.deleteTopic(topic.id);
           await fetchTopicsList();
           setConfirmDialog({ ...confirmDialog, isOpen: false });
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error('Error deleting topic:', err);
-          setTopicsError(err.message || 'Konu silinirken bir hata oluştu');
+          setTopicsError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Konu silinirken bir hata oluştu'));
         } finally {
           setProcessing(false);
         }
@@ -199,7 +199,8 @@ export default function ContactMessagesPage() {
     
     // Firestore Timestamp formatını kontrol et ({ seconds, nanoseconds } veya { _seconds, _nanoseconds })
     if (typeof date === 'object' && ('seconds' in date || '_seconds' in date)) {
-      const seconds = (date as any).seconds || (date as any)._seconds || 0;
+      const ts = date as { seconds?: number; _seconds?: number };
+      const seconds = ts.seconds || ts._seconds || 0;
       d = new Date(seconds * 1000);
     } else if (typeof date === 'string') {
       d = new Date(date);
@@ -233,8 +234,6 @@ export default function ContactMessagesPage() {
     const topic = topics.find((t) => t.id === topicId);
     return topic?.name || '-';
   };
-
-  const totalPages = Math.ceil(total / limit);
 
   return (
     <AdminLayout>
@@ -297,16 +296,16 @@ export default function ContactMessagesPage() {
         {activeTab === 'messages' ? (
           <>
             {/* Filters */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               {/* Search Bar */}
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Mesaj ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm w-64"
+                  className="pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm w-full sm:w-64"
                 />
               </div>
 

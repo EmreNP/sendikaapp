@@ -1,6 +1,5 @@
 import { apiRequest } from '@/utils/api';
 import type { 
-  Content,
   VideoContent,
   DocumentContent,
   TestContent,

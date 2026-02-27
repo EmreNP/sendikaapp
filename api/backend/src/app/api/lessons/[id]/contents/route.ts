@@ -108,25 +108,31 @@ export const GET = asyncHandler(async (
         const result: Record<string, any> = { ...content };
         
         // Handle video content
+        // Uploaded videos are private (no public ACL) → signed URL (1 gün)
+        // Thumbnails are in video-thumbnails/ (public category) → public URL
         if (content.type === 'video') {
           const videoContent = content as VideoContent;
           if (videoContent.videoSource === 'uploaded' && videoContent.videoPath) {
-            result.videoUrl = generatePublicUrl(videoContent.videoPath);
+            try {
+              result.videoUrl = await generateSignedUrl(videoContent.videoPath, 1);
+            } catch (err) {
+              logger.warn(`[contents] Video signed URL failed for ${videoContent.videoPath}:`, err);
+            }
           }
           if (videoContent.thumbnailPath) {
+            // video-thumbnails/ — public category, makePublic() çağrılmış
             result.thumbnailUrl = generatePublicUrl(videoContent.thumbnailPath);
           }
         }
         
-        // Handle document content — use signed URL so private files are always accessible
+        // Handle document content — lesson-documents are private, always use signed URL
         if (content.type === 'document') {
           const docContent = content as DocumentContent;
           if (docContent.documentPath) {
             try {
               result.documentUrl = await generateSignedUrl(docContent.documentPath, 7);
             } catch (err) {
-              logger.warn(`[contents] Signed URL generation failed for ${docContent.documentPath}, falling back to public URL:`, err);
-              result.documentUrl = generatePublicUrl(docContent.documentPath);
+              logger.warn(`[contents] Document signed URL failed for ${docContent.documentPath}:`, err);
             }
           }
         }

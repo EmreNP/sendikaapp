@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, Upload, XCircle, Plus, Trash2 } from 'lucide-react';
 import { contractedInstitutionService } from '@/services/api/contractedInstitutionService';
 import type { 
@@ -11,6 +11,7 @@ import type {
 import ImageCropModal from '@/components/news/ImageCropModal';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ContractedInstitutionFormModalProps {
   institution: ContractedInstitution | null;
@@ -20,13 +21,14 @@ interface ContractedInstitutionFormModalProps {
   categories: InstitutionCategory[];
 }
 
-export default function ContractedInstitutionFormModal({ 
+function ContractedInstitutionFormModal({ 
   institution, 
   isOpen, 
   onClose, 
   onSuccess,
   categories 
 }: ContractedInstitutionFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -241,9 +243,9 @@ export default function ContractedInstitutionFormModal({
       if (croppedLogoPreview) URL.revokeObjectURL(croppedLogoPreview);
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving contracted institution:', err);
-      setError(err.message || 'Anlaşmalı kurum kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Anlaşmalı kurum kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -260,10 +262,10 @@ export default function ContractedInstitutionFormModal({
         <div className="flex min-h-screen items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={handleClose} />
           
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-labelledby="contracted-institution-form-modal-title" className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 id="contracted-institution-form-modal-title" className="text-lg font-semibold text-gray-900">
                 {isEditMode ? 'Anlaşmalı Kurumu Düzenle' : 'Yeni Anlaşmalı Kurum'}
               </h2>
               <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
@@ -528,8 +530,8 @@ export default function ContractedInstitutionFormModal({
       {showConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="fixed inset-0 bg-black/50" />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="contracted-institution-form-modal-title-1" className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
+            <h3 id="contracted-institution-form-modal-title-1" className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
             <p className="text-sm text-gray-600 mb-4">
               Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinize emin misiniz?
             </p>
@@ -569,3 +571,5 @@ export default function ContractedInstitutionFormModal({
     </>
   );
 }
+
+export default memo(ContractedInstitutionFormModal);

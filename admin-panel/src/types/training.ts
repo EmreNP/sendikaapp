@@ -1,5 +1,5 @@
 // Training types - shared/types/training.ts'den import edilebilir ama admin panel için ayrı tanım
-export type {
+import type {
   Training,
   Lesson,
   VideoContent,
@@ -7,7 +7,6 @@ export type {
   TestContent,
   Content,
   ContentType,
-  TestType,
   VideoSource,
   TestQuestion,
   TestOption,
@@ -25,6 +24,32 @@ export type {
   BulkTrainingActionRequest,
   BulkTrainingActionResult,
 } from '@shared/types/training';
+
+export type {
+  Training,
+  Lesson,
+  VideoContent,
+  DocumentContent,
+  TestContent,
+  Content,
+  ContentType,
+  VideoSource,
+  TestQuestion,
+  TestOption,
+  CreateTrainingRequest,
+  UpdateTrainingRequest,
+  CreateLessonRequest,
+  UpdateLessonRequest,
+  CreateVideoContentRequest,
+  UpdateVideoContentRequest,
+  CreateDocumentContentRequest,
+  UpdateDocumentContentRequest,
+  CreateTestContentRequest,
+  UpdateTestContentRequest,
+  BulkTrainingAction,
+  BulkTrainingActionRequest,
+  BulkTrainingActionResult,
+};
 
 export interface TrainingListResponse {
   trainings: Training[];

@@ -1,5 +1,5 @@
 import { apiRequest } from '@/utils/api';
-import { uploadService } from './uploadService';
+import { uploadService, type UploadCategory } from './uploadService';
 import type { 
   ContractedInstitution, 
   CreateContractedInstitutionRequest, 
@@ -49,7 +49,7 @@ export const contractedInstitutionService = {
   },
 
   async uploadImage(file: File): Promise<{ imageUrl: string; fileName: string; size: number; contentType: string }> {
-    const result = await uploadService.uploadImage(file, 'institution-images' as any);
+    const result = await uploadService.uploadImage(file, 'institution-images' as UploadCategory);
     return { imageUrl: result.imageUrl, fileName: result.fileName, size: result.size, contentType: result.contentType };
   },
 

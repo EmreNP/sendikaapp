@@ -4,6 +4,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { logger } from '../../lib/utils/logger';
+import { validateEnv } from '../../lib/utils/validateEnv';
+
+// Validate environment variables at startup
+validateEnv();
+
 /**
  * Error type guard
  */
@@ -21,33 +26,55 @@ if (getApps().length === 0) {
   if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
     // Local development için service account key kullan
     try {
-      // Service account key path'ini belirle
-      let serviceAccountPath: string;
-      
-      if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-        // Environment variable'dan path al
-        serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-      } else {
-        // Next.js'de process.cwd() proje root'unu verir (api/backend/)
-        serviceAccountPath = path.resolve(process.cwd(), 'serviceAccountKey.json');
-        
-        // Eğer bulunamazsa, bir üst dizinde dene (workspace root)
-        if (!fs.existsSync(serviceAccountPath)) {
-          const workspacePath = path.resolve(process.cwd(), '..', 'serviceAccountKey.json');
-          if (fs.existsSync(workspacePath)) {
-            serviceAccountPath = workspacePath;
-          }
+      let serviceAccount;
+
+      // 1. Önce GOOGLE_APPLICATION_CREDENTIALS_JSON env variable'ını kontrol et (önerilen yöntem)
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+        try {
+          serviceAccount = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          logger.log('📋 Service account loaded from GOOGLE_APPLICATION_CREDENTIALS_JSON');
+        } catch (parseError) {
+          logger.error('❌ Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', parseError);
+          throw parseError;
         }
       }
-      
-      // Dosyanın var olup olmadığını kontrol et
-      if (!fs.existsSync(serviceAccountPath)) {
-        throw new Error(`Service account key file not found at: ${serviceAccountPath}`);
+      // 2. GOOGLE_APPLICATION_CREDENTIALS (dosya yolu) kontrolü
+      else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+        if (fs.existsSync(credPath)) {
+          serviceAccount = JSON.parse(fs.readFileSync(credPath, 'utf8'));
+          logger.log(`📋 Service account loaded from: ${credPath}`);
+        } else {
+          throw new Error(`GOOGLE_APPLICATION_CREDENTIALS file not found: ${credPath}`);
+        }
       }
-      
-      // Dosyayı oku ve parse et
-      const serviceAccountContent = fs.readFileSync(serviceAccountPath, 'utf8');
-      const serviceAccount = JSON.parse(serviceAccountContent);
+      // 3. Eski yöntem: FIREBASE_SERVICE_ACCOUNT_PATH veya serviceAccountKey.json dosyası (deprecated)
+      else {
+        logger.warn('⚠️  serviceAccountKey.json dosyası kullanılıyor. Lütfen GOOGLE_APPLICATION_CREDENTIALS_JSON env variable kullanın.');
+        let serviceAccountPath: string;
+
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+          serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+        } else {
+          serviceAccountPath = path.resolve(process.cwd(), 'serviceAccountKey.json');
+          if (!fs.existsSync(serviceAccountPath)) {
+            const workspacePath = path.resolve(process.cwd(), '..', 'serviceAccountKey.json');
+            if (fs.existsSync(workspacePath)) {
+              serviceAccountPath = workspacePath;
+            }
+          }
+        }
+
+        if (!fs.existsSync(serviceAccountPath)) {
+          throw new Error(
+            `Service account credentials not found. ` +
+            `Set GOOGLE_APPLICATION_CREDENTIALS_JSON env variable. ` +
+            `(Checked: ${serviceAccountPath})`
+          );
+        }
+
+        serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      }
       
       // Storage bucket name'i service account'tan veya env'den al
       // Service account'ta storageBucket field'ı varsa onu kullan
@@ -75,7 +102,6 @@ if (getApps().length === 0) {
       }
       
       logger.log('✅ Firebase Admin SDK initialized (Development)');
-      logger.log(`   Service account loaded from: ${serviceAccountPath}`);
     } catch (error: unknown) {
       const errorMessage = isErrorWithMessage(error) ? error.message : 'Bilinmeyen hata';
       logger.error('❌ Firebase Admin SDK initialization error:', errorMessage);

@@ -44,7 +44,7 @@ async function uploadFileWithProgress(
   formData: FormData,
   token: string,
   onProgress?: UploadProgressCallback
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     
@@ -126,15 +126,16 @@ export const fileUploadService = {
     const data = await uploadFileWithProgress(url, formData, token, onProgress);
 
     if (!data.success) {
-      throw new Error(data.message || 'Dosya yüklenirken bir hata oluştu');
+      throw new Error((data.message as string) || 'Dosya yüklenirken bir hata oluştu');
     }
 
+    const fileData = data.data as Record<string, unknown>;
     return {
-      documentUrl: data.data.documentUrl || data.data.fileUrl,
-      storagePath: data.data.storagePath,  // NEW - storage path
-      fileName: data.data.fileName,
-      size: data.data.size,
-      contentType: data.data.contentType,
+      documentUrl: (fileData.documentUrl || fileData.fileUrl) as string,
+      storagePath: fileData.storagePath as string | undefined,
+      fileName: fileData.fileName as string,
+      size: fileData.size as number,
+      contentType: fileData.contentType as string,
     };
   },
 
@@ -159,15 +160,16 @@ export const fileUploadService = {
     const data = await uploadFileWithProgress(url, formData, token, onProgress);
 
     if (!data.success) {
-      throw new Error(data.message || 'Video yüklenirken bir hata oluştu');
+      throw new Error((data.message as string) || 'Video yüklenirken bir hata oluştu');
     }
 
+    const fileData = data.data as Record<string, unknown>;
     return {
-      documentUrl: data.data.documentUrl || data.data.fileUrl,
-      storagePath: data.data.storagePath,  // NEW - storage path
-      fileName: data.data.fileName,
-      size: data.data.size,
-      contentType: data.data.contentType,
+      documentUrl: (fileData.documentUrl || fileData.fileUrl) as string,
+      storagePath: fileData.storagePath as string | undefined,
+      fileName: fileData.fileName as string,
+      size: fileData.size as number,
+      contentType: fileData.contentType as string,
     };
   },
 
@@ -192,15 +194,16 @@ export const fileUploadService = {
     const data = await uploadFileWithProgress(url, formData, token, onProgress);
 
     if (!data.success) {
-      throw new Error(data.message || 'Thumbnail yüklenirken bir hata oluştu');
+      throw new Error((data.message as string) || 'Thumbnail yüklenirken bir hata oluştu');
     }
 
+    const fileData = data.data as Record<string, unknown>;
     return {
-      documentUrl: data.data.documentUrl || data.data.fileUrl,
-      storagePath: data.data.storagePath,  // NEW - storage path
-      fileName: data.data.fileName,
-      size: data.data.size,
-      contentType: data.data.contentType,
+      documentUrl: (fileData.documentUrl || fileData.fileUrl) as string,
+      storagePath: fileData.storagePath as string | undefined,
+      fileName: fileData.fileName as string,
+      size: fileData.size as number,
+      contentType: fileData.contentType as string,
     };
   },
 
@@ -225,15 +228,16 @@ export const fileUploadService = {
     const data = await uploadFileWithProgress(url, formData, token, onProgress);
 
     if (!data.success) {
-      throw new Error(data.message || 'Resim yüklenirken bir hata oluştu');
+      throw new Error((data.message as string) || 'Resim yüklenirken bir hata oluştu');
     }
 
+    const fileData = data.data as Record<string, unknown>;
     return {
-      documentUrl: data.data.documentUrl || data.data.fileUrl,
-      storagePath: data.data.storagePath,  // NEW - storage path
-      fileName: data.data.fileName,
-      size: data.data.size,
-      contentType: data.data.contentType,
+      documentUrl: (fileData.documentUrl || fileData.fileUrl) as string,
+      storagePath: fileData.storagePath as string | undefined,
+      fileName: fileData.fileName as string,
+      size: fileData.size as number,
+      contentType: fileData.contentType as string,
     };
   },
 };

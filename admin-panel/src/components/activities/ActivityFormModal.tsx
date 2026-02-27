@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { X, Calendar, Upload, Trash2 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import { fileUploadService } from '@/services/api/fileUploadService';
@@ -6,6 +6,7 @@ import { apiRequest } from '@/utils/api';
 import type { Activity, ActivityCategory, CreateActivityRequest, UpdateActivityRequest } from '@/types/activity';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface BranchOption {
   id: string;
@@ -23,7 +24,7 @@ interface ActivityFormModalProps {
   disabled?: boolean;
 }
 
-export default function ActivityFormModal({ 
+function ActivityFormModal({ 
   activity, 
   categories, 
   branches,
@@ -33,6 +34,7 @@ export default function ActivityFormModal({
   onCancel, 
   disabled = false 
 }: ActivityFormModalProps) {
+  useEscapeKey(true, onCancel);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -229,8 +231,8 @@ export default function ActivityFormModal({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (err: any) {
-      setErrors(prev => ({ ...prev, images: err.message || 'Resimler yüklenirken hata oluştu' }));
+    } catch (err: unknown) {
+      setErrors(prev => ({ ...prev, images: (err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Resimler yüklenirken hata oluştu') }));
     } finally {
       setUploadingImage(false);
     }
@@ -246,10 +248,10 @@ export default function ActivityFormModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="activity-form-modal-title" className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 id="activity-form-modal-title" className="text-xl font-semibold text-gray-900">
             {activity ? 'Aktivite Düzenle' : 'Yeni Aktivite'}
           </h2>
           <button
@@ -265,7 +267,7 @@ export default function ActivityFormModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Temel Bilgiler</h3>
+            <h3 id="activity-form-modal-title-1" className="text-lg font-medium text-gray-900">Temel Bilgiler</h3>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -469,7 +471,7 @@ export default function ActivityFormModal({
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="activity-form-modal-title-1" className="bg-white rounded-lg p-6 max-w-sm mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
             <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
             <div className="flex justify-end gap-3">
@@ -482,3 +484,5 @@ export default function ActivityFormModal({
     </div>
   );
 }
+
+export default memo(ActivityFormModal);

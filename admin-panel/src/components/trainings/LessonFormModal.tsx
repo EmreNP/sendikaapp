@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { lessonService } from '@/services/api/lessonService';
 import type { Lesson, CreateLessonRequest, UpdateLessonRequest } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface LessonFormModalProps {
   lesson: Lesson | null;
@@ -13,6 +14,7 @@ interface LessonFormModalProps {
 }
 
 export default function LessonFormModal({ lesson, trainingId, isOpen, onClose, onSuccess }: LessonFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -91,9 +93,9 @@ export default function LessonFormModal({ lesson, trainingId, isOpen, onClose, o
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save lesson error:', err);
-      setError(err.message || 'Ders kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Ders kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -111,9 +113,9 @@ export default function LessonFormModal({ lesson, trainingId, isOpen, onClose, o
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="lesson-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="lesson-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Dersi Düzenle' : 'Yeni Ders Oluştur'}
             </h3>
             <button

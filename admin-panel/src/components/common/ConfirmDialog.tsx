@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
+  processing?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,6 +23,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEscapeKey(isOpen, onCancel);
   if (!isOpen) return null;
 
   const variantColors = {
@@ -39,7 +42,7 @@ export default function ConfirmDialog({
 
       {/* Dialog */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
           {/* Content */}
           <div className="p-6">
             <div className="flex items-start gap-4">
@@ -51,7 +54,7 @@ export default function ConfirmDialog({
                 }`} />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 id="confirm-dialog-title" className="text-lg font-semibold text-gray-900 mb-2">
                   {title}
                 </h3>
                 <p className="text-sm text-gray-600">

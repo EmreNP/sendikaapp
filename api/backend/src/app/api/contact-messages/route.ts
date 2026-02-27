@@ -124,8 +124,10 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         
         // Mesajları tarihe göre sırala (desc)
         allMessages.sort((a, b) => {
-          const aTime = a.createdAt?._seconds || a.createdAt?.seconds || 0;
-          const bTime = b.createdAt?._seconds || b.createdAt?.seconds || 0;
+          const aTs = a.createdAt as { _seconds?: number; seconds?: number } | undefined;
+          const bTs = b.createdAt as { _seconds?: number; seconds?: number } | undefined;
+          const aTime = aTs?._seconds || aTs?.seconds || 0;
+          const bTime = bTs?._seconds || bTs?.seconds || 0;
           return bTime - aTime;
         });
         

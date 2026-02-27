@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, Upload, FileText, Download } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF, generateMergedRegistrationPDF } from '@/utils/pdfGenerator';
 import { logger } from '@/utils/logger';
+import type { User } from '@shared/types/user';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface UserStatusModalProps {
   userId: string | null;
@@ -14,15 +16,16 @@ interface UserStatusModalProps {
   onSuccess: () => void;
 }
 
-export default function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: UserStatusModalProps) {
+function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: UserStatusModalProps) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
   const [note, setNote] = useState<string>('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<User | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
@@ -64,7 +67,7 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
   const fetchUserData = async () => {
     if (!userId) return;
     try {
-      const data = await apiRequest<{ user: any }>(`/api/users/${userId}`);
+      const data = await apiRequest<{ user: User }>(`/api/users/${userId}`);
       setUserData(data.user);
     } catch (err) {
       logger.error('Error fetching user data:', err);
@@ -99,8 +102,8 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
         url = await generateUserRegistrationPDF(userData, userBranch, { download: false, isReadOnly: false });
       }
       setPreviewPdfUrl(url);
-    } catch (err: any) {
-      setError(err?.message || 'PDF oluşturulurken bir hata oluştu');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'PDF oluşturulurken bir hata oluştu');
     }
   };
 
@@ -117,8 +120,8 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
       } else {
         await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err: unknown) {
+      logger.error('PDF download error:', err);
       setError('PDF indirilirken bir hata oluştu');
     }
   };
@@ -126,10 +129,7 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
   const closePreview = () => {
     if (previewPdfUrl) {
       // Clean up the object URL to avoid memory leaks
-      // Note: If we want to keep it valid for a bit longer or if browser handles it, we can be less aggressive.
-      // But typically we should revoke it. However, if user clicks download in the iframe, it needs to be valid.
-      // We'll trust the component unmount or next generation to clean up, or just let it be for the session.
-      // URL.revokeObjectURL(previewPdfUrl); 
+      URL.revokeObjectURL(previewPdfUrl);
       setPreviewPdfUrl(null);
     }
   };
@@ -152,8 +152,9 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
             pdfFile,
             (progress) => setUploadProgress(progress)
           );
-        } catch (uploadError: any) {
-          throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
+        } catch (uploadError: unknown) {
+          const msg = uploadError instanceof Error ? uploadError.message : 'Bilinmeyen hata';
+          throw new Error(`Dosya yüklenemedi: ${msg}`);
         }
       }
 
@@ -173,9 +174,9 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error updating user status:', err);
-      setError(err.message || 'Durum güncellenirken bir hata oluştu');
+      setError(err instanceof Error ? err.message : 'Durum güncellenirken bir hata oluştu');
     } finally {
       setLoading(false);
       setUploadProgress(0);
@@ -249,10 +250,10 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-status-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Durum Değiştir</h2>
+            <h2 id="user-status-modal-title" className="text-sm font-medium text-white">Durum Değiştir</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
@@ -449,9 +450,9 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
       {/* PDF Preview Overlay */}
       {previewPdfUrl && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+          <div role="dialog" aria-modal="true" aria-labelledby="user-status-modal-title-1" className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 id="user-status-modal-title-1" className="text-lg font-semibold text-gray-900">
                 PDF Önizleme & Düzenleme
                 {previewMode === 'merged' && (
                   <span className="ml-2 text-sm font-normal text-green-600">(Kayıt + İstifa Formu)</span>
@@ -494,3 +495,5 @@ export default function UserStatusModal({ userId, currentStatus, isOpen, onClose
     </div>
   );
 }
+
+export default memo(UserStatusModal);

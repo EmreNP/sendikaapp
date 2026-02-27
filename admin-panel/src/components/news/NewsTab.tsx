@@ -118,9 +118,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
         }
         onUserCacheUpdate(newUserCache);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching news:', error);
-      setError(error.message || 'Haberler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Haberler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.'));
       setNews([]);
     } finally {
       setLoading(false);
@@ -177,9 +177,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
         newSet.delete(newsId);
         return newSet;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting news:', error);
-      setError(error.message || 'Haber silinirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Haber silinirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -192,9 +192,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
         isPublished: !currentPublished,
       });
       await fetchNews();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error toggling published:', error);
-      setError(error.message || 'Haber durumu güncellenirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Haber durumu güncellenirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -217,9 +217,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
       }
 
       setSelectedNewsIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk deleting news:', error);
-      setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu silme işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -238,9 +238,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
 
       await fetchNews();
       setSelectedNewsIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk publishing news:', error);
-      setError(error.message || 'Toplu yayınlama işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu yayınlama işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -259,9 +259,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
 
       await fetchNews();
       setSelectedNewsIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk unpublishing news:', error);
-      setError(error.message || 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu yayından kaldırma işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -286,9 +286,9 @@ export default function NewsTab({ userCache, onUserCacheUpdate }: NewsTabProps) 
       </div>
 
       {/* Filters */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Search Bar */}
-        <div className="flex-1 relative max-w-md">
+        <div className="flex-1 relative max-w-md w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"

@@ -98,9 +98,9 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
 
       closeModal();
       onCategoriesChange();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving category:', err);
-      setError(err.message || 'Kategori kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kategori kaydedilirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -117,9 +117,9 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
           setProcessing(true);
           await institutionCategoryService.deleteCategory(category.id);
           onCategoriesChange();
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error('Error deleting category:', err);
-          setError(err.message || 'Kategori silinirken bir hata oluştu');
+          setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kategori silinirken bir hata oluştu'));
         } finally {
           setProcessing(false);
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
@@ -135,9 +135,9 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
         isActive: !category.isActive,
       });
       onCategoriesChange();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error toggling category:', err);
-      setError(err.message || 'İşlem başarısız oldu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'İşlem başarısız oldu'));
     } finally {
       setProcessing(false);
     }
@@ -158,7 +158,7 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
         </div>
 
         {/* Search Bar */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1 relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -284,10 +284,10 @@ export default function CategoriesTab({ categories, onCategoriesChange }: Catego
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
 
           {/* Modal */}
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+          <div role="dialog" aria-modal="true" aria-labelledby="categories-tab-title-1" className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 id="categories-tab-title" className="text-lg font-semibold text-gray-900">
                 {editingCategory ? 'Kategori Düzenle' : 'Yeni Kategori'}
               </h3>
               <button

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { AppError } from './AppError';
 import type { ApiErrorResponse } from '../response';
 import { 
@@ -8,6 +8,7 @@ import {
   handleFirebaseAuthError as existingHandleFirebaseAuthError,
   handleFirestoreError as existingHandleFirestoreError,
 } from '../response';
+import { autoRateLimit } from '../routeRateLimit';
 
 import { logger } from '../../../lib/utils/logger';
 /**
@@ -132,22 +133,36 @@ export function handleError(
 
 /**
  * Async handler wrapper - Tüm async route handler'ları için
- * withAuth ile uyumlu çalışır
- * 
+ * withAuth ile uyumlu çalışır.
+ *
+ * Rate limiting otomatik olarak uygulanır (path + method bazlı).
+ * Devre dışı bırakmak için options.skipRateLimit = true geçin.
+ *
  * Usage:
- * export const GET = asyncHandler(async (request, { params }) => {
- *   // Your code here
- * });
+ *   export const GET = asyncHandler(async (request, { params }) => {
+ *     // Your code here
+ *   });
+ *
+ *   // Rate limiting olmadan (örn. health check):
+ *   export const GET = asyncHandler(handler, { skipRateLimit: true });
  */
 export function asyncHandler<T extends any[]>(
-  handler: (...args: T) => Promise<NextResponse>
+  handler: (...args: T) => Promise<NextResponse>,
+  options?: { skipRateLimit?: boolean }
 ) {
   return async (...args: T): Promise<NextResponse> => {
+    // args[0] her zaman NextRequest'tir
+    const request = args[0] as NextRequest;
+
     try {
+      // ── Otomatik rate limiting ────────────────────────────────────────────
+      if (!options?.skipRateLimit) {
+        const rateLimitResponse = await autoRateLimit(request);
+        if (rateLimitResponse) return rateLimitResponse;
+      }
+
       return await handler(...args);
     } catch (error: unknown) {
-      // Request context'i çıkar
-      const request = args[0];
       const context = {
         path: request?.nextUrl?.pathname,
         method: request?.method,

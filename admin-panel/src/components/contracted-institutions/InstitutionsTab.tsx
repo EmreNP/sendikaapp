@@ -93,9 +93,9 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
 
         onUserCacheUpdate(newUserCache);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching contracted institutions:', error);
-      setError(error.message || 'Anlaşmalı kurumlar yüklenirken bir hata oluştu.');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Anlaşmalı kurumlar yüklenirken bir hata oluştu.'));
       setInstitutions([]);
     } finally {
       setLoading(false);
@@ -125,9 +125,9 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
           setProcessing(true);
           await contractedInstitutionService.deleteInstitution(institution.id);
           fetchInstitutions();
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error('Error deleting institution:', err);
-          setError(err.message || 'Silme işlemi başarısız oldu');
+          setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Silme işlemi başarısız oldu'));
         } finally {
           setProcessing(false);
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
@@ -143,9 +143,9 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
         isPublished: !institution.isPublished,
       });
       fetchInstitutions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error toggling publish:', err);
-      setError(err.message || 'İşlem başarısız oldu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'İşlem başarısız oldu'));
     } finally {
       setProcessing(false);
     }
@@ -170,9 +170,9 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
           await contractedInstitutionService.bulkAction(action, ids);
           setSelectedIds(new Set());
           fetchInstitutions();
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error('Error in bulk action:', err);
-          setError(err.message || 'Toplu işlem başarısız oldu');
+          setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Toplu işlem başarısız oldu'));
         } finally {
           setProcessing(false);
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
@@ -213,7 +213,7 @@ export default function InstitutionsTab({ userCache, onUserCacheUpdate, categori
         </div>
 
         {/* Search & Filters */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Search Bar - sol */}
           <div className="flex-1 relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />

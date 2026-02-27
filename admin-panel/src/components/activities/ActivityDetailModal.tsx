@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { X, Calendar, Tag, Building2, FileText, User, Clock } from 'lucide-react';
 import type { Activity, ActivityCategory } from '@/types/activity';
 import { batchFetchUserNames, formatUserName } from '@/services/api/userNameService';
 import { apiRequest } from '@/utils/api';
 import { formatDate } from '@/utils/dateFormatter';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ActivityDetailModalProps {
   activity: Activity;
@@ -12,10 +13,11 @@ interface ActivityDetailModalProps {
   onClose: () => void;
 }
 
-export default function ActivityDetailModal({ activity, categories, branches, onClose }: ActivityDetailModalProps) {
+function ActivityDetailModal({ activity, categories, branches, onClose }: ActivityDetailModalProps) {
   const categoryName = categories.find(c => c.id === activity.categoryId)?.name || 'Bilinmeyen Kategori';
   
   // Branch name bulma (try props first, fall back to API)
+  useEscapeKey(true, onClose);
   const [branchName, setBranchName] = useState<string>(() => {
     const found = branches?.find(b => b.id === activity.branchId);
     return found?.name || 'Merkez Şube';
@@ -79,10 +81,10 @@ export default function ActivityDetailModal({ activity, categories, branches, on
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="activity-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Aktivite Detayı</h2>
+            <h2 id="activity-detail-modal-title" className="text-sm font-medium text-white">Aktivite Detayı</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
@@ -204,3 +206,5 @@ export default function ActivityDetailModal({ activity, categories, branches, on
     </div>
   );
 }
+
+export default memo(ActivityDetailModal);

@@ -18,7 +18,8 @@ export async function middleware(request: NextRequest) {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
     const xRequestedWith = request.headers.get('x-requested-with');
     if (!xRequestedWith) {
-      // Development modda sadece uyarı logla, production'da reject et
+      // Sadece açıkça NODE_ENV=development ayarlandığında uyarı logla,
+      // diğer tüm durumlarda (production veya undefined) reject et.
       const isDev = process.env.NODE_ENV === 'development';
       if (!isDev) {
         const response = errorResponse(

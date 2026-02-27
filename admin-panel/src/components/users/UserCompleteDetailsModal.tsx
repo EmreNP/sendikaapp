@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo} from 'react';
 import { X, Upload, FileText } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { api } from '@/config/api';
@@ -6,6 +6,7 @@ import { authService } from '@/services/auth/authService';
 import { useAuth } from '@/context/AuthContext';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Props {
   userId: string | null;
@@ -14,13 +15,14 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSuccess }: Props) {
+function UserCompleteDetailsModal({ userId, isOpen, onClose, onSuccess }: Props) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [branchName, setBranchName] = useState<string>('');
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<Record<string, string | boolean | undefined> | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
@@ -59,7 +61,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
     try {
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>('/api/branches');
       setBranches(data.branches || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching branches:', err);
     }
   };
@@ -75,7 +77,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
         setBranches(prev => [...prev, data.branch]);
         if (data.branch.name) setBranchName(data.branch.name);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error fetching branch by id:', err);
     }
   };
@@ -99,35 +101,35 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
 
     try {
       setLoading(true);
-      const data = await apiRequest<{ user: any }>(`/api/users/${userId}`);
+      const data = await apiRequest<{ user: Record<string, string | boolean | undefined> }>(`/api/users/${userId}`);
       setUserData(data.user);
       
       // Mevcut verileri doldur
-      const resolvedBranchId = data.user.branchId || currentUser?.branchId || '';
+      const resolvedBranchId = String(data.user.branchId || currentUser?.branchId || '');
       setBranchId(resolvedBranchId);
       // Eğer branch bilgimiz yoksa tekil olarak getir
       if (resolvedBranchId) {
         fetchBranchById(resolvedBranchId);
       }
-      setPhone(data.user.phone || '');
-      setTcKimlikNo(data.user.tcKimlikNo || '');
-      setFatherName(data.user.fatherName || '');
-      setMotherName(data.user.motherName || '');
-      setBirthPlace(data.user.birthPlace || '');
-      setEducation(data.user.education || '');
-      setKurumSicil(data.user.kurumSicil || '');
-      setKadroUnvani(data.user.kadroUnvani || '');
-      setAddress(data.user.address || '');
-      setCity(data.user.city || '');
-      setDistrict(data.user.district || '');
+      setPhone(String(data.user.phone || ''));
+      setTcKimlikNo(String(data.user.tcKimlikNo || ''));
+      setFatherName(String(data.user.fatherName || ''));
+      setMotherName(String(data.user.motherName || ''));
+      setBirthPlace(String(data.user.birthPlace || ''));
+      setEducation(String(data.user.education || ''));
+      setKurumSicil(String(data.user.kurumSicil || ''));
+      setKadroUnvani(String(data.user.kadroUnvani || ''));
+      setAddress(String(data.user.address || ''));
+      setCity(String(data.user.city || ''));
+      setDistrict(String(data.user.district || ''));
       
       // Mevcut PDF URL'i varsa göster
       if (data.user.documentUrl) {
-        setPdfUrl(data.user.documentUrl);
+        setPdfUrl(String(data.user.documentUrl));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching user data:', err);
-      setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Kullanıcı bilgileri yüklenirken hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -168,9 +170,9 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       
       setPdfUrl(documentUrl);
       return documentUrl;
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Error uploading PDF:', err);
-      throw new Error('PDF yüklenirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+      throw new Error('PDF yüklenirken bir hata oluştu: ' + ((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Bilinmeyen hata')));
     } finally {
       setUploadingPdf(false);
     }
@@ -189,7 +191,7 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       return;
     }
 
-    const body: any = {
+    const body: Record<string, string | boolean | undefined> = {
       branchId,
     };
 
@@ -227,9 +229,9 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
 
       // Success
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error completing user details:', err);
-      setError(err.message || 'Detaylar kaydedilirken hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Detaylar kaydedilirken hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -242,9 +244,9 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-complete-details-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-slate-700 sticky top-0 z-10">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="user-complete-details-modal-title" className="text-sm font-medium text-white">
               Kullanıcı Detaylarını Tamamla
             </h2>
             <button onClick={onClose} className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors">
@@ -524,3 +526,5 @@ export default function UserCompleteDetailsModal({ userId, isOpen, onClose, onSu
     </div>
   );
 }
+
+export default memo(UserCompleteDetailsModal);

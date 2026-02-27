@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { useEffect, useState, memo } from 'react';
+import { X, Edit, Trash2, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { lessonService } from '@/services/api/lessonService';
 import type { Lesson } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
+import { toSafeDate } from '@/utils/dateFormatter';
 
 interface LessonDetailModalProps {
   lesson: Lesson | null;
@@ -16,7 +18,7 @@ interface LessonDetailModalProps {
   onRefresh: () => void;
 }
 
-export default function LessonDetailModal({
+function LessonDetailModal({
   lesson,
   trainingId,
   isOpen,
@@ -24,9 +26,9 @@ export default function LessonDetailModal({
   onEdit,
   onDelete,
   onToggleActive,
-  onRefresh,
 }: LessonDetailModalProps) {
   const navigate = useNavigate();
+  useEscapeKey(isOpen, onClose);
   const [lessonData, setLessonData] = useState<Lesson | null>(lesson);
 
   useEffect(() => {
@@ -56,9 +58,9 @@ export default function LessonDetailModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="lesson-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">Ders Detayı</h3>
+            <h3 id="lesson-detail-modal-title" className="text-sm font-medium text-white">Ders Detayı</h3>
             <button
               type="button"
               onClick={onClose}
@@ -125,7 +127,7 @@ export default function LessonDetailModal({
                     Oluşturulma Tarihi
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                    {new Date(lessonData.createdAt).toLocaleString('tr-TR', {
+                    {toSafeDate(lessonData.createdAt).toLocaleString('tr-TR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
@@ -143,7 +145,7 @@ export default function LessonDetailModal({
                     Güncelleme Tarihi
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                    {new Date(lessonData.updatedAt).toLocaleString('tr-TR', {
+                    {toSafeDate(lessonData.updatedAt).toLocaleString('tr-TR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
@@ -222,3 +224,4 @@ export default function LessonDetailModal({
   );
 }
 
+export default memo(LessonDetailModal);

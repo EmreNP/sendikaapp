@@ -101,9 +101,9 @@ export default function BranchesPage() {
       setBranches(data.branches || []);
       setTotalBranches(data.total || 0);
       setTotalPages(Math.ceil((data.total || 0) / 25));
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching branches:', error);
-      setError(error.message || 'Şubeler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Şubeler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.'));
       setBranches([]);
     } finally {
       setLoading(false);
@@ -117,9 +117,9 @@ export default function BranchesPage() {
       
       // State'den direkt kaldır
       setBranches(prev => prev.filter(b => b.id !== branchId));
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting branch:', error);
-      setError(error.message || 'Şube silinirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Şube silinirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -136,9 +136,9 @@ export default function BranchesPage() {
       
       // State'deki ilgili şubenin isActive değerini güncelle
       setBranches(prev => prev.map(b => b.id === branchId ? { ...b, isActive: !currentActive } : b));
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error toggling branch active status:', error);
-      setError(error.message || 'Şube durumu değiştirilirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Şube durumu değiştirilirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -165,9 +165,9 @@ export default function BranchesPage() {
     <AdminLayout>
       <div className="space-y-4">
         {/* Filters and Actions */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Search Bar */}
-          <div className="flex-1 relative max-w-md">
+          <div className="flex-1 relative max-w-md w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"

@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { X, Edit, Trash2, Eye, EyeOff, BookOpen, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { useEffect, useState, memo } from 'react';
+import { X, Edit, Trash2, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
+import { toSafeDate } from '@/utils/dateFormatter';
 
 interface TrainingDetailModalProps {
   training: Training | null;
@@ -15,16 +17,16 @@ interface TrainingDetailModalProps {
   onRefresh: () => void;
 }
 
-export default function TrainingDetailModal({
+function TrainingDetailModal({
   training,
   isOpen,
   onClose,
   onEdit,
   onDelete,
   onToggleActive,
-  onRefresh,
 }: TrainingDetailModalProps) {
   const navigate = useNavigate();
+  useEscapeKey(isOpen, onClose);
   const [trainingData, setTrainingData] = useState<Training | null>(training);
 
   useEffect(() => {
@@ -54,9 +56,9 @@ export default function TrainingDetailModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="training-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">Eğitim Detayı</h3>
+            <h3 id="training-detail-modal-title" className="text-sm font-medium text-white">Eğitim Detayı</h3>
             <button
               type="button"
               onClick={onClose}
@@ -123,7 +125,7 @@ export default function TrainingDetailModal({
                     Oluşturulma Tarihi
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                    {new Date(trainingData.createdAt).toLocaleString('tr-TR', {
+                    {toSafeDate(trainingData.createdAt).toLocaleString('tr-TR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
@@ -141,7 +143,7 @@ export default function TrainingDetailModal({
                     Güncelleme Tarihi
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                    {new Date(trainingData.updatedAt).toLocaleString('tr-TR', {
+                    {toSafeDate(trainingData.updatedAt).toLocaleString('tr-TR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
@@ -220,3 +222,4 @@ export default function TrainingDetailModal({
   );
 }
 
+export default memo(TrainingDetailModal);

@@ -79,10 +79,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     };
 
     const docRef = await db.collection('activity_categories').add(categoryData);
-    const category: ActivityCategory = {
+    const category = {
       id: docRef.id,
       ...categoryData
-    };
+    } as unknown as ActivityCategory;
 
     return successResponse('Kategori başarıyla oluşturuldu', 
       { category: serializeActivityCategoryTimestamps(category) }, 

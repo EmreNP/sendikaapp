@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo} from 'react';
 import { X, CheckCircle } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import { logger } from '@/utils/logger';
+import {
+  validateBasicRegistrationForm,
+  validateDetailRegistrationForm,
+} from '@/utils/validation';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Props {
   isOpen: boolean;
@@ -12,11 +17,13 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
+function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [step, setStep] = useState<'basic' | 'success' | 'details'>('basic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [branchName, setBranchName] = useState<string>('');
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
@@ -45,6 +52,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setFieldErrors({});
       setStep('basic');
       setCreatedUserId(null);
       // Reset fields
@@ -79,7 +87,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     try {
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }>}>("/api/branches");
       setBranches(data.branches || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching branches:', err);
     }
   };
@@ -99,7 +107,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
         setBranchName(data.branch.name || '');
         setBranches(prev => [...prev, data.branch]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching single branch:', err);
     }
   };
@@ -107,9 +115,27 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
   const handleBasicSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (!firstName || !lastName || !phone || !email || !birthDate || !district || !kadroUnvani || !gender) {
       setError('Tüm zorunlu alanlar doldurulmalıdır');
+      return;
+    }
+
+    // Detaylı input validasyonu
+    const validationResult = validateBasicRegistrationForm({
+      firstName,
+      lastName,
+      phone,
+      email,
+      password,
+    });
+
+    if (!validationResult.valid) {
+      setFieldErrors(validationResult.errors);
+      // İlk hatayı genel hata olarak da göster
+      const firstError = Object.values(validationResult.errors)[0];
+      setError(firstError);
       return;
     }
 
@@ -143,9 +169,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       // Basic registration successful
       setCreatedUserId(response.uid);
       setStep('success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error creating user (basic):', err);
-      setError(err.message || 'Kullanıcı oluşturulurken hata oluştu');
+      setError(err instanceof Error ? err.message : 'Kullanıcı oluşturulurken hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -153,6 +179,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
 
   const handleDetailsSubmit = async () => {
     setError(null);
+    setFieldErrors({});
 
     // Tüm zorunlu alanları kontrol et
     if (!branchId || !tcKimlikNo || !fatherName || !motherName || 
@@ -162,12 +189,27 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       return;
     }
 
+    // Detaylı input validasyonu
+    const validationResult = validateDetailRegistrationForm({
+      tcKimlikNo,
+      fatherName,
+      motherName,
+      birthPlace,
+    });
+
+    if (!validationResult.valid) {
+      setFieldErrors(validationResult.errors);
+      const firstError = Object.values(validationResult.errors)[0];
+      setError(firstError);
+      return;
+    }
+
     if (!createdUserId) {
       setError('Kullanıcı bilgisi bulunamadı');
       return;
     }
 
-    const body: any = {
+    const body: Record<string, string | boolean | undefined> = {
       userId: createdUserId,
       branchId,
       tcKimlikNo,
@@ -191,9 +233,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       // Success - close and refresh
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error updating user details:', err);
-      setError(err.message || 'Detaylar kaydedilirken hata oluştu');
+      setError(err instanceof Error ? err.message : 'Detaylar kaydedilirken hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -211,9 +253,9 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-create-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-slate-700 sticky top-0 z-10">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="user-create-modal-title" className="text-sm font-medium text-white">
               {step === 'basic' && 'Yeni Üye Oluştur - Temel Bilgiler'}
               {step === 'success' && 'Kayıt Başarılı'}
               {step === 'details' && 'Detaylı Bilgileri Doldur'}
@@ -263,12 +305,16 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      onChange={(e) => {
+                        setPhone(e.target.value.replace(/[^0-9]/g, ''));
+                        if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
+                      }}
+                      className={`w-full px-3 py-2 border ${fieldErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-slate-500`}
                       placeholder="5xxxxxxxxx"
                       maxLength={11}
                       required
                     />
+                    {fieldErrors.phone && <p className="text-red-500 text-xs mt-1">{fieldErrors.phone}</p>}
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -277,10 +323,14 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+                      }}
+                      className={`w-full px-3 py-2 border ${fieldErrors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-slate-500`}
                       required
                     />
+                    {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -345,7 +395,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                     </label>
                     <select
                       value={gender}
-                      onChange={(e) => setGender(e.target.value as any)}
+                      onChange={(e) => setGender(e.target.value as 'male' | 'female' | '')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                       required
                     >
@@ -443,11 +493,16 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
                     </label>
                     <input
                       value={tcKimlikNo}
-                      onChange={(e) => setTcKimlikNo(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setTcKimlikNo(val);
+                        if (fieldErrors.tcKimlikNo) setFieldErrors(prev => ({ ...prev, tcKimlikNo: '' }));
+                      }}
+                      className={`w-full px-3 py-2 border ${fieldErrors.tcKimlikNo ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-slate-500`}
                       maxLength={11}
                       required
                     />
+                    {fieldErrors.tcKimlikNo && <p className="text-red-500 text-xs mt-1">{fieldErrors.tcKimlikNo}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -551,3 +606,5 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess }: Props) {
     </div>
   );
 }
+
+export default memo(UserCreateModal);

@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { X, Upload, XCircle, Scissors } from 'lucide-react';
+import { useEffect, useState, useRef, memo} from 'react';
+import { X, XCircle, Scissors } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { newsService } from '@/services/api/newsService';
@@ -7,6 +7,7 @@ import type { News, CreateNewsRequest, UpdateNewsRequest } from '@/types/news';
 import ImageCropModal from './ImageCropModal';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface NewsFormModalProps {
   news: News | null;
@@ -15,7 +16,7 @@ interface NewsFormModalProps {
   onSuccess: () => void;
 }
 
-export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: NewsFormModalProps) {
+function NewsFormModal({ news, isOpen, onClose, onSuccess }: NewsFormModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -29,6 +30,7 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onClose);
+  useEscapeKey(isOpen, handleClose);
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -180,9 +182,9 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving news:', err);
-      setError(err.message || 'Haber kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Haber kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -200,10 +202,10 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="news-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="news-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Haber Düzenle' : 'Yeni Haber Ekle'}
             </h2>
             <button
@@ -421,8 +423,8 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
       {/* Unsaved Changes Confirmation */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="news-form-modal-title-1" className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 id="news-form-modal-title-1" className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
             <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
             <div className="flex justify-end gap-3">
               <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
@@ -435,3 +437,4 @@ export default function NewsFormModal({ news, isOpen, onClose, onSuccess }: News
   );
 }
 
+export default memo(NewsFormModal);

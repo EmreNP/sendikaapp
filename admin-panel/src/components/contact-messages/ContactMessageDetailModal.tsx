@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, User, Tag, Building2, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { contactService } from '@/services/api/contactService';
 import { apiRequest } from '@/utils/api';
 import type { ContactMessage } from '@/types/contact';
 import { formatDate, formatRelativeDate } from '@/utils/dateFormatter';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ContactMessageDetailModalProps {
   message: ContactMessage;
@@ -28,18 +29,18 @@ interface TopicInfo {
   name: string;
 }
 
-export default function ContactMessageDetailModal({
+function ContactMessageDetailModal({
   message,
   isOpen,
   onClose,
   onUpdate,
   topics = [],
 }: ContactMessageDetailModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
   const [topicInfo, setTopicInfo] = useState<TopicInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasMarkedAsReadRef = useRef<string | null>(null);
 
@@ -105,10 +106,11 @@ export default function ContactMessageDetailModal({
       await contactService.markMessageAsRead(message.id, true);
       // Mesajı güncelle ve sayfayı yenile
       onUpdate();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error marking message as read:', err);
       // Rate limiting hatası ise ref'i sıfırlama, diğer hatalar için sıfırla
-      if (err.message && err.message.includes('Çok fazla istek')) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes('Çok fazla istek')) {
         // Rate limiting - bir sonraki açılışta tekrar dene
         logger.warn('Rate limit reached, will retry on next open');
       } else {
@@ -134,9 +136,11 @@ export default function ContactMessageDetailModal({
               email: response.user.email || '',
             });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // 500 hatası veya rate limiting hatası ise sessizce devam et
-          if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = err != null && typeof err === 'object' && 'code' in err ? (err as Record<string, unknown>).code : undefined;
+          if (errCode !== 'INTERNAL_SERVER_ERROR' && !errMsg.includes('Çok fazla istek')) {
             logger.error('Error fetching user:', err);
           }
           // Hata durumunda sessizce devam et
@@ -152,9 +156,11 @@ export default function ContactMessageDetailModal({
               name: response.branch.name || '',
             });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // 500 hatası veya rate limiting hatası ise sessizce devam et
-          if (err.code !== 'INTERNAL_SERVER_ERROR' && !err.message?.includes('Çok fazla istek')) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = err != null && typeof err === 'object' && 'code' in err ? (err as Record<string, unknown>).code : undefined;
+          if (errCode !== 'INTERNAL_SERVER_ERROR' && !errMsg.includes('Çok fazla istek')) {
             logger.error('Error fetching branch:', err);
           }
           // Hata durumunda sessizce devam et
@@ -178,13 +184,13 @@ export default function ContactMessageDetailModal({
                 name: topicData.topic.name || '',
               });
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             logger.error('Error fetching topic:', err);
             // Hata durumunda sessizce devam et
           }
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching related data:', err);
       // Hata durumunda sessizce devam et, kullanıcıya gösterme
     } finally {
@@ -192,28 +198,14 @@ export default function ContactMessageDetailModal({
     }
   };
 
-  const handleMarkAsRead = async (isRead: boolean) => {
-    try {
-      setUpdating(true);
-      setError(null);
-      await contactService.markMessageAsRead(message.id, isRead);
-      onUpdate();
-    } catch (err: any) {
-      logger.error('Error updating message:', err);
-      setError(err.message || 'Mesaj güncellenirken bir hata oluştu');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
+      <div role="dialog" aria-modal="true" aria-labelledby="contact-message-detail-modal-title" className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-          <h2 className="text-sm font-medium text-white">Mesaj Detayı</h2>
+          <h2 id="contact-message-detail-modal-title" className="text-sm font-medium text-white">Mesaj Detayı</h2>
           <button
             onClick={onClose}
             className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
@@ -336,3 +328,4 @@ export default function ContactMessageDetailModal({
   );
 }
 
+export default memo(ContactMessageDetailModal);

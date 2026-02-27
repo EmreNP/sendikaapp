@@ -1,52 +1,90 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper function: Check if user is authenticated
+    // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Helper function: Check if user is admin
-    function isAdmin() {
-      return isAuthenticated() && 
-             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    function userRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
     }
-    
-    // News category - public read, admin write
+
+    function isAdmin() {
+      return isAuthenticated() && (userRole() == 'admin' || userRole() == 'superadmin');
+    }
+
+    // ─── PUBLIC içerik (hassas veri yok, makePublic() ile yükleniyor) ─────────
+
+    // Haber görselleri — herkes okuyabilir, admin yazar
     match /news/{fileName} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // User registration forms - authenticated users can read
-    // This allows signed URLs to work for authenticated users
+
+    // Duyuru görselleri — herkes okuyabilir, admin/branch_manager yazar
+    match /announcements/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                      (userRole() == 'admin' || userRole() == 'superadmin' || userRole() == 'branch_manager');
+    }
+
+    // Aktivite görselleri — herkes okuyabilir
+    match /activity-images/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                      (userRole() == 'admin' || userRole() == 'superadmin' || userRole() == 'branch_manager');
+    }
+
+    // Kurum görselleri — herkes okuyabilir
+    match /institution-images/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Video thumbnail görselleri — herkes okuyabilir
+    match /video-thumbnails/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── KORUNAN içerik (makePublic() ÇAĞRILMAZ, signed URL ile erişilir) ────
+
+    // Kullanıcı belgeleri (TC Kimlik No içeren kayıt formları vb.)
+    // Yalnızca admin okuyabilir. Kullanıcının kendisi bile doğrudan okuyamaz;
+    // backend signed URL üretir ve o URL üzerinden servis eder.
+    match /user-documents/{userId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Kullanıcı kayıt formları (eski path — geriye dönük uyumluluk)
     match /user-registration-forms/{userId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Ders dökümanları — kimlik doğrulanmış üyeler okuyabilir (signed URL ile)
+    match /lesson-documents/{fileName} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
-    
-    // Lesson documents - public read (course materials, made public on upload)
-    match /lesson-documents/{fileName} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
 
-    // Lesson videos - public read (made public on upload)
+    // Ders videoları — kimlik doğrulanmış üyeler okuyabilir (signed URL ile)
     match /lesson-videos/{fileName} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Videos (uploaded via file upload service) - public read
+    // Videolar (dosya yükleme servisi aracılığıyla) — kimlik doğrulanmış üyeler
     match /videos/{fileName} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Default: deny all other access
+    // ─── Varsayılan: her şeyi reddet ─────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;
     }
   }
 }
-

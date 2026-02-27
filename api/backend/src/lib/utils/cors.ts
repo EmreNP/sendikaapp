@@ -6,7 +6,7 @@ import { logger } from '../../lib/utils/logger';
  * Development ve production modlarına göre farklı origin'ler döner
  */
 function getAllowedOrigins(): string[] {
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevelopment = process.env.NODE_ENV === 'development';
   
   if (isDevelopment) {
     // Development için localhost portlarına izin ver
@@ -65,7 +65,7 @@ function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boole
 export function addCorsHeaders(response: NextResponse, request?: NextRequest): NextResponse {
   const allowedOrigins = getAllowedOrigins();
   const origin = request?.headers.get('origin');
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevelopment = process.env.NODE_ENV === 'development';
   
   // Origin kontrolü
   if (origin && isOriginAllowed(origin, allowedOrigins)) {
@@ -101,6 +101,13 @@ export function addCorsHeaders(response: NextResponse, request?: NextRequest): N
   
   // Preflight cache süresi (24 saat)
   response.headers.set('Access-Control-Max-Age', '86400');
+
+  // ── HTTP Güvenlik Header'ları ─────────────────────────────────
+  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
   return response;
 }

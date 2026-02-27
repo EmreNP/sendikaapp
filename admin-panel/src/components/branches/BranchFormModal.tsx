@@ -4,6 +4,7 @@ import { GoogleMap, useLoadScript, Marker, Autocomplete } from '@react-google-ma
 import { apiRequest } from '@/utils/api';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Branch {
   id: string;
@@ -69,6 +70,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
   const [hasChanges, setHasChanges] = useState(false);
 
   const { handleClose, showConfirm, handleConfirmClose, handleCancelClose } = useUnsavedChangesWarning(hasChanges, onClose);
+  useEscapeKey(isOpen, handleClose);
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -157,10 +159,10 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
           address: branch.address || '',
           phone: branch.phone || '',
           email: branch.email || '',
-          workingHours: branch.workingHours || {
-            weekday: '',
-            saturday: '',
-            sunday: '',
+          workingHours: {
+            weekday: branch.workingHours?.weekday || '',
+            saturday: branch.workingHours?.saturday || '',
+            sunday: branch.workingHours?.sunday || '',
           },
           isActive: branch.isActive !== undefined ? branch.isActive : true,
         });
@@ -217,7 +219,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
     try {
       setLoading(true);
 
-      const body: any = {
+      const body: Record<string, unknown> = {
         name: formData.name.trim(),
         location: formData.location,
       };
@@ -228,7 +230,7 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       if (formData.email.trim()) body.email = formData.email.trim();
 
       // Çalışma saatlerini ekle (en az bir tanesi doluysa)
-      const workingHours: any = {};
+      const workingHours: Record<string, string> = {};
       if (formData.workingHours.weekday.trim()) workingHours.weekday = formData.workingHours.weekday.trim();
       if (formData.workingHours.saturday.trim()) workingHours.saturday = formData.workingHours.saturday.trim();
       if (formData.workingHours.sunday.trim()) workingHours.sunday = formData.workingHours.sunday.trim();
@@ -251,9 +253,9 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
       }
 
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving branch:', err);
-      setError(err.message || 'Şube kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Şube kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -271,10 +273,10 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="branch-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="branch-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Şube Düzenle' : 'Yeni Şube Ekle'}
             </h2>
             <button
@@ -554,8 +556,8 @@ export default function BranchFormModal({ branch, isOpen, onClose, onSuccess }: 
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="branch-form-modal-title-1" className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 id="branch-form-modal-title-1" className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
             <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
             <div className="flex justify-end gap-3">
               <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>

@@ -78,9 +78,9 @@ export default function NotificationHistoryPage() {
       setNotifications(data.notifications || []);
       setTotal(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error fetching notifications:', error);
-      setError(error.message || 'Bildirim geçmişi yüklenirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Bildirim geçmişi yüklenirken bir hata oluştu'));
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -110,9 +110,9 @@ export default function NotificationHistoryPage() {
       <div className="space-y-6">
 
         {/* Filtreler ve Arama */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Search Bar */}
-          <div className="flex-1 relative max-w-md">
+          <div className="flex-1 relative max-w-md w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"

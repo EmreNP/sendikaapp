@@ -27,8 +27,9 @@ export function formatDate(
     }
     // Firestore Timestamp formatını kontrol et ({ seconds, nanoseconds } veya { _seconds, _nanoseconds })
     else if (typeof date === 'object' && date !== null && !('getTime' in date) && ('seconds' in date || '_seconds' in date)) {
-      const seconds = (date as any).seconds || (date as any)._seconds || 0;
-      const nanoseconds = (date as any).nanoseconds || (date as any)._nanoseconds || 0;
+      const ts = date as { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
+      const seconds = ts.seconds || ts._seconds || 0;
+      const nanoseconds = ts.nanoseconds || ts._nanoseconds || 0;
       d = new Date(seconds * 1000 + nanoseconds / 1000000);
     } else if (typeof date === 'string') {
       d = new Date(date);
@@ -77,7 +78,8 @@ export function formatRelativeDate(
   
   // Firestore Timestamp formatını kontrol et
   if (typeof date === 'object' && !('getTime' in date) && ('seconds' in date || '_seconds' in date)) {
-    const seconds = (date as any).seconds || (date as any)._seconds || 0;
+    const ts = date as { seconds?: number; _seconds?: number };
+    const seconds = ts.seconds || ts._seconds || 0;
     d = new Date(seconds * 1000);
   } else if (typeof date === 'string') {
     d = new Date(date);
@@ -93,4 +95,21 @@ export function formatRelativeDate(
   }
   
   return formatDate(date);
+}
+
+/**
+ * Firestore Timestamp | Date | unknown nesnesini güvenli bir şekilde Date'e çevirir.
+ * Tüm date rendering işlemlerinde `new Date(val)` yerine bu fonksiyon kullanılmalıdır.
+ */
+export function toSafeDate(
+  val: unknown
+): Date {
+  if (!val) return new Date(0);
+  if (val instanceof Date) return val;
+  if (typeof val === 'string' || typeof val === 'number') return new Date(val);
+  const obj = val as Record<string, unknown>;
+  if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)();
+  const seconds = Number(obj.seconds ?? obj._seconds);
+  if (!isNaN(seconds)) return new Date(seconds * 1000);
+  return new Date(0);
 }

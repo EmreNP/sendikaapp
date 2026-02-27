@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { X, User as UserIcon, Building2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Branch {
   id: string;
@@ -21,6 +22,7 @@ interface UserRoleModalProps {
 
 export default function UserRoleModal({ userId, currentRole, isOpen, onClose, onSuccess }: UserRoleModalProps) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [selectedRole, setSelectedRole] = useState<string>(currentRole);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -56,7 +58,7 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
         nextCursor?: string;
       }>('/api/branches');
       setBranches(data.branches.filter(b => b.isActive) || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching branches:', err);
       setError('Şubeler yüklenirken bir hata oluştu');
     } finally {
@@ -89,9 +91,9 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error updating user role:', err);
-      setError(err.message || 'Rol güncellenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Rol güncellenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -152,10 +154,10 @@ export default function UserRoleModal({ userId, currentRole, isOpen, onClose, on
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-role-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-md w-full">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Rol Değiştir</h2>
+            <h2 id="user-role-modal-title" className="text-sm font-medium text-white">Rol Değiştir</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"

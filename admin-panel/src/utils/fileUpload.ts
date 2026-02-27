@@ -6,7 +6,7 @@ import { apiRequest } from '@/utils/api';
 export async function uploadUserRegistrationForm(
   userId: string,
   file: File,
-  onProgress?: (progress: number) => void
+  _onProgress?: (progress: number) => void
 ): Promise<string> {
   // Validate file
   if (file.type !== 'application/pdf') {
@@ -37,7 +37,7 @@ export async function uploadUserRegistrationForm(
     base64,
   };
 
-  const response = await apiRequest(`/api/users/${userId}/upload-registration-form`, {
+  const response = await apiRequest<{ documentUrl: string }>(`/api/users/${userId}/upload-registration-form`, {
     method: 'POST',
     body: JSON.stringify(body),
   });

@@ -59,7 +59,13 @@ export const GET = asyncHandler(async (request: NextRequest) => {
 
     logger.info('Report generation date range', { startDate, endDate, startDateParam, endDateParam });
 
-    // Paralel veri çekme
+    // ── Koleksiyon boyut limitleri (OOM/DoS koruması) ───────────────────
+    // Her koleksiyondan en fazla bu kadar döküman çekilir.
+    // Büyük kurumlar için yeterli veri sağlarken bellek taşmasını engeller.
+    const COLLECTION_LIMIT = 5000;
+
+    // Paralel veri çekme — her koleksiyona limit uygulanır
+    // Zaman filtrelemesi mümkün olan koleksiyonlarda Firestore seviyesinde tarih filtresi de eklenir
     const [
       branchesSnap,
       activitiesSnap,
@@ -71,20 +77,23 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       notificationHistorySnap,
       registrationLogsSnap,
     ] = await Promise.all([
-      db.collection('branches').get(),
-      db.collection('activities').get(),
-      db.collection('users').get(),
-      db.collection('news').get(),
-      db.collection('announcements').get(),
-      db.collection('activity_categories').get(),
+      db.collection('branches').limit(COLLECTION_LIMIT).get(),
+      db.collection('activities').limit(COLLECTION_LIMIT).get(),
+      db.collection('users').limit(COLLECTION_LIMIT).get(),
+      db.collection('news').limit(COLLECTION_LIMIT).get(),
+      db.collection('announcements').limit(COLLECTION_LIMIT).get(),
+      db.collection('activity_categories').limit(COLLECTION_LIMIT).get(),
       db.collection('audit_logs')
         .orderBy('timestamp', 'desc')
+        .limit(COLLECTION_LIMIT)
         .get(),
       db.collection('notificationHistory')
         .orderBy('createdAt', 'desc')
+        .limit(COLLECTION_LIMIT)
         .get(),
       db.collection('user_registration_logs')
         .orderBy('createdAt', 'desc')
+        .limit(COLLECTION_LIMIT)
         .get(),
     ]);
 

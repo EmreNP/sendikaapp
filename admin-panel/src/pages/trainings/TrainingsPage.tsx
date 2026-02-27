@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Plus, Search, Trash2, Edit, Eye, EyeOff, X, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { BookOpen, Plus, Search, Trash2, Edit, X, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
@@ -49,10 +49,10 @@ export default function TrainingsPage() {
         search: searchTerm || undefined,
       });
       setTrainings(response.trainings);
-      setTotal(response.total);
-    } catch (err: any) {
+      setTotal(response.total ?? 0);
+    } catch (err: unknown) {
       logger.error('Load trainings error:', err);
-      setError(err.message || 'Eğitimler yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Eğitimler yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -69,14 +69,15 @@ export default function TrainingsPage() {
       await trainingService.deleteTraining(id);
       logger.log('✅ Training deleted successfully');
       await loadTrainings();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Delete training error:', err);
+      const errRecord = err != null && typeof err === 'object' ? (err as Record<string, unknown>) : {};
       logger.error('Error details:', {
-        message: err.message,
-        response: err.response,
-        status: err.status,
+        message: err instanceof Error ? err.message : String(err),
+        response: errRecord.response,
+        status: errRecord.status,
       });
-      alert(err.message || 'Eğitim silinirken bir hata oluştu');
+      alert(err instanceof Error ? err.message : 'Eğitim silinirken bir hata oluştu');
     } finally {
       setProcessing(false);
     }
@@ -89,9 +90,9 @@ export default function TrainingsPage() {
         isActive: !currentStatus,
       });
       await loadTrainings();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Toggle active error:', err);
-      alert(err.message || 'Eğitim durumu güncellenirken bir hata oluştu');
+      alert((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Eğitim durumu güncellenirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -116,9 +117,9 @@ export default function TrainingsPage() {
         setSelectedTrainingIds(new Set());
         await loadTrainings();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Bulk action error:', err);
-      alert(err.message || 'Toplu işlem sırasında bir hata oluştu');
+      alert((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Toplu işlem sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -146,7 +147,7 @@ export default function TrainingsPage() {
     <AdminLayout>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-gray-700" />
             <div>
@@ -167,7 +168,7 @@ export default function TrainingsPage() {
         </div>
 
         {/* Filters and Search */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1 relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input

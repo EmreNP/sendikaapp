@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, Upload, FileText, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
@@ -7,6 +7,7 @@ import { generateUserRegistrationPDF, generateMergedRegistrationPDF } from '@/ut
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Props {
   userId: string | null;
@@ -39,8 +40,9 @@ interface UserData {
   documentUrl?: string;
 }
 
-export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
+function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
   const { user: currentUser } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [loading, setLoading] = useState(false);
   const [fetchingUser, setFetchingUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,8 +131,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
         url = await generateUserRegistrationPDF(userData, userBranch, { download: false, isReadOnly: false });
       }
       setPreviewPdfUrl(url);
-    } catch (err: any) {
-      setError(err?.message || 'PDF oluşturulurken bir hata oluştu');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'PDF oluşturulurken bir hata oluştu');
     }
   };
 
@@ -145,14 +147,15 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       } else {
         await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err: unknown) {
+      logger.error('PDF download error:', err);
       setError('PDF indirilirken bir hata oluştu');
     }
   };
 
   const closePreview = () => {
     if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
       setPreviewPdfUrl(null);
     }
   };
@@ -205,7 +208,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
         try {
           const bdata = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${user.branchId}`);
           if (bdata?.branch?.name) setBranchName(bdata.branch.name);
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error('Error fetching branch name:', err);
         }
       }
@@ -219,9 +222,11 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       setDistrict(user.district || '');
       setIsMemberOfOtherUnion(user.isMemberOfOtherUnion === undefined ? '' : user.isMemberOfOtherUnion);
       setDocumentUrl(user.documentUrl || '');
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Eğer kullanıcı bulunamadı hatası alırsak, eksik kayıt moduna geç
-      if (err.response?.status === 404 || err.message?.toLowerCase().includes('bulunamadı') || err.code === 'NOT_FOUND') {
+      const errObj = err as Record<string, unknown>;
+      const errMsg = err instanceof Error ? err.message : '';
+      if ((errObj.response as Record<string, unknown>)?.status === 404 || errMsg.toLowerCase().includes('bulunamadı') || errObj.code === 'NOT_FOUND') {
         logger.warn('User doc invalid/missing. Switching to Registration Completion mode.');
         setIsMissingDoc(true);
         // Şube yöneticisi ise şubesini otomatik ata ve şube ismini getir
@@ -230,13 +235,13 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
            try {
              const bdata = await apiRequest<{ branch: { id: string; name: string } }>(`/api/branches/${currentUser.branchId}`);
              if (bdata?.branch?.name) setBranchName(bdata.branch.name);
-           } catch (err: any) {
-             logger.error('Error fetching branch name for branch manager:', err);
+           } catch (branchErr: unknown) {
+             logger.error('Error fetching branch name for branch manager:', branchErr);
            }
         }
       } else {
         logger.error('Error fetching user:', err);
-        setError(err.message || 'Kullanıcı bilgileri yüklenirken hata oluştu');
+        setError(errMsg || 'Kullanıcı bilgileri yüklenirken hata oluştu');
       }
     } finally {
       setFetchingUser(false);
@@ -247,7 +252,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     try {
       const data = await apiRequest<{ branches: Array<{ id: string; name: string }> }>("/api/branches");
       setBranches(data.branches || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching branches:', err);
     }
   };
@@ -300,7 +305,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       }
     }
 
-    const body: any = {
+    const body: Record<string, string | boolean | undefined> = {
       firstName,
       lastName,
       email,
@@ -345,8 +350,8 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
             pdfFile,
             (progress) => setUploadProgress(progress)
           );
-        } catch (uploadError: any) {
-          throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
+        } catch (uploadError: unknown) {
+          throw new Error(`Dosya yüklenemedi: ${uploadError instanceof Error ? uploadError.message : 'Bilinmeyen hata'}`);
         }
       }
       
@@ -376,9 +381,9 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error updating user:', err);
-      setError(err.message || 'Kullanıcı güncellenirken hata oluştu');
+      setError(err instanceof Error ? err.message : 'Kullanıcı güncellenirken hata oluştu');
     } finally {
       setLoading(false);
       setUploadProgress(0);
@@ -392,9 +397,9 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="user-edit-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-slate-700 sticky top-0 z-10">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="user-edit-modal-title" className="text-sm font-medium text-white">
                 {isMissingDoc ? 'Kullanıcı Kaydını Tamamla (Eksik Kayıt)' : 'Kullanıcı Bilgilerini Düzenle'}
             </h2>
             <button onClick={onClose} className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors">
@@ -481,7 +486,7 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
                     </label>
                     <select
                       value={gender}
-                      onChange={(e) => setGender(e.target.value as any)}
+                      onChange={(e) => setGender(e.target.value as 'male' | 'female' | '')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                       required
                     >
@@ -800,9 +805,9 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
       {/* PDF Preview Overlay */}
       {previewPdfUrl && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+          <div role="dialog" aria-modal="true" aria-labelledby="user-edit-modal-title-1" className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 id="user-edit-modal-title-1" className="text-lg font-semibold text-gray-900">
                 PDF Önizleme & Düzenleme
                 {previewMode === 'merged' && (
                   <span className="ml-2 text-sm font-normal text-green-600">(Kayıt + İstifa Formu)</span>
@@ -845,3 +850,5 @@ export default function UserEditModal({ userId, isOpen, onClose, onSuccess }: Pr
     </div>
   );
 }
+
+export default memo(UserEditModal);

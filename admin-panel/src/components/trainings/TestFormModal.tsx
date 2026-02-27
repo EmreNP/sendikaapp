@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, Plus, Trash2, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { contentService } from '@/services/api/contentService';
 import type { TestContent, CreateTestContentRequest, UpdateTestContentRequest, TestQuestion, TestOption } from '@/types/training';
 import { generateUniqueId } from '@/utils/idGenerator';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface TestFormModalProps {
   test: TestContent | null;
@@ -14,7 +15,8 @@ interface TestFormModalProps {
   onSuccess: () => void;
 }
 
-export default function TestFormModal({ test, lessonId, isOpen, onClose, onSuccess }: TestFormModalProps) {
+function TestFormModal({ test, lessonId, isOpen, onClose, onSuccess }: TestFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -88,7 +90,7 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as unknown[][];
 
         if (jsonData.length < 2) {
           setError('Excel dosyası en az bir soru içermelidir (başlık satırı hariç)');
@@ -166,9 +168,9 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error('Excel import error:', err);
-        setError('Excel dosyası okunurken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+        setError('Excel dosyası okunurken bir hata oluştu: ' + ((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Bilinmeyen hata')));
       }
     };
 
@@ -203,13 +205,13 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
     XLSX.writeFile(wb, 'test_sorulari_template.xlsx');
   };
 
-  const updateQuestion = (index: number, field: keyof Omit<TestQuestion, 'id'>, value: any) => {
+  const updateQuestion = (index: number, field: keyof Omit<TestQuestion, 'id'>, value: string | number | boolean) => {
     const updated = [...questions];
     updated[index] = { ...updated[index], [field]: value };
     setQuestions(updated);
   };
 
-  const updateOption = (questionIndex: number, optionIndex: number, field: keyof TestOption, value: any) => {
+  const updateOption = (questionIndex: number, optionIndex: number, field: keyof TestOption, value: string | boolean) => {
     const updated = [...questions];
     if (updated[questionIndex].options) {
       updated[questionIndex].options = updated[questionIndex].options!.map((opt, i) =>
@@ -274,9 +276,9 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save test error:', err);
-      setError(err.message || 'Test kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Test kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -294,9 +296,9 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="test-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="test-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Testi Düzenle' : 'Yeni Test Ekle'}
             </h3>
             <button
@@ -523,3 +525,4 @@ export default function TestFormModal({ test, lessonId, isOpen, onClose, onSucce
   );
 }
 
+export default memo(TestFormModal);

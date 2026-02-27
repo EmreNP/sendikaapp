@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { errorTracking } from './services/errorTracking'
+
+// Initialize error tracking (Sentry) as early as possible
+errorTracking.init();
 
 // Suppress only ReactQuill's specific findDOMNode deprecation warning.
 // This warning originates from the react-quill library (not our code) and cannot

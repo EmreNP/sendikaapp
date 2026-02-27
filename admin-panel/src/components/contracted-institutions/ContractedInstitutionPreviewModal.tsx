@@ -4,6 +4,7 @@ import type { ContractedInstitution, InstitutionCategory } from '@/types/contrac
 import { authService } from '@/services/auth/authService';
 import type { User } from '@/types/user';
 import { formatDate } from '@/utils/dateFormatter';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ContractedInstitutionPreviewModalProps {
   institution: ContractedInstitution | null;
@@ -18,6 +19,7 @@ export default function ContractedInstitutionPreviewModal({
   onClose,
   categories 
 }: ContractedInstitutionPreviewModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [createdByUser, setCreatedByUser] = useState<User | null>(null);
 
   const getCategoryName = (categoryId: string | undefined): string => {
@@ -40,7 +42,7 @@ export default function ContractedInstitutionPreviewModal({
               role: '',
               status: 'deleted',
               isActive: false,
-            } as any);
+            } as unknown as User);
           }
         })
         .catch(() => {
@@ -51,7 +53,7 @@ export default function ContractedInstitutionPreviewModal({
             role: '',
             status: 'deleted',
             isActive: false,
-          } as any);
+          } as unknown as User);
         });
     }
   }, [institution?.createdBy]);
@@ -63,10 +65,10 @@ export default function ContractedInstitutionPreviewModal({
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
         
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="contracted-institution-preview-modal-title" className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h2 id="contracted-institution-preview-modal-title" className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-600" />
               Kurum Önizleme
             </h2>

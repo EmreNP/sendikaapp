@@ -1,12 +1,13 @@
-import { PDFDocument, PDFName, PDFDict, PDFArray } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFDict, PDFArray, PDFObject } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import { logger } from './logger';
 
 interface UserData {
   firstName?: string;
   lastName?: string;
   email?: string;
   phone?: string;
-  birthDate?: string;
+  birthDate?: string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
   gender?: 'male' | 'female' | '';
   tcKimlikNo?: string;
   fatherName?: string;
@@ -28,18 +29,22 @@ interface BranchData {
 /**
  * Format date for PDF display (DDMMYYYY)
  */
-function formatDate(dateInput?: any): string {
+function formatDate(dateInput?: string | Date | { _seconds?: number; seconds?: number }): string {
   if (!dateInput) return '';
   try {
     let date: Date;
     
     // Handle Firestore Timestamp like objects { _seconds: number, ... }
-    if (typeof dateInput === 'object' && dateInput._seconds) {
+    if (typeof dateInput === 'object' && '_seconds' in dateInput && dateInput._seconds) {
         date = new Date(dateInput._seconds * 1000);
     } 
     // Handle simplified date string "YYYY-MM-DD" or ISO string
-    else {
+    else if (typeof dateInput === 'string' || dateInput instanceof Date) {
         date = new Date(dateInput);
+    } else {
+        // Fallback for objects with seconds
+        const s = (dateInput as { seconds?: number }).seconds;
+        date = s ? new Date(s * 1000) : new Date();
     }
 
     if (isNaN(date.getTime())) return String(dateInput);
@@ -131,7 +136,7 @@ export async function generateUserRegistrationPDF(
           cb.check();
         }
       } catch (e) {
-        console.warn(`PDF checkbox '${fieldName}' işaretlenemedi:`, e);
+        logger.warn(`PDF checkbox '${fieldName}' işaretlenemedi:`, e);
       }
     };
 
@@ -209,14 +214,14 @@ export async function generateUserRegistrationPDF(
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // If downloading, we might revoke the object URL shortly after, 
-      // but if we return it for preview, we should let the caller handle revocation or let it be.
-      // For now, we return the URL so the caller can use it if needed.
+      // Revoke the download URL after a short delay to avoid memory leaks
+      // (browsers need a moment to start the download before the URL is revoked)
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     }
     
     return url;
   } catch (error) {
-    console.error('PDF oluşturulurken hata:', error);
+    logger.error('PDF oluşturulurken hata:', error);
     throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
   }
 }
@@ -243,14 +248,14 @@ function flattenForm(pdfDoc: PDFDocument): void {
 
     // Step 1: Identify fields that would cause form.flatten() to crash
     // (fields with missing appearance streams, e.g. empty signature widgets)
-    const brokenFieldRefs: any[] = [];
+    const brokenFieldRefs: unknown[] = [];
 
     for (const field of fields) {
       try {
         const widgets = field.acroField.getWidgets();
         let hasIssue = false;
 
-        widgets.forEach((w: any) => {
+        widgets.forEach((w: { dict: PDFDict }) => {
           const ap = w.dict.lookup(PDFName.of('AP'));
           if (!ap) {
             hasIssue = true;
@@ -276,7 +281,7 @@ function flattenForm(pdfDoc: PDFDocument): void {
       if (rawForm instanceof PDFDict) {
         const fieldsArr = rawForm.lookup(PDFName.of('Fields'));
         if (fieldsArr instanceof PDFArray) {
-          const preserved: any[] = [];
+          const preserved: unknown[] = [];
           for (let i = 0; i < fieldsArr.size(); i++) {
             const ref = fieldsArr.get(i);
             if (!brokenFieldRefs.includes(ref)) {
@@ -284,7 +289,7 @@ function flattenForm(pdfDoc: PDFDocument): void {
             }
           }
           while (fieldsArr.size() > 0) fieldsArr.remove(0);
-          preserved.forEach((ref) => fieldsArr.push(ref));
+          preserved.forEach((ref) => fieldsArr.push(ref as PDFObject));
         }
       }
     }
@@ -304,7 +309,7 @@ function flattenForm(pdfDoc: PDFDocument): void {
     for (const page of pages) {
       const annotsObj = page.node.lookup(PDFName.of('Annots'));
       if (annotsObj instanceof PDFArray) {
-        const nonWidgetRefs: any[] = [];
+        const nonWidgetRefs: unknown[] = [];
         for (let i = 0; i < annotsObj.size(); i++) {
           const annotRef = annotsObj.get(i);
           const annot = annotsObj.lookup(i);
@@ -321,7 +326,7 @@ function flattenForm(pdfDoc: PDFDocument): void {
         }
         // Replace the annotations array with only non-Widget entries
         while (annotsObj.size() > 0) annotsObj.remove(0);
-        nonWidgetRefs.forEach((ref) => annotsObj.push(ref));
+        nonWidgetRefs.forEach((ref) => annotsObj.push(ref as PDFObject));
 
         // If no annotations remain, remove the Annots key entirely
         if (annotsObj.size() === 0) {
@@ -331,14 +336,14 @@ function flattenForm(pdfDoc: PDFDocument): void {
     }
   } catch (e) {
     // Ultimate fallback: just nuke AcroForm + all Widget annotations
-    console.error('Form flatten error, using fallback:', e);
+    logger.error('Form flatten error, using fallback:', e);
     try {
       pdfDoc.catalog.delete(PDFName.of('AcroForm'));
       const pages = pdfDoc.getPages();
       for (const page of pages) {
         const annotsObj = page.node.lookup(PDFName.of('Annots'));
         if (annotsObj instanceof PDFArray) {
-          const keep: any[] = [];
+          const keep: unknown[] = [];
           for (let i = 0; i < annotsObj.size(); i++) {
             const ref = annotsObj.get(i);
             const annot = annotsObj.lookup(i);
@@ -350,7 +355,7 @@ function flattenForm(pdfDoc: PDFDocument): void {
             }
           }
           while (annotsObj.size() > 0) annotsObj.remove(0);
-          keep.forEach((r) => annotsObj.push(r));
+          keep.forEach((r) => annotsObj.push(r as PDFObject));
           if (annotsObj.size() === 0) page.node.delete(PDFName.of('Annots'));
         }
       }
@@ -514,11 +519,13 @@ export async function generateMergedRegistrationPDF(
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      // Revoke the download URL after a short delay to avoid memory leaks
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     }
 
     return url;
   } catch (error) {
-    console.error('Birleşik PDF oluşturulurken hata:', error);
+    logger.error('Birleşik PDF oluşturulurken hata:', error);
     throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
   }
 }

@@ -5,6 +5,7 @@ import { authService } from '@/services/auth/authService';
 import { clearUserNameCache } from '@/services/api/userNameService';
 import type { User } from '@/types/user';
 import { logger } from '@/utils/logger';
+import { errorTracking } from '@/services/errorTracking';
 
 interface AuthContextType {
   user: User | null;
@@ -27,6 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Superadmin, admin ve branch_manager için status kontrolü yok
           if (userData && (userData.role === 'superadmin' || userData.role === 'admin' || userData.role === 'branch_manager')) {
             setUser(userData);
+            // Set user context for error tracking
+            errorTracking.setUser({ id: firebaseUser.uid, email: userData.email, role: userData.role });
           } else {
             setUser(null);
             await authService.signOut();
@@ -48,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.signOut();
     clearUserNameCache();
     setUser(null);
+    errorTracking.setUser(null);
   };
 
   return (

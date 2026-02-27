@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit, Trash2, Video, FileText, ClipboardList, Search } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Video, FileText, ClipboardList, Search } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ActionButton from '@/components/common/ActionButton';
+import { toSafeDate } from '@/utils/dateFormatter';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import VideoFormModal from '@/components/trainings/VideoFormModal';
 import DocumentFormModal from '@/components/trainings/DocumentFormModal';
@@ -58,9 +59,9 @@ export default function LessonDetailPage() {
       setLoading(true);
       const response = await lessonService.getLesson(lessonId);
       setLesson(response.lesson);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Load lesson error:', err);
-      setError(err.message || 'Ders yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Ders yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export default function LessonDetailPage() {
     try {
       const response = await contentService.getContents(lessonId);
       setContents(response.contents);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Load contents error:', err);
     }
   };
@@ -88,14 +89,15 @@ export default function LessonDetailPage() {
       }
       logger.log('✅ Content deleted successfully');
       await loadContents();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Delete content error:', err);
+      const errRecord = err != null && typeof err === 'object' ? (err as Record<string, unknown>) : {};
       logger.error('Error details:', {
-        message: err.message,
-        response: err.response,
-        status: err.status,
+        message: err instanceof Error ? err.message : String(err),
+        response: errRecord.response,
+        status: errRecord.status,
       });
-      alert(err.message || 'İçerik silinirken bir hata oluştu');
+      alert(err instanceof Error ? err.message : 'İçerik silinirken bir hata oluştu');
     }
   };
 
@@ -315,7 +317,7 @@ export default function LessonDetailPage() {
                           <span>Sıra: {content.order}</span>
                           {content.createdAt && (
                             <span>
-                              {new Date(content.createdAt).toLocaleString('tr-TR', {
+                              {toSafeDate(content.createdAt).toLocaleString('tr-TR', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',

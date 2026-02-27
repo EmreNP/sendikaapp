@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { X } from 'lucide-react';
 import { contentService } from '@/services/api/contentService';
 import type { VideoContent, CreateVideoContentRequest, UpdateVideoContentRequest } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface VideoFormModalProps {
   video: VideoContent | null;
@@ -12,7 +13,8 @@ interface VideoFormModalProps {
   onSuccess: () => void;
 }
 
-export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuccess }: VideoFormModalProps) {
+function VideoFormModal({ video, lessonId, isOpen, onClose, onSuccess }: VideoFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -110,9 +112,9 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save video error:', err);
-      setError(err.message || 'Video kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Video kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -130,9 +132,9 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="video-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="video-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Videoyu Düzenle' : 'Yeni Video Ekle'}
             </h3>
             <button
@@ -246,3 +248,5 @@ export default function VideoFormModal({ video, lessonId, isOpen, onClose, onSuc
     </div>
   );
 }
+
+export default memo(VideoFormModal);

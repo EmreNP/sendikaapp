@@ -3,6 +3,7 @@ import { X, Check, RotateCw } from 'lucide-react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import { logger } from '@/utils/logger';
 import 'react-image-crop/dist/ReactCrop.css';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface ImageCropModalProps {
   imageFile: File;
@@ -19,6 +20,7 @@ export default function ImageCropModal({
   onCropComplete,
   aspectRatio = 16 / 9, // 16:9 aspect ratio
 }: ImageCropModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [imgSrc, setImgSrc] = useState<string>('');
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -178,10 +180,10 @@ export default function ImageCropModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="image-crop-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">Görseli Kırp (16:9 Oran)</h2>
+            <h2 id="image-crop-modal-title" className="text-sm font-medium text-white">Görseli Kırp (16:9 Oran)</h2>
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"

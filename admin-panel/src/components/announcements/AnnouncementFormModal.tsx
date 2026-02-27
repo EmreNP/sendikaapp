@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo} from 'react';
 import { X, XCircle, Scissors } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -8,6 +8,7 @@ import ImageCropModal from '../news/ImageCropModal';
 import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 
 interface AnnouncementFormModalProps {
@@ -17,8 +18,9 @@ interface AnnouncementFormModalProps {
   onSuccess: () => void;
 }
 
-export default function AnnouncementFormModal({ announcement, isOpen, onClose, onSuccess }: AnnouncementFormModalProps) {
+function AnnouncementFormModal({ announcement, isOpen, onClose, onSuccess }: AnnouncementFormModalProps) {
   const { user } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -206,9 +208,9 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving announcement:', err);
-      setError(err.message || 'Duyuru kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Duyuru kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -227,10 +229,10 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="announcement-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="announcement-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Duyuru Düzenle' : 'Yeni Duyuru Ekle'}
             </h2>
             <button
@@ -518,8 +520,8 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="announcement-form-modal-title-1" className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 id="announcement-form-modal-title-1" className="text-lg font-semibold text-gray-900 mb-2">Kaydedilmemiş Değişiklikler</h3>
             <p className="text-gray-600 mb-4">Kaydedilmemiş değişiklikleriniz var. Çıkmak istediğinizden emin misiniz?</p>
             <div className="flex justify-end gap-3">
               <button onClick={handleCancelClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">İptal</button>
@@ -532,3 +534,4 @@ export default function AnnouncementFormModal({ announcement, isOpen, onClose, o
   );
 }
 
+export default memo(AnnouncementFormModal);

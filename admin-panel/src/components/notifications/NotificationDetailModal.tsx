@@ -1,6 +1,7 @@
-import { X, Calendar, Users, Building2, CheckCircle, XCircle, Bell, FileText } from 'lucide-react';
+import { X, Calendar, Users, Building2, CheckCircle, XCircle, Bell } from 'lucide-react';
 import type { NotificationHistory } from '@/services/api/notificationService';
 import { formatDate } from '@/utils/dateFormatter';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface NotificationDetailModalProps {
   notification: NotificationHistory | null;
@@ -28,6 +29,7 @@ export default function NotificationDetailModal({
     }
   };
 
+  useEscapeKey(isOpen, onClose);
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
@@ -38,10 +40,10 @@ export default function NotificationDetailModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="notification-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <h2 id="notification-detail-modal-title" className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Bell className="w-5 h-5" />
               Bildirim Detayı
             </h2>

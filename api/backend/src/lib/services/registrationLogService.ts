@@ -19,10 +19,10 @@ export async function createRegistrationLog(
       hasDocumentUrl: !!logData.documentUrl,
     });
     
-    const log: Omit<UserRegistrationLog, 'id'> = {
+    const log = {
       ...logData,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    } as unknown as Omit<UserRegistrationLog, 'id'>;
     
     logger.log(`💾 Adding log to Firestore collection: user_registration_logs`);
     const docRef = await db.collection('user_registration_logs').add(log);

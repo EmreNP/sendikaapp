@@ -23,7 +23,7 @@ export default function ContractedInstitutionsPage() {
     try {
       const data = await institutionCategoryService.getCategories({ includeInactive: true });
       setCategories(data.categories || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching categories:', err);
     }
   }, []);

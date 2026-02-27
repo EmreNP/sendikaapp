@@ -52,8 +52,13 @@ export async function generateSignedUrls(
 }
 
 /**
- * Generate a public URL for a given storage path
- * Note: File must be made public first using file.makePublic()
+ * Generate a public URL for a given storage path.
+ *
+ * ⚠️  UYARI — YALNIZCA GERÇEKTEN PUBLIC KATEGORİLER İÇİN KULLAN
+ * Bu fonksiyon, GCS ACL'i allUsers:objectViewer olan (yani makePublic()
+ * çağrılmış) dosyalar için tahmin edilebilir bir URL üretir.
+ * Hassas belgeler (user-documents vb.) için generateSignedUrl() kullanın.
+ *
  * @param storagePath - The path to the file in Firebase Storage
  * @returns The public URL
  */

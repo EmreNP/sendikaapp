@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { trainingService } from '@/services/api/trainingService';
 import type { Training, CreateTrainingRequest, UpdateTrainingRequest } from '@/types/training';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface TrainingFormModalProps {
   training: Training | null;
@@ -12,6 +13,7 @@ interface TrainingFormModalProps {
 }
 
 export default function TrainingFormModal({ training, isOpen, onClose, onSuccess }: TrainingFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -89,9 +91,9 @@ export default function TrainingFormModal({ training, isOpen, onClose, onSuccess
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save training error:', err);
-      setError(err.message || 'Eğitim kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Eğitim kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -109,9 +111,9 @@ export default function TrainingFormModal({ training, isOpen, onClose, onSuccess
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="training-form-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h3 className="text-sm font-medium text-white">
+            <h3 id="training-form-modal-title" className="text-sm font-medium text-white">
               {isEditMode ? 'Eğitimi Düzenle' : 'Yeni Eğitim Oluştur'}
             </h3>
             <button

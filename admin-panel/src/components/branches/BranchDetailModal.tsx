@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { X, Building2, MapPin, Phone, Mail, Clock, Calendar, Users, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { formatDate } from '@/utils/dateFormatter';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Branch {
   id: string;
@@ -39,7 +40,8 @@ interface BranchDetailModalProps {
   onClose: () => void;
 }
 
-export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchDetailModalProps) {
+function BranchDetailModal({ branchId, isOpen, onClose }: BranchDetailModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [branch, setBranch] = useState<Branch | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +64,9 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
       
       const data = await apiRequest<{ branch: Branch }>(`/api/branches/${branchId}`);
       setBranch(data.branch);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching branch details:', err);
-      setError(err.message || 'Şube detayları yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Şube detayları yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,7 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
     if (!branch?.location) return;
     
     const { latitude, longitude } = branch.location;
-    window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
+    window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;
@@ -89,10 +91,10 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="branch-detail-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-            <h2 className="text-sm font-medium text-white">
+            <h2 id="branch-detail-modal-title" className="text-sm font-medium text-white">
               Şube Detayları
             </h2>
             <button
@@ -320,3 +322,4 @@ export default function BranchDetailModal({ branchId, isOpen, onClose }: BranchD
   );
 }
 
+export default memo(BranchDetailModal);

@@ -103,7 +103,7 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
         nextCursor?: string;
       }>('/api/branches');
       setBranches(data.branches || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error fetching branches:', error);
     }
   };
@@ -152,9 +152,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
       }
       setTotalPages(Math.ceil(total / pageSize));
       setHasMore(data.hasMore || false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching users:', error);
-      setError(error.message || 'Kullanıcılar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Kullanıcılar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.'));
       setUsers([]);
     } finally {
       setLoading(false);
@@ -211,9 +211,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
         newSet.delete(userId);
         return newSet;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deactivating user:', error);
-      setError(error.message || 'Kullanıcı deaktif edilirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Kullanıcı deaktif edilirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -229,9 +229,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
         newSet.delete(userId);
         return newSet;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error activating user:', error);
-      setError(error.message || 'Kullanıcı aktif edilirken bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Kullanıcı aktif edilirken bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -268,9 +268,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
       }
 
       setSelectedUserIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk deleting users:', error);
-      setError(error.message || 'Toplu silme işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu silme işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -302,9 +302,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
       }
 
       setSelectedUserIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk deactivating users:', error);
-      setError(error.message || 'Toplu deaktif etme işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu deaktif etme işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }
@@ -336,9 +336,9 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
       }
 
       setSelectedUserIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error bulk activating users:', error);
-      setError(error.message || 'Toplu aktif etme işlemi sırasında bir hata oluştu');
+      setError((error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Toplu aktif etme işlemi sırasında bir hata oluştu'));
     } finally {
       setProcessing(false);
     }

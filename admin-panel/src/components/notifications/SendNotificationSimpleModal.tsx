@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { X, Bell, AlertCircle, CheckCircle } from 'lucide-react';
 import { notificationService } from '@/services/api/notificationService';
 import type { SendNotificationRequest } from '@/services/api/notificationService';
@@ -7,6 +7,7 @@ import type { NotificationType, TargetAudience } from '@shared/constants/notific
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/utils/api';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Branch {
   id: string;
@@ -26,7 +27,7 @@ interface SendNotificationSimpleModalProps {
   imageUrl?: string;
 }
 
-export default function SendNotificationSimpleModal({
+function SendNotificationSimpleModal({
   isOpen,
   onClose,
   onSuccess,
@@ -37,6 +38,7 @@ export default function SendNotificationSimpleModal({
   imageUrl,
 }: SendNotificationSimpleModalProps) {
   const { user } = useAuth();
+  useEscapeKey(isOpen, onClose);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [targetAudience, setTargetAudience] = useState<TargetAudience>('all');
@@ -169,9 +171,9 @@ export default function SendNotificationSimpleModal({
         setSuccess(false);
         setResult(null);
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error sending notification:', err);
-      setError(err.message || 'Bildirim gönderilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Bildirim gönderilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -189,10 +191,10 @@ export default function SendNotificationSimpleModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="send-notification-simple-modal-title" className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <h2 id="send-notification-simple-modal-title" className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Bell className="w-5 h-5" />
               Bildirim Gönder
             </h2>
@@ -399,3 +401,4 @@ export default function SendNotificationSimpleModal({
   );
 }
 
+export default memo(SendNotificationSimpleModal);

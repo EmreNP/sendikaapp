@@ -6,7 +6,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import type { VideoContent, CreateVideoContentRequest } from '@shared/types/training';
 import { validateCreateVideoContent } from '@/lib/utils/validation/videoContentValidation';
 import { getNextContentOrder, shiftOrdersUp } from '@/lib/utils/orderManagement';
-import { generatePublicUrl } from '@/lib/utils/storage';
+import { generatePublicUrl, generateSignedUrl } from '@/lib/utils/storage';
 import { 
   successResponse, 
   serializeVideoContentTimestamps
@@ -55,17 +55,24 @@ export const GET = asyncHandler(async (
         ...doc.data(),
       })) as VideoContent[];
       
-      // Generate public URLs (files are already public via makePublic)
-      const videosWithUrls = videos.map((video) => {
-        const result = { ...video };
-        if (video.videoSource === 'uploaded' && video.videoPath) {
-          result.videoUrl = generatePublicUrl(video.videoPath);
-        }
-        if (video.thumbnailPath) {
-          result.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
-        }
-        return result;
-      });
+      // Uploaded videos: signed URL (private); thumbnails: public URL (video-thumbnails is public category)
+      const videosWithUrls = await Promise.all(
+        videos.map(async (video) => {
+          const result: Record<string, any> = { ...video };
+          if (video.videoSource === 'uploaded' && video.videoPath) {
+            try {
+              result.videoUrl = await generateSignedUrl(video.videoPath, 1); // 1 günlük URL
+            } catch (err) {
+              logger.warn(`[videos] Signed URL failed for ${video.videoPath}:`, err);
+            }
+          }
+          if (video.thumbnailPath) {
+            // Thumbnails video-thumbnails/ prefix'indedir — public category, makePublic() çağrılmış
+            result.thumbnailUrl = generatePublicUrl(video.thumbnailPath);
+          }
+          return result;
+        })
+      );
       
       const serializedVideos = videosWithUrls.map(v => serializeVideoContentTimestamps(v));
       
@@ -178,9 +185,13 @@ export const POST = asyncHandler(async (
         ...docData,
       } as VideoContent;
       
-      // Generate public URLs for response
+      // Uploaded video: signed URL (1 gün); thumbnail: public URL (public category)
       if (video.videoSource === 'uploaded' && video.videoPath) {
-        video.videoUrl = generatePublicUrl(video.videoPath);
+        try {
+          video.videoUrl = await generateSignedUrl(video.videoPath, 1);
+        } catch (err) {
+          logger.warn(`[videos] Signed URL failed for ${video.videoPath}:`, err);
+        }
       }
       
       if (video.thumbnailPath) {

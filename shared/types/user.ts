@@ -7,7 +7,15 @@ import { Gender } from '../constants/gender';
 export type { UserStatus, UserRole, EducationLevel, Gender };
 
 // Timestamp type - backend'de firebase-admin/firestore Timestamp, frontend'de firebase/firestore Timestamp
-export type Timestamp = any;
+// Her iki SDK'nın Timestamp nesnesi { seconds, nanoseconds } yapısındadır.
+export interface Timestamp {
+  seconds: number;
+  nanoseconds: number;
+  _seconds?: number;
+  _nanoseconds?: number;
+  toDate?: () => Date;
+  toMillis?: () => number;
+}
 
 export interface User {
   uid: string;

@@ -1,6 +1,7 @@
 import { api } from '@/config/api';
 import { authService } from '@/services/auth/authService';
 import { logger } from '@/utils/logger';
+import { ApiError } from '@/utils/api';
 
 export type UploadCategory = 'news' | 'announcements';
 
@@ -56,9 +57,10 @@ export const uploadService = {
     const data = await response.json();
 
     if (!data.success) {
-      const error = new Error(data.message || 'Görsel yüklenirken bir hata oluştu');
-      (error as any).code = data.code;
-      (error as any).details = data.details;
+      const error = new ApiError(data.message || 'Görsel yüklenirken bir hata oluştu', {
+        code: data.code,
+        details: data.details,
+      });
       logger.error('Upload error response:', {
         status: response.status,
         message: data.message,

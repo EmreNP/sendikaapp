@@ -270,9 +270,9 @@ export default function PerformanceDashboardPage() {
       setBranchReport(branchData);
       setManagerReport(managerData);
       setLastFetchTime(new Date());
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Performans verisi yüklenirken hata:', err);
-      setError(err?.message || 'Veriler yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Veriler yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
       setIsFiltering(false);
@@ -311,9 +311,9 @@ export default function PerformanceDashboardPage() {
         period: reportData.period,
       });
       await createPdf(reportData, type);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('PDF rapor oluşturulurken hata:', err);
-      alert('PDF rapor oluşturulurken bir hata oluştu: ' + (err?.message || ''));
+      alert('PDF rapor oluşturulurken bir hata oluştu: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setPdfLoading(null);
     }
@@ -460,7 +460,7 @@ export default function PerformanceDashboardPage() {
               {selectedBranchId && summary && (
                 <div className="inline-flex items-center gap-1.5 bg-violet-50/80 text-violet-700 text-xs font-medium px-3 py-1.5 rounded-full border border-violet-100">
                   <Building2 className="w-3.5 h-3.5" />
-                  {summary.branchComparison.find((b: any) => b.branchId === selectedBranchId)?.branchName || 'Şube'}
+                  {summary.branchComparison.find((b: { branchId: string; branchName: string }) => b.branchId === selectedBranchId)?.branchName || 'Şube'}
                   <button onClick={() => setSelectedBranchId('')} className="ml-0.5 text-violet-400 hover:text-violet-600">
                     <X className="w-3 h-3" />
                   </button>

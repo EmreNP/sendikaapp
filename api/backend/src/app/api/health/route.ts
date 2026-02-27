@@ -2,6 +2,8 @@ import { successResponse } from '@/lib/utils/response';
 import { NextRequest } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 
+// Health check endpoint'i rate limiting'den muaf tutulur —
+// load balancer / uptime monitor'lar sık sık çağırır.
 export const GET = asyncHandler(async (request: NextRequest) => {
   return successResponse(
     'API çalışıyor',
@@ -13,5 +15,5 @@ export const GET = asyncHandler(async (request: NextRequest) => {
     200,
     'HEALTH_CHECK_SUCCESS'
   );
-});
+}, { skipRateLimit: true });
 

@@ -3,6 +3,7 @@ import { X, Tag } from 'lucide-react';
 import Button from '@/components/common/Button';
 import type { ActivityCategory, CreateActivityCategoryRequest, UpdateActivityCategoryRequest } from '@/types/activity';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface CategoryFormModalProps {
   category?: ActivityCategory | null;
@@ -17,6 +18,7 @@ export default function CategoryFormModal({
   onCancel, 
   disabled = false 
 }: CategoryFormModalProps) {
+  useEscapeKey(true, onCancel);
   const [formData, setFormData] = useState({
     name: '',
     description: ''
@@ -69,10 +71,10 @@ export default function CategoryFormModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-md w-full">
+      <div role="dialog" aria-modal="true" aria-labelledby="category-form-modal-title" className="bg-white rounded-xl max-w-md w-full">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 id="category-form-modal-title" className="text-xl font-semibold text-gray-900">
             {category ? 'Kategori Düzenle' : 'Yeni Kategori'}
           </h2>
           <button

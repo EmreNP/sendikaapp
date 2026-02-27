@@ -7,7 +7,7 @@ COPY api/backend /workspace/backend
 COPY shared /workspace/shared
 
 WORKDIR /workspace/backend
-RUN npm install --no-audit --no-fund --prefer-offline
+RUN npm ci --no-audit --no-fund
 
 # Ensure shared monorepo folder is resolvable via node module path
 RUN mkdir -p node_modules \
@@ -22,15 +22,21 @@ FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production PORT=8080
 
+# Güvenlik: root yerine düşük yetkili kullanıcı ile çalıştır
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs nextjs
+
 # Copy necessary files from builder
-COPY --from=builder /workspace/backend/package*.json ./
-COPY --from=builder /workspace/backend/.next ./.next
-COPY --from=builder /workspace/backend/node_modules ./node_modules
-COPY --from=builder /workspace/backend/next.config.js ./next.config.js
+COPY --from=builder --chown=nextjs:nodejs /workspace/backend/package*.json ./
+COPY --from=builder --chown=nextjs:nodejs /workspace/backend/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /workspace/backend/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /workspace/backend/next.config.js ./next.config.js
 
 # NOT: Service account key dosyası build sırasında değil, 
 # Cloud Run'da secret olarak mount edilmeli veya
 # GOOGLE_APPLICATION_CREDENTIALS_JSON env variable ile enjekte edilmeli
+
+USER nextjs
 
 EXPOSE 8080
 CMD ["npm", "start"]

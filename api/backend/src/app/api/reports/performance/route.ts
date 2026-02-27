@@ -184,7 +184,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       }
     }
 
-    // Paralel veri çekme
+    // Paralel veri çekme (OOM koruması: koleksiyon başına limit)
+    const COLLECTION_LIMIT = 5000;
     const [
       branchesSnap,
       activitiesSnap,
@@ -193,12 +194,12 @@ export const GET = asyncHandler(async (request: NextRequest) => {
       announcementsSnap,
       categoriesSnap,
     ] = await Promise.all([
-      db.collection('branches').get(),
-      db.collection('activities').get(),
-      db.collection('users').get(),
-      db.collection('news').get(),
-      db.collection('announcements').get(),
-      db.collection('activity_categories').get(),
+      db.collection('branches').limit(COLLECTION_LIMIT).get(),
+      db.collection('activities').limit(COLLECTION_LIMIT).get(),
+      db.collection('users').limit(COLLECTION_LIMIT).get(),
+      db.collection('news').limit(COLLECTION_LIMIT).get(),
+      db.collection('announcements').limit(COLLECTION_LIMIT).get(),
+      db.collection('activity_categories').limit(COLLECTION_LIMIT).get(),
     ]);
 
     // Helper: Tarih aralığında mı?

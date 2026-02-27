@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { contactService } from '@/services/api/contactService';
 import type { Topic } from '@/types/contact';
 import { logger } from '@/utils/logger';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface TopicFormModalProps {
   topic: Topic | null;
@@ -12,6 +13,7 @@ interface TopicFormModalProps {
 }
 
 export default function TopicFormModal({ topic, isOpen, onClose, onSuccess }: TopicFormModalProps) {
+  useEscapeKey(isOpen, onClose);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -57,9 +59,9 @@ export default function TopicFormModal({ topic, isOpen, onClose, onSuccess }: To
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving topic:', err);
-      setError(err.message || 'Konu kaydedilirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Konu kaydedilirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -69,10 +71,10 @@ export default function TopicFormModal({ topic, isOpen, onClose, onSuccess }: To
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+      <div role="dialog" aria-modal="true" aria-labelledby="topic-form-modal-title" className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 bg-slate-700">
-          <h2 className="text-sm font-medium text-white">
+          <h2 id="topic-form-modal-title" className="text-sm font-medium text-white">
             {isEditMode ? 'Konu Düzenle' : 'Yeni Konu Oluştur'}
           </h2>
           <button

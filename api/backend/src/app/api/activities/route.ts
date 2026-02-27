@@ -183,10 +183,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     };
 
     const docRef = await db.collection('activities').add(activityData);
-    const activity: Activity = {
+    const activity = {
       id: docRef.id,
       ...activityData
-    };
+    } as unknown as Activity;
 
     // Audit log
     const categoryName = categoryDoc.data()?.name || '';

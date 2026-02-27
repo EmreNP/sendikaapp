@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit, Trash2, BookOpen, Search, Eye, EyeOff, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, BookOpen, Search, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import LessonFormModal from '@/components/trainings/LessonFormModal';
@@ -49,9 +49,9 @@ export default function TrainingDetailPage() {
       setLoading(true);
       const response = await trainingService.getTraining(trainingId);
       setTraining(response.training);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Load training error:', err);
-      setError(err.message || 'Eğitim yüklenirken bir hata oluştu');
+      setError((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Eğitim yüklenirken bir hata oluştu'));
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function TrainingDetailPage() {
     try {
       const response = await lessonService.getLessons(trainingId);
       setLessons(response.lessons);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Load lessons error:', err);
     }
   };
@@ -73,14 +73,15 @@ export default function TrainingDetailPage() {
       await lessonService.deleteLesson(lessonId);
       logger.log('✅ Lesson deleted successfully');
       await loadLessons();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('❌ Delete lesson error:', err);
+      const errRecord = err != null && typeof err === 'object' ? (err as Record<string, unknown>) : {};
       logger.error('Error details:', {
-        message: err.message,
-        response: err.response,
-        status: err.status,
+        message: err instanceof Error ? err.message : String(err),
+        response: errRecord.response,
+        status: errRecord.status,
       });
-      alert(err.message || 'Ders silinirken bir hata oluştu');
+      alert(err instanceof Error ? err.message : 'Ders silinirken bir hata oluştu');
     }
   };
 
@@ -90,9 +91,9 @@ export default function TrainingDetailPage() {
         isActive: !currentStatus,
       });
       await loadLessons();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Toggle lesson active error:', err);
-      alert(err.message || 'Ders durumu güncellenirken bir hata oluştu');
+      alert((err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'Ders durumu güncellenirken bir hata oluştu'));
     }
   };
 
@@ -130,7 +131,7 @@ export default function TrainingDetailPage() {
     <AdminLayout>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/admin/trainings')}

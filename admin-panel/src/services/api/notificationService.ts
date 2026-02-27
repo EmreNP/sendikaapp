@@ -34,7 +34,7 @@ export interface NotificationHistory {
   sentCount: number;
   failedCount: number;
   data: Record<string, string> | null;
-  createdAt: any;
+  createdAt: string | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number };
   branch?: { id: string; name: string } | null;
   sentByUser?: { uid: string; firstName: string; lastName: string } | null;
 }

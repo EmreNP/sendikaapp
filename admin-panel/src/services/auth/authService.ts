@@ -53,29 +53,31 @@ export const authService = {
         user: userData,
         idToken,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errCode = (error as { code?: string })?.code;
+      const errMessage = error instanceof Error ? error.message : String(error);
       logger.error('❌ Sign in error:', { 
-        code: error.code, 
-        message: error.message,
+        code: errCode, 
+        message: errMessage,
         error: error 
       });
       // Firebase hatalarını Türkçe'ye çevir
-      if (error.code === 'auth/user-not-found' || 
-          error.code === 'auth/wrong-password' || 
-          error.code === 'auth/invalid-credential') {
+      if (errCode === 'auth/user-not-found' || 
+          errCode === 'auth/wrong-password' || 
+          errCode === 'auth/invalid-credential') {
         throw new Error('E-posta veya şifre hatalı');
       }
-      if (error.code === 'auth/too-many-requests') {
+      if (errCode === 'auth/too-many-requests') {
         throw new Error('Çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin');
       }
-      if (error.code === 'auth/user-disabled') {
+      if (errCode === 'auth/user-disabled') {
         throw new Error('Bu hesap devre dışı bırakılmış');
       }
-      if (error.code === 'auth/invalid-email') {
+      if (errCode === 'auth/invalid-email') {
         throw new Error('Geçersiz e-posta adresi');
       }
       // Bilinmeyen hatalar için orijinal mesajı göster
-      throw new Error(error.message || 'Giriş başarısız');
+      throw new Error(errMessage || 'Giriş başarısız');
     }
   },
 
@@ -125,17 +127,19 @@ export const authService = {
       const { apiRequest } = await import('@/utils/api');
       const data = await apiRequest<{ user: User }>(`/api/users/${uid}`);
       return data?.user || null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 404 = kullanıcı silinmiş/bulunamıyor — placeholder döndür ve cache'le
-      if (error?.response?.status === 404 || error?.code === 'NOT_FOUND' || error?.message?.includes('bulunamadı')) {
+      const errObj = error as { response?: { status?: number }; code?: string };
+      const errMsg = error instanceof Error ? error.message : '';
+      if (errObj?.response?.status === 404 || errObj?.code === 'NOT_FOUND' || errMsg.includes('bulunamadı')) {
         const placeholder = {
           firstName: 'Silinmiş',
           lastName: 'Kullanıcı',
           email: '',
-          role: '' as any,
+          role: '' as UserRole,
           status: 'deleted',
           isActive: false,
-        } as User;
+        } as unknown as User;
         _notFoundUserCache.set(uid, placeholder);
         return placeholder;
       }

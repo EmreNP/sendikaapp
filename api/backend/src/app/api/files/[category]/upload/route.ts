@@ -5,6 +5,7 @@ import { USER_ROLE } from '@shared/constants/roles';
 import { validateImage, sanitizeFileName } from '@/lib/utils/validation/imageValidation';
 import { validateDocument } from '@/lib/utils/validation/documentValidation';
 import { validateVideo } from '@/lib/utils/validation/videoValidation';
+import { validateMagicBytes } from '@/lib/utils/validation/magicByteValidation';
 import {
   successResponse,
 } from '@/lib/utils/response';
@@ -16,6 +17,24 @@ import { logger } from '../../../../../lib/utils/logger';
 // İzin verilen kategoriler
 const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images', 'institution-images'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
+
+/**
+ * Gerçekten public olabilecek kategoriler (hassas veri içermez).
+ * Bu listede OLMAYAN kategoriler için makePublic() ÇAĞRILMAZ;
+ * bunun yerine kısa ömürlü signed URL döndürülür.
+ *
+ * Neden ayrımı önemli?
+ * makePublic() GCS nesnesine allUsers:objectViewer ACL'i ekler ve
+ * Firebase Storage Rules'u tamamen bypass eder — dosya dünya genelinde
+ * tahmin edilebilir URL ile erişilebilir hale gelir.
+ */
+const PUBLIC_CATEGORIES: AllowedCategory[] = [
+  'news',
+  'announcements',
+  'activity-images',
+  'institution-images',
+  'video-thumbnails',
+];
 
 // Kategori bazlı yetki kontrolü
 function isAdminOrSuperadmin(role: string): boolean {
@@ -199,6 +218,18 @@ export const POST = asyncHandler(async (
       throw new AppValidationError(validation.error || 'Geçersiz dosya');
     }
 
+      // ── Magic Byte Doğrulaması ──────────────────────────────────────────
+      // Dosyanın gerçek içeriğini kontrol ederek sahte MIME type saldırılarını engelle.
+      // Content-Type header'ı ve dosya uzantısı kolayca taklit edilebilir,
+      // ancak dosya imzası (magic bytes) gerçek formatı gösterir.
+      const contentBuffer = Buffer.from(await fileObj.arrayBuffer());
+      const magicByteResult = validateMagicBytes(contentBuffer, fileObj.type);
+      if (!magicByteResult.valid) {
+        throw new AppValidationError(
+          magicByteResult.error || 'Dosya içeriği doğrulanamadı'
+        );
+      }
+
       // Dosya adını sanitize et
       const sanitizedFileName = sanitizeFileName(fileObj.name);
       const timestamp = Date.now();
@@ -246,9 +277,8 @@ export const POST = asyncHandler(async (
       );
     }
 
-      // Dosyayı buffer'a çevir
-      const arrayBuffer = await fileObj.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      // Dosyayı buffer'a çevir (magic byte doğrulamasında zaten okundu, tekrar kullan)
+      const buffer = contentBuffer;
 
       // Storage'a yükle
       const fileRef = bucket.file(storagePath);
@@ -271,18 +301,38 @@ export const POST = asyncHandler(async (
       throw new AppInternalServerError(`Dosya storage'a kaydedilemedi: ${errorMessage}`);
     }
 
-      // Public URL al
-      try {
-        await fileRef.makePublic();
-        logger.log(`✅ File made public: ${storagePath}`);
-      } catch (publicError: unknown) {
-        // makePublic başarısız olsa bile dosya yüklendi, URL'i manuel oluştur
-        const errorMessage = isErrorWithMessage(publicError) ? publicError.message : 'Bilinmeyen hata';
-        logger.warn('⚠️ makePublic failed, using manual URL:', errorMessage);
-        // Devam et, dosya yüklendi
+      // Erişim URL'i: public kategoriler için makePublic + public URL,
+      // hassas kategoriler için kısa ömürlü signed URL (1 saat) döndür.
+      // makePublic() GCS ACL'ini allUsers:objectViewer yapar ve Storage
+      // Rules'u bypass eder — yalnızca gerçekten public içerik için kullanılmalı.
+      let fileAccessUrl: string;
+
+      if (PUBLIC_CATEGORIES.includes(category as AllowedCategory)) {
+        try {
+          await fileRef.makePublic();
+          logger.log(`✅ File made public: ${storagePath}`);
+        } catch (publicError: unknown) {
+          const errorMessage = isErrorWithMessage(publicError) ? publicError.message : 'Bilinmeyen hata';
+          logger.warn('⚠️ makePublic failed, continuing without public ACL:', errorMessage);
+        }
+        fileAccessUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+      } else {
+        // Hassas kategori: makePublic() ÇAĞIRMA, signed URL üret
+        logger.log(`🔒 Private category "${category}", generating short-lived signed URL: ${storagePath}`);
+        try {
+          const [signedUrl] = await fileRef.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000, // 1 saat — yükleme sonrası anlık kullanım için
+          });
+          fileAccessUrl = signedUrl;
+        } catch (signError: unknown) {
+          const errorMessage = isErrorWithMessage(signError) ? signError.message : 'Bilinmeyen hata';
+          logger.warn('⚠️ Signed URL generation failed, returning storagePath only:', errorMessage);
+          // Signed URL üretilemese bile işlemi başarılı say;
+          // tüketici generateSignedUrl() ile URL üretebilir.
+          fileAccessUrl = storagePath;
+        }
       }
-      
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
 
       // Response mesajı ve kod kategoriye göre
       let message = 'Dosya başarıyla yüklendi';
@@ -304,12 +354,12 @@ export const POST = asyncHandler(async (
       return successResponse(
         message,
         {
-          imageUrl: publicUrl, // Backward compatibility için (deprecated)
-          documentUrl: publicUrl, // Documents için (deprecated)
-          videoUrl: publicUrl, // Videos için (deprecated)
-          thumbnailUrl: publicUrl, // Thumbnails için (deprecated)
-          fileUrl: publicUrl, // Generic (deprecated)
-          storagePath: storagePath, // Storage path (NEW - use this)
+          imageUrl: fileAccessUrl,    // Backward compatibility (deprecated — public kategoriler için public URL, private için signed URL)
+          documentUrl: fileAccessUrl, // Documents için (deprecated)
+          videoUrl: fileAccessUrl,    // Videos için (deprecated)
+          thumbnailUrl: fileAccessUrl, // Thumbnails için (deprecated)
+          fileUrl: fileAccessUrl,     // Generic (deprecated)
+          storagePath: storagePath,   // Storage path (ÖNERİLEN — bunu kullan)
           fileName: fileName,
           size: fileObj.size,
           contentType: fileObj.type,
