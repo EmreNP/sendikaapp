@@ -20,6 +20,7 @@ import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { validateTCKimlikNo } from '../utils/tcKimlikValidation';
 import ApiService from '../services/api';
 import { logger } from '../utils/logger';
+import { useSecureScreen } from '../hooks/useSecureScreen';
 import { EDUCATION_LEVEL_OPTIONS } from '../../../shared/constants/education';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Branch, EducationLevel } from '../types';
@@ -29,6 +30,7 @@ type MembershipScreenProps = {
 };
 
 export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }) => {
+  useSecureScreen();
   const { registerDetails } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);

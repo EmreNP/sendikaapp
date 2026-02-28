@@ -5,6 +5,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, LogBox } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { initSentry, setupGlobalErrorHandler } from './src/services/sentry';
+
+// Sentry'yi en erken noktada başlat (diğer import'lardan önce)
+initSentry();
+setupGlobalErrorHandler();
 
 // react-native-render-html kütüphanesinin iç yapısında defaultProps kullanılıyor.
 // Bu React 18.2+ ile uyarı veriyor ama kütüphane henüz güncellenmedi.
@@ -19,14 +24,16 @@ LogBox.ignoreLogs([
 // React 18.2+'da defaultProps uyarıları console.error üzerinden gönderiliyor.
 // LogBox.ignoreLogs yalnızca console.warn'ı bastırdığı için console.error'u da
 // filtrelememiz gerekiyor. Sadece bu spesifik uyarı bastırılıyor, gerçek hatalar geçiyor.
-const originalConsoleError = console.error;
-console.error = (...args: unknown[]) => {
-  const message = typeof args[0] === 'string' ? args[0] : '';
-  if (message.includes('Support for defaultProps will be removed')) {
-    return;
-  }
-  originalConsoleError(...args);
-};
+if (__DEV__) {
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    const message = typeof args[0] === 'string' ? args[0] : '';
+    if (message.includes('Support for defaultProps will be removed')) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
+}
 import { AuthProvider } from './src/context/AuthContext';
 import { NotificationBadgeProvider } from './src/context/NotificationBadgeContext';
 import { AppNavigator } from './src/navigation';
@@ -54,7 +61,9 @@ export default function App() {
         }
       } catch (error) {
         // Güncelleme kontrolü başarısız olursa sessizce devam et
-        console.warn('Güncelleme kontrolü hatası:', error);
+        if (__DEV__) {
+          console.warn('Güncelleme kontrolü hatası:', error);
+        }
       }
     };
 

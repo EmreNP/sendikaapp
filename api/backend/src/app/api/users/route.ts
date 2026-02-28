@@ -259,25 +259,20 @@ export const POST = asyncHandler(async (request: NextRequest) => {
         role: userRole === USER_ROLE.BRANCH_MANAGER ? USER_ROLE.USER : (role || USER_ROLE.USER),
         status: status || ((userRole === USER_ROLE.ADMIN || userRole === USER_ROLE.SUPERADMIN) ? USER_STATUS.ACTIVE : USER_STATUS.PENDING_BRANCH_REVIEW),
         isActive: true,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }; 
-      
-      // branchId ekle
-      if (userRole === USER_ROLE.BRANCH_MANAGER) {
-        userData.branchId = currentUserData!.branchId;
-      } else if (branchId) {
-        userData.branchId = branchId;
-      }
-      
-      // Opsiyonel alanları ekle
-      if (birthDate) userData.birthDate = admin.firestore.Timestamp.fromDate(new Date(birthDate));
-      if (gender) userData.gender = gender;
-      if (phone) userData.phone = phone;
-      
-      await db.collection('users').doc(userRecord.uid).set(userData);
-      
-      logger.log(`✅ User document created: ${userRecord.uid}`);
+          hasAcceptedKvkk: false,
+          kvkkAcceptedAt: null,
+          hasAcceptedTerms: false,
+          termsAcceptedAt: null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }; 
+        
+        // branchId ekle
+        if (userRole === USER_ROLE.BRANCH_MANAGER) {
+          userData.branchId = currentUserData!.branchId;
+        } else if (branchId) {
+          userData.branchId = branchId;
+        }
       
       // Audit log
       createAuditLog({

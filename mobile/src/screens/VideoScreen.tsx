@@ -17,7 +17,8 @@ import { Video, ResizeMode } from 'expo-av';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { API_BASE_URL } from '../config/api';
 import { firebaseConfig } from '../config/firebase';
-
+import { logger } from '../utils/logger';
+import ApiService from '../services/api';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type RouteParams = {
@@ -166,8 +167,7 @@ const VimeoPlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`https://player.vimeo.com/video/${videoId}/config`);
-        const json = await res.json();
+        const json = await ApiService.fetchExternalJson(`https://player.vimeo.com/video/${videoId}/config`);
         const files = json?.request?.files;
 
         // try progressive (mp4)
@@ -246,7 +246,7 @@ const DirectPlayer: React.FC<{ uri: string }> = ({ uri }) => {
           if (s.isLoaded && loading) setLoading(false);
         }}
         onError={(err) => {
-          console.warn('Video error:', err, 'URI:', uri);
+          logger.warn('Video error:', err);
           setError(true);
           setLoading(false);
         }}

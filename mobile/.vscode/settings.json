@@ -1,0 +1,10 @@
+{
+  "java.project.sourcePaths": [],
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.expo/**",
+    "**/build/**",
+    "**/dist/**"
+  ],
+  "java.configuration.updateBuildConfiguration": "automatic"
+}

@@ -130,8 +130,21 @@ export const POST = asyncHandler(async (request: NextRequest) => {
     // Determine initial status and branch assignment based on creator role
     let initialStatus = USER_STATUS.PENDING_DETAILS;
     let branchToAssign: string | undefined = undefined;
+    let hasAcceptedKvkk = (body as any).hasAcceptedKvkk === true;
+    let kvkkAcceptedAt: any = hasAcceptedKvkk ? admin.firestore.FieldValue.serverTimestamp() : null;
+    let hasAcceptedTerms = (body as any).hasAcceptedTerms === true;
+    let termsAcceptedAt: any = hasAcceptedTerms ? admin.firestore.FieldValue.serverTimestamp() : null;
+
+    if (!creator && (!hasAcceptedKvkk || !hasAcceptedTerms)) {
+      throw new AppValidationError('KVKK ve Kullanım Koşulları onaylanmalıdır.');
+    }
 
     if (creator) {
+      hasAcceptedKvkk = false;
+      kvkkAcceptedAt = null;
+      hasAcceptedTerms = false;
+      termsAcceptedAt = null;
+      
       if (creator.role === USER_ROLE.ADMIN || creator.role === USER_ROLE.SUPERADMIN) {
         initialStatus = USER_STATUS.ACTIVE;
         // allow admin to assign requestedBranchId if provided
@@ -169,6 +182,10 @@ export const POST = asyncHandler(async (request: NextRequest) => {
       status: initialStatus,
       isActive: true,
       emailVerified: true,
+      hasAcceptedKvkk,
+      kvkkAcceptedAt,
+      hasAcceptedTerms,
+      termsAcceptedAt,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };

@@ -19,6 +19,15 @@ const ContactMessagesPage = lazy(() => import('./pages/contact-messages/ContactM
 const NotificationHistoryPage = lazy(() => import('./pages/notifications/NotificationHistoryPage'));
 const PerformanceDashboardPage = lazy(() => import('./pages/performance/PerformanceDashboardPage'));
 const ContractedInstitutionsPage = lazy(() => import('./pages/contracted-institutions/ContractedInstitutionsPage'));
+const PrivacyPage = lazy(() => import('./pages/privacy/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/terms/TermsPage'));
+const DeleteAccountPage = lazy(() => import('./pages/delete-account/DeleteAccountPage'));
+
+// Dış URL'e yönlendirme (lokal dev ortamı için)
+const ExternalRedirect = ({ to }: { to: string }) => {
+  window.location.replace(to);
+  return null;
+};
 
 // Loading component
 const PageLoader = () => (
@@ -43,6 +52,9 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/delete-account" element={<DeleteAccountPage />} />
             
             {/* Admin Routes */}
             {/* Dashboard removed — redirect legacy routes to Users list */}
@@ -164,7 +176,10 @@ function App() {
             <Route path="/branch/news" element={<Navigate to="/admin/news" replace />} />
             
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* /admin → admin giriş sayfası */}
+            <Route path="/admin" element={<LoginPage />} />
+            {/* Kök URL → kurumsal siteye yönlendir */}
+            <Route path="/" element={<ExternalRedirect to="https://turkdiyanetvakifsen.org.tr/Anasayfa" />} />
             <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>

@@ -27,3 +27,6 @@ export { NotificationsScreen } from './NotificationsScreen';
 export { DocumentScreen } from './DocumentScreen';
 export { VideoScreen } from './VideoScreen';
 export { ChangePasswordScreen } from './ChangePasswordScreen';
+export { LegalAcceptanceScreen } from './LegalAcceptanceScreen';
+export { default as KvkkScreen } from './KvkkScreen';
+export { default as TermsScreen } from './TermsScreen';

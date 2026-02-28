@@ -2,6 +2,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { logger } from '../utils/logger';
+import { Sentry } from '../services/sentry';
 
 interface Props {
   children: ReactNode;
@@ -30,6 +31,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     logger.error('ErrorBoundary caught an error:', error, errorInfo.componentStack);
+    // Sentry'e hata gönder
+    Sentry.captureException(error, {
+      contexts: {
+        react: { componentStack: errorInfo.componentStack ?? undefined },
+      },
+    });
   }
 
   private handleRetry = (): void => {

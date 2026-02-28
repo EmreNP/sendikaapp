@@ -29,7 +29,9 @@
       "android": {
         "buildType": "app-bundle",
         "env": {
-          "EXPO_PUBLIC_API_BASE_URL": "https://tdvs-konya.web.app"
+          "EXPO_PUBLIC_API_BASE_URL": "https://tdvs-konya.web.app",
+          "VERSION_CODE": "1",
+          "VERSION_NAME": "1.0.0"
         }
       },
       "ios": {

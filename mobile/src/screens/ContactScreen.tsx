@@ -20,6 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
@@ -97,7 +98,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
         );
       }
     } catch (error: any) {
-      console.error('Topics yüklenemedi:', error);
+      logger.error('Topics yüklenemedi:', error);
       Alert.alert(
         'Hata', 
         error?.message || 'Konular yüklenemedi. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.'
@@ -151,7 +152,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ navigation }) => {
         [{ text: 'Tamam', onPress: () => setFormData({ topicId: '', message: '' }) }]
       );
     } catch (error: any) {
-      console.error('Contact message error:', error);
+      logger.error('Contact message error:', error);
 
       Alert.alert(
         'Hata', 

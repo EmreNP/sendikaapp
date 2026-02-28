@@ -47,6 +47,10 @@ export interface User {
   isActive: boolean; // Kullanıcı aktif mi? (delete durumunda false olur)
   documentUrl?: string; // Kullanıcı kayıt formu PDF URL'i (deprecated, use documentPath)
   documentPath?: string; // Storage path for user registration form PDF
+  hasAcceptedKvkk?: boolean; // KVKK onayı (zorunlu)
+  kvkkAcceptedAt?: Timestamp | Date; // KVKK onay zamanı
+  hasAcceptedTerms?: boolean; // Kullanım koşulları onayı
+  termsAcceptedAt?: Timestamp | Date; // Kullanım koşulları onay zamanı
   
   // Timestamps
   createdAt: Timestamp | Date;
@@ -64,6 +68,8 @@ export interface RegisterBasicRequest {
   district: string; // Görev ilçesi
   kadroUnvani: string; // Kadro Ünvanı
   gender: Gender;
+  hasAcceptedKvkk: boolean; // KVKK onayı
+  hasAcceptedTerms: boolean; // Kullanım koşulları onayı
 }
 
 export interface RegisterDetailsRequest {
@@ -122,6 +128,7 @@ export interface UserProfileUpdateData {
   education?: EducationLevel;
   kurumSicil?: string;
   kadroUnvani?: string;
+  hasAcceptedKvkk?: boolean;
 }
 
 // User Register Details Update
@@ -158,6 +165,10 @@ export interface CreateUserData {
   birthDate?: FirestoreTimestamp;
   gender?: Gender;
   phone?: string;
+  hasAcceptedKvkk: boolean;
+  kvkkAcceptedAt: FirestoreTimestamp | null;
+  hasAcceptedTerms: boolean;
+  termsAcceptedAt: FirestoreTimestamp | null;
 }
 
 // User Registration Log

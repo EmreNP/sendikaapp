@@ -182,6 +182,9 @@ export type RootStackParamList = {
   Profile: undefined;
   Notifications: undefined;
   ChangePassword: undefined;
+  LegalAcceptance: undefined;
+  Kvkk: undefined;
+  Terms: undefined;
 };
 
 export type MainTabParamList = {

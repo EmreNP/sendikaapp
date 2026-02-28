@@ -7,14 +7,15 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:805647677578:android:a49573",
+        "mobilesdk_app_id": "1:805647677578:android:9c335e1091a5be8aa49573",
         "android_client_info": {
-          "package_name": "com.buyukfuat.sendikaapp"
+          "package_name": "com.tdvs.konya"
         }
       },
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAdapALu0uxSKdL9_Ew99x08Y8SL-wavGY"
+          "current_key": "AIzaSyCLqeibzTFmgEReIZ3HCH4edUbSv8S7pwU"
         }
       ],
       "services": {

@@ -31,8 +31,11 @@ interface AuthContextType {
     district: string;
     kadroUnvani: string;
     gender: 'male' | 'female';
+    hasAcceptedKvkk?: boolean;
+    hasAcceptedTerms?: boolean;
   }) => Promise<void>;
   registerDetails: (data: RegisterDetailsRequest) => Promise<void>;
+  acceptLegalTerms: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -43,7 +46,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Güvenlik ağı: Firebase auth hiç tetiklenmezse 10 sn sonra loading'i bitir.
+    // Bu release build'de beyaz ekranda takılmayı önler.
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+      logger.warn('[AuthContext] onAuthStateChanged 10s içinde tetiklenmedi, loading sonlandırıldı.');
+    }, 10_000);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      clearTimeout(timeoutId);
       if (firebaseUser) {
         try {
           const userData = await apiService.getCurrentUser();
@@ -59,7 +70,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -103,6 +117,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(userData);
   };
 
+  const acceptLegalTerms = async () => {
+    const userData = await apiService.acceptLegalTerms();
+    setUser(userData);
+  };
+
   const refreshUser = async () => {
     try {
       const userData = await apiService.getCurrentUser();
@@ -131,6 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     registerBasic,
     registerDetails,
+    acceptLegalTerms,
     refreshUser,
   };
 

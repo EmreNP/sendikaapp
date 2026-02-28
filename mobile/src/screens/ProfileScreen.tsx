@@ -7,10 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useSecureScreen } from '../hooks/useSecureScreen';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -28,6 +30,7 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  useSecureScreen();
   const { user, logout, role } = useAuth();
 
   const handleLogout = () => {
@@ -92,6 +95,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void }[] = [
     { icon: 'user', label: 'Profil', action: () => navigation.navigate('EditProfile' as never) },
     { icon: 'lock', label: 'Şifre Değiştir', action: () => navigation.navigate('ChangePassword' as never) },
+    { icon: 'shield', label: 'Gizlilik Politikası ve KVKK', action: () => navigation.navigate('Kvkk' as never) },
+    { icon: 'file-text', label: 'Kullanım Koşulları', action: () => navigation.navigate('Terms' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
   ];
 

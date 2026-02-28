@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.buyukfuat.sendikaapp",
+      "bundleIdentifier": "com.tdvs.konya",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Profil fotoğrafı ve belge yüklemek için kamera erişimi gereklidir.",
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.buyukfuat.sendikaapp",
+      "package": "com.tdvs.konya",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -57,8 +57,14 @@
           "color": "#2563eb",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
-        }
-      ]
+        }      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "SENTRY_ORG_BURAYA",
+          "project": "SENTRY_PROJECT_BURAYA"
+        }      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

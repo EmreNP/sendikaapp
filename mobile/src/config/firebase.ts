@@ -1,8 +1,6 @@
 // Firebase Configuration
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-// @ts-ignore — getReactNativePersistence is in the RN build (firebase/auth react-native export)
-// but not in the default TS typings (moduleResolution: node doesn't pick react-native conditions)
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const firebaseConfig = {
@@ -22,9 +20,18 @@ if (getApps().length === 0) {
   app = getApps()[0];
 }
 
-// Initialize Auth with AsyncStorage persistence
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+// Initialize Auth with AsyncStorage persistence.
+// getReactNativePersistence + AsyncStorage is Firebase'in resmi React Native yöntemi.
+// Custom SecureStorePersistence release build'de modül yüklenirken hata fırlatabilir.
+let auth: ReturnType<typeof getAuth>;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch {
+  // initializeAuth zaten çağrıldıysa (hot-reload vb.) mevcut instance'ı döndür
+  auth = getAuth(app);
+}
 
+export { auth };
 export default app;

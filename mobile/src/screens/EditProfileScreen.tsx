@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSecureScreen } from '../hooks/useSecureScreen';
 import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
 import { EDUCATION_LEVEL_OPTIONS } from '../../../shared/constants/education';
 import { CustomInput } from '../components/CustomInput';
@@ -49,6 +50,7 @@ type DetailForm = {
 };
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
+  useSecureScreen();
   const { user, refreshUser, isActive } = useAuth();
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);

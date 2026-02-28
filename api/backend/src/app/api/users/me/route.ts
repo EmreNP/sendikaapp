@@ -80,6 +80,8 @@ export const PUT = asyncHandler(async (request: NextRequest) => {
         'education',
         'kurumSicil',
         'kadroUnvani',
+        'hasAcceptedKvkk',
+        'hasAcceptedTerms'
       ];
       
       // Güncellenemeyen alanları kontrol et
@@ -173,6 +175,12 @@ export const PUT = asyncHandler(async (request: NextRequest) => {
           // birthDate için timestamp'e çevir
           if (field === 'birthDate' && body[field]) {
             updateData[field] = admin.firestore.Timestamp.fromDate(new Date(body[field]));
+          } else if (field === 'hasAcceptedKvkk' && body[field] === true) {
+            updateData[field] = true;
+            (updateData as any)['kvkkAcceptedAt'] = admin.firestore.FieldValue.serverTimestamp();
+          } else if (field === 'hasAcceptedTerms' && body[field] === true) {
+            (updateData as any)[field] = true;
+            (updateData as any)['termsAcceptedAt'] = admin.firestore.FieldValue.serverTimestamp();
           } else {
             (updateData as any)[field] = body[field];
           }
@@ -189,10 +197,10 @@ export const PUT = asyncHandler(async (request: NextRequest) => {
       return successResponse(
         'Bilgileriniz başarıyla güncellendi',
         {
-          user: {
+          user: serializeUserTimestamps({
             uid: updatedUserDoc.id,
             ...updatedUserData,
-          },
+          }),
         },
         200,
         'USER_UPDATE_SUCCESS'

@@ -13,12 +13,14 @@ import {
   Animated,
   Easing,
   Image,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
+import { useSecureScreen } from '../hooks/useSecureScreen';
 import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,6 +34,7 @@ type SignupScreenProps = {
 };
 
 export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
+  useSecureScreen();
   const { registerBasic } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
@@ -47,6 +50,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [kvkkAccepted, setKvkkAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerDate, setDatePickerDate] = useState(new Date());
@@ -190,7 +194,13 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
     // KVKK onayı
     if (!kvkkAccepted) {
-      Alert.alert('Uyarı', 'Devam etmek için KVKK metnini okuyup onaylamanız gerekmektedir.');
+      Alert.alert('Uyarı', 'Devam etmek için Gizlilik Politikası ve KVKK Aydınlatma Metni\'ni okuyup onaylamanız gerekmektedir.');
+      valid = false;
+    }
+
+    // Kullanım Koşulları onayı
+    if (!termsAccepted) {
+      Alert.alert('Uyarı', 'Devam etmek için Kullanım Koşulları\'nı okuyup onaylamanız gerekmektedir.');
       valid = false;
     }
 
@@ -213,6 +223,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         district: formData.district,
         kadroUnvani: formData.kadroUnvani,
         gender: formData.gender as 'male' | 'female',
+        hasAcceptedKvkk: kvkkAccepted,
+        hasAcceptedTerms: termsAccepted,
       });
     } catch (error: any) {
       Alert.alert('Kayıt Başarısız', getUserFriendlyErrorMessage(error, 'Kayıt yapılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.'));
@@ -530,7 +542,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   <TouchableOpacity 
                     style={styles.checkbox}
                     onPress={() => setKvkkAccepted(!kvkkAccepted)}
-                    accessibilityLabel="KVKK metnini okudum ve kabul ediyorum"
+                    accessibilityLabel="Gizlilik Politikası ve KVKK Aydınlatma Metni'ni okudum ve kabul ediyorum"
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: kvkkAccepted }}
                   >
@@ -538,19 +550,31 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                       {kvkkAccepted && <Feather name="check" size={14} color="#ffffff" />}
                     </View>
                     <Text style={styles.kvkkText}>
-                      <Text style={styles.kvkkLink} onPress={() => Alert.alert(
-                        'KVKK Aydınlatma Metni',
-                        'Türk Diyanet Vakıf Sen olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında kişisel verilerinizin güvenliğini sağlamak önceliğimizdir.\n\n' +
-                        'Toplanan Veriler: Ad, soyad, telefon, e-posta, doğum tarihi, TC kimlik no, görev bilgileri\n\n' +
-                        'Kullanım Amacı: Üyelik işlemleri, iletişim, eğitim ve etkinlik duyuruları, sendika hizmetlerinden yararlanma\n\n' +
-                        'Veri Saklama: Verileriniz üyeliğiniz süresince ve yasal zorunluluklar çerçevesinde saklanır\n\n' +
-                        'Haklarınız: KVKK kapsamında verilerinize erişim, düzeltme, silme ve işlemenin durdurulması haklarına sahipsiniz\n\n' +
-                        'İletişim: kvkk@tdiyanetsen.org',
-                        [{ text: 'Tamam' }]
-                      )}>
-                        KVKK Aydınlatma Metni
+                      <Text style={styles.kvkkLink} onPress={() => navigation.navigate('Kvkk')}>
+                        Gizlilik Politikası ve KVKK Aydınlatma Metni
                       </Text>
                       'ni okudum, kabul ediyorum
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Terms of Use Acceptance */}
+                <View style={[styles.kvkkContainer, { marginTop: 8 }]}>
+                  <TouchableOpacity 
+                    style={styles.checkbox}
+                    onPress={() => setTermsAccepted(!termsAccepted)}
+                    accessibilityLabel="Kullanım Koşulları'nı okudum ve kabul ediyorum"
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: termsAccepted }}
+                  >
+                    <View style={[styles.checkboxBox, termsAccepted && styles.checkboxChecked]}>
+                      {termsAccepted && <Feather name="check" size={14} color="#ffffff" />}
+                    </View>
+                    <Text style={styles.kvkkText}>
+                      <Text style={styles.kvkkLink} onPress={() => navigation.navigate('Terms')}>
+                        Kullanım Koşulları
+                      </Text>
+                      'nı okudum, kabul ediyorum
                     </Text>
                   </TouchableOpacity>
                 </View>

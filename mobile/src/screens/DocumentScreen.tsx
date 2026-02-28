@@ -5,14 +5,18 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { WebView } from 'react-native-webview';
+import Pdf from 'react-native-pdf';
+import * as FileSystem from 'expo-file-system';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import app, { firebaseConfig } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
+import { logger } from '../utils/logger';
+import { useSecureScreen } from '../hooks/useSecureScreen';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,17 +65,21 @@ const plainUrl = (rawUrl: string): string => {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export const DocumentScreen: React.FC = () => {
+  useSecureScreen();
   const route = useRoute() as RouteParams;
   const navigation = useNavigation();
   const { url, title, onComplete } = route.params ?? {};
 
   const hasMarkedComplete = useRef(false);
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [localPath, setLocalPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  // Resolve the download URL — Firebase getDownloadURL gives a token-based URL
+  // Download PDF to local cache and render with react-native-pdf
   useEffect(() => {
     if (!url) {
       setError('Doküman URL bulunamadı');
@@ -82,62 +90,83 @@ export const DocumentScreen: React.FC = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setResolvedUrl(null);
+    setLocalPath(null);
+    setDownloadProgress(0);
 
-    const resolve = async () => {
-      const rawUrl = url.trim();
-      console.log('[PDF] raw url:', rawUrl);
+    const downloadPdf = async () => {
+      try {
+        const rawUrl = url.trim();
+        let resolvedUrl: string;
 
-      const storagePath = extractStoragePath(rawUrl);
-
-      if (storagePath) {
-        try {
-          const storage = getStorage(app);
-          const fileRef = ref(storage, storagePath);
-          const downloadUrl = await getDownloadURL(fileRef);
-          console.log('[PDF] getDownloadURL OK');
-          if (!cancelled) {
-            setResolvedUrl(downloadUrl);
-            setLoading(false);
+        // Resolve the download URL
+        const storagePath = extractStoragePath(rawUrl);
+        if (storagePath) {
+          try {
+            const storage = getStorage(app);
+            const fileRef = ref(storage, storagePath);
+            resolvedUrl = await getDownloadURL(fileRef);
+          } catch (err: any) {
+            logger.warn('[PDF] getDownloadURL fail:', err?.message ?? err);
+            resolvedUrl = plainUrl(rawUrl);
           }
-          return;
-        } catch (err: any) {
-          console.warn('[PDF] getDownloadURL fail:', err?.message ?? err);
+        } else {
+          resolvedUrl = plainUrl(rawUrl);
         }
-      }
 
-      // Fallback
-      const fb = plainUrl(rawUrl);
-      console.log('[PDF] fallback url:', fb);
-      if (!cancelled) {
-        setResolvedUrl(fb);
-        setLoading(false);
+        if (cancelled) return;
+
+        // Download PDF to local cache
+        const fileName = `doc_${Date.now()}.pdf`;
+        const localUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+        const downloadResumable = FileSystem.createDownloadResumable(
+          resolvedUrl,
+          localUri,
+          {},
+          (downloadProgress) => {
+            if (downloadProgress.totalBytesExpectedToWrite > 0) {
+              const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+              if (!cancelled) setDownloadProgress(progress);
+            }
+          }
+        );
+
+        const result = await downloadResumable.downloadAsync();
+        if (cancelled) return;
+
+        if (result && result.uri) {
+          setLocalPath(result.uri);
+        } else {
+          throw new Error('PDF indirilemedi');
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          logger.warn('[PDF] Download error:', err?.message ?? err);
+          setError('PDF indirilemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
-    resolve();
+    downloadPdf();
     return () => { cancelled = true; };
   }, [url, retryKey]);
 
-  // Mark complete once URL is resolved
+  // Mark complete once PDF is loaded locally
   useEffect(() => {
-    if (resolvedUrl && !hasMarkedComplete.current && onComplete) {
+    if (localPath && !hasMarkedComplete.current && onComplete) {
       hasMarkedComplete.current = true;
       onComplete();
     }
-  }, [resolvedUrl, onComplete]);
+  }, [localPath, onComplete]);
 
   const handleRetry = useCallback(() => {
     setError(null);
     setLoading(true);
-    setResolvedUrl(null);
+    setLocalPath(null);
     setRetryKey(k => k + 1);
   }, []);
-
-  // Google Docs Viewer renders any publicly-accessible PDF in a WebView
-  const viewerUrl = resolvedUrl
-    ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(resolvedUrl)}`
-    : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -149,7 +178,11 @@ export const DocumentScreen: React.FC = () => {
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Doküman'}</Text>
         </View>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 44 }}>
+          {totalPages > 0 && (
+            <Text style={styles.pageIndicator}>{currentPage}/{totalPages}</Text>
+          )}
+        </View>
       </View>
 
       {/* Content */}
@@ -165,37 +198,40 @@ export const DocumentScreen: React.FC = () => {
             <Text style={styles.retryButtonText}>Tekrar Dene</Text>
           </TouchableOpacity>
         </View>
-      ) : loading || !viewerUrl ? (
+      ) : loading || !localPath ? (
         <View style={styles.centeredBox}>
           <ActivityIndicator size="large" color="#4338ca" />
-          <Text style={styles.loadingText}>Belge hazırlanıyor...</Text>
+          {downloadProgress > 0 && downloadProgress < 1 ? (
+            <>
+              <Text style={styles.loadingText}>PDF indiriliyor...</Text>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${Math.round(downloadProgress * 100)}%` }]} />
+              </View>
+              <Text style={styles.progressText}>{Math.round(downloadProgress * 100)}%</Text>
+            </>
+          ) : (
+            <Text style={styles.loadingText}>Belge hazırlanıyor...</Text>
+          )}
         </View>
       ) : (
-        <WebView
+        <Pdf
           key={`pdf-${retryKey}`}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          startInLoadingState
-          javaScriptEnabled
-          domStorageEnabled
-          renderLoading={() => (
-            <View style={[styles.centeredBox, StyleSheet.absoluteFill]}>
-              <ActivityIndicator size="large" color="#4338ca" />
-              <Text style={styles.loadingText}>PDF yükleniyor...</Text>
-            </View>
-          )}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn('[PDF] WebView error:', nativeEvent.description);
-            setError(nativeEvent.description || 'WebView hatası');
+          source={{ uri: localPath }}
+          style={styles.pdfView}
+          trustAllCerts={false}
+          onLoadComplete={(numberOfPages) => {
+            setTotalPages(numberOfPages);
+            setCurrentPage(1);
           }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn('[PDF] WebView HTTP error:', nativeEvent.statusCode);
-            if (nativeEvent.statusCode >= 400) {
-              setError(`HTTP ${nativeEvent.statusCode}`);
-            }
+          onPageChanged={(page) => {
+            setCurrentPage(page);
           }}
+          onError={(err) => {
+            logger.warn('[PDF] Render error:', err);
+            setError('PDF görüntülenemedi.');
+          }}
+          enablePaging={false}
+          spacing={8}
         />
       )}
     </SafeAreaView>
@@ -203,6 +239,8 @@ export const DocumentScreen: React.FC = () => {
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
@@ -223,8 +261,14 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     textAlign: 'center',
   },
-  webview: {
+  pageIndicator: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  pdfView: {
     flex: 1,
+    width: SCREEN_WIDTH,
     backgroundColor: '#f1f5f9',
   },
   centeredBox: {
@@ -235,6 +279,22 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    color: '#64748b',
+  },
+  progressBarBg: {
+    width: 200,
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4338ca',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
     color: '#64748b',
   },
   errorContainer: {

@@ -10,7 +10,7 @@
  *   minVersion: "1.0.0",          // Zorunlu minimum sürüm
  *   latestVersion: "1.2.0",       // En son sürüm
  *   updateUrl: {
- *     android: "https://play.google.com/store/apps/details?id=com.buyukfuat.sendikaapp",
+ *     android: "https://play.google.com/store/apps/details?id=com.tdvs.konya",
  *     ios: "https://apps.apple.com/app/id..."
  *   },
  *   maintenanceMode: false,        // Bakım modu
@@ -21,7 +21,7 @@
 import { Platform, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { getApp } from 'firebase/app';
+import app from '../config/firebase';
 import { logger } from '../utils/logger';
 
 export interface AppVersionConfig {
@@ -83,7 +83,7 @@ const getStoreUrl = (config: AppVersionConfig): string | undefined => {
  */
 const fetchVersionConfig = async (): Promise<AppVersionConfig | null> => {
   try {
-    const db = getFirestore(getApp());
+    const db = getFirestore(app);
     const configDoc = await getDoc(doc(db, 'config', 'app'));
 
     if (configDoc.exists()) {
@@ -165,7 +165,7 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
  */
 export const openStoreForUpdate = async (url?: string): Promise<void> => {
   const defaultUrls: Record<string, string> = {
-    android: 'https://play.google.com/store/apps/details?id=com.buyukfuat.sendikaapp',
+    android: 'https://play.google.com/store/apps/details?id=com.tdvs.konya',
     ios: 'https://apps.apple.com/app/id-henuz-yok', // App Store ID eklenecek
   };
 

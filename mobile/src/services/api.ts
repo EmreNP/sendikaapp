@@ -4,6 +4,12 @@ import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+import { Sentry } from './sentry';
+import {
+  GetCurrentUserResponseSchema,
+  RegisterBasicResponseSchema,
+  RegisterDetailsResponseSchema,
+} from '../types/schemas';
 import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, ContractedInstitution, InstitutionCategory } from '../types';
 import type { RegisterDetailsRequest } from '../../../shared/types/user';
 
@@ -55,6 +61,13 @@ class ApiService {
 
     let response: Response;
     try {
+      // Sentry breadcrumb: API çağrısı başlangıcı
+      Sentry.addBreadcrumb({
+        category: 'api',
+        message: `${options.method || 'GET'} ${endpoint}`,
+        level: 'info',
+      });
+
       response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
@@ -72,6 +85,7 @@ class ApiService {
       if (err.message?.includes('timeout') || err.message?.includes('Timeout')) {
         throw new Error('İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
       }
+      Sentry.captureException(err, { tags: { endpoint } });
       throw new Error('Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.');
     } finally {
       clearTimeout(timeoutId);
@@ -84,15 +98,19 @@ class ApiService {
     if (contentType.includes('application/json')) {
       try {
         data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        // JSON bekleniyordu ama parse edilemedi
-        throw new Error(`JSON Parse error: Unexpected response. Status ${response.status}. Body: ${rawText.slice(0, 200)}`);
+      } catch (parseErr) {
+        // JSON bekleniyordu ama parse edilemedi — detayları Sentry'ye gönder, kullanıcıya gösterme
+        Sentry.captureException(new Error('JSON Parse Error'), {
+          extra: { status: response.status, body: rawText.slice(0, 500), endpoint },
+        });
+        throw new Error('Sunucudan beklenmeyen bir yanıt alındı. Lütfen tekrar deneyin.');
       }
     } else {
-      // HTML/text döndüyse (ngrok warning veya error page), anlamlı hata dön
-      throw new Error(
-        `Unexpected response type (${contentType || 'unknown'}). Status ${response.status}. Body: ${rawText.slice(0, 200)}`
-      );
+      // HTML/text döndüyse (ngrok warning veya error page) — detayları Sentry'ye gönder
+      Sentry.captureException(new Error('Unexpected Response Type'), {
+        extra: { contentType, status: response.status, body: rawText.slice(0, 500), endpoint },
+      });
+      throw new Error('Sunucudan beklenmeyen bir yanıt alındı. Lütfen tekrar deneyin.');
     }
 
     if (!response.ok) {
@@ -178,6 +196,12 @@ class ApiService {
       false
     );
 
+    try {
+      RegisterBasicResponseSchema.parse(response);
+    } catch (zodError) {
+      Sentry.captureException(zodError, { tags: { endpoint: 'registerBasic', type: 'zod_validation' } });
+    }
+
     const customToken = response.data?.customToken;
 
     try {
@@ -218,6 +242,12 @@ class ApiService {
       }
     );
 
+    try {
+      RegisterDetailsResponseSchema.parse(response);
+    } catch (zodError) {
+      Sentry.captureException(zodError, { tags: { endpoint: 'registerDetails', type: 'zod_validation' } });
+    }
+
     return { user: response.data };
   }
 
@@ -240,14 +270,44 @@ class ApiService {
         body: JSON.stringify(data),
       }
     );
-    return response.data.user;
+    try {
+      const validated = GetCurrentUserResponseSchema.parse(response);
+      return validated.data.user as User;
+    } catch (zodError) {
+      Sentry.captureException(zodError, { tags: { endpoint: 'updateProfile', type: 'zod_validation' } });
+      return response.data.user;
+    }
+  }
+
+  async acceptLegalTerms(): Promise<User> {
+    const response = await this.request<{ success: boolean; data: { user: User } }>(
+      API_ENDPOINTS.USERS.ME,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ hasAcceptedKvkk: true, hasAcceptedTerms: true }),
+      }
+    );
+    try {
+      const validated = GetCurrentUserResponseSchema.parse(response);
+      return validated.data.user as User;
+    } catch (zodError) {
+      Sentry.captureException(zodError, { tags: { endpoint: 'acceptLegalTerms', type: 'zod_validation' } });
+      return response.data.user;
+    }
   }
 
   async getCurrentUser(): Promise<User> {
     const response = await this.request<{ success: boolean; data: { user: User } }>(
       API_ENDPOINTS.USERS.ME
     );
-    return response.data.user;
+    try {
+      const validated = GetCurrentUserResponseSchema.parse(response);
+      return validated.data.user as User;
+    } catch (zodError) {
+      Sentry.captureException(zodError, { tags: { endpoint: 'getCurrentUser', type: 'zod_validation' } });
+      // Validation başarısız olsa da veriyi döndür (graceful degradation)
+      return response.data.user;
+    }
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -583,6 +643,42 @@ class ApiService {
       true
     );
     return response.data.categories || [];
+  }
+
+  // Legal endpoints (public, no auth required)
+  async getLegalTerms(): Promise<{ title?: string; lastUpdated?: string; content?: string }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/legal/terms`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Metin yüklenemedi');
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async getLegalPrivacy(): Promise<{ title?: string; lastUpdated?: string; content?: string }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/legal/privacy`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Metin yüklenemedi');
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async fetchExternalJson<T = any>(url: string): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }
 

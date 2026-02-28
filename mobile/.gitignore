@@ -44,3 +44,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Release keystore files
+android/keystore/*.keystore
+android/keystore/*.jks

@@ -2,7 +2,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from './secureStorage';
 import { logger } from '../utils/logger';
 import type { Subscription } from 'expo-notifications';
 
@@ -75,8 +75,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const token = tokenResponse.data as string;
     logger.log('📱 Push token alındı:', token.substring(0, 30) + '...');
 
-    // 6. Token'ı local storage'a kaydet (logout'ta kullanmak için)
-    await AsyncStorage.setItem(FCM_TOKEN_KEY, token);
+    // 6. Token'ı güvenli depoya kaydet (logout'ta kullanmak için)
+    await secureStorage.setItem(FCM_TOKEN_KEY, token);
 
     return token;
   } catch (error) {
@@ -90,7 +90,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
  */
 export async function getStoredToken(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    return await secureStorage.getItem(FCM_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -101,7 +101,7 @@ export async function getStoredToken(): Promise<string | null> {
  */
 export async function clearStoredToken(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(FCM_TOKEN_KEY);
+    await secureStorage.removeItem(FCM_TOKEN_KEY);
   } catch (error) {
     logger.error('Stored token temizlenemedi:', error);
   }
@@ -131,10 +131,10 @@ export function listenForTokenRefresh(
     if (!newToken) return;
 
     try {
-      const oldToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+      const oldToken = await secureStorage.getItem(FCM_TOKEN_KEY);
       if (newToken !== oldToken) {
         logger.log('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
-        await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
+        await secureStorage.setItem(FCM_TOKEN_KEY, newToken);
         await onTokenRefresh(newToken);
         logger.log('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
       }

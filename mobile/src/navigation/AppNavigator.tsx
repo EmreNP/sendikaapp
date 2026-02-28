@@ -40,6 +40,9 @@ import {
   VideoScreen,
   NotificationsScreen,
   ChangePasswordScreen,
+  LegalAcceptanceScreen,
+  KvkkScreen,
+  TermsScreen,
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -110,14 +113,14 @@ const NotificationHandler = () => {
 
 // Main App Navigator
 export const AppNavigator = () => {
-  const { isAuthenticated, isLoading, status, isAdmin } = useAuth();
+    const { isAuthenticated, isLoading, status, isAdmin, user } = useAuth();
 
-  useEffect(() => {
-    if (!isLoading) {
-      // Auth yüklendi, splash screen'i gizle
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [isLoading]);
+    useEffect(() => {
+      if (!isLoading) {
+        // Auth yüklendi, splash screen'i gizle
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, [isLoading]);
 
   if (isLoading) {
     // Splash screen hala görünür, boş view döndür
@@ -135,6 +138,15 @@ export const AppNavigator = () => {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Kvkk" component={KvkkScreen} />
+            <Stack.Screen name="Terms" component={TermsScreen} />
+          </>
+        ) : (user?.hasAcceptedKvkk !== true || user?.hasAcceptedTerms !== true) ? (
+          // Legal Acceptance Stack
+          <>
+            <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
+            <Stack.Screen name="Kvkk" component={KvkkScreen} />
+            <Stack.Screen name="Terms" component={TermsScreen} />
           </>
         ) : status === 'rejected' ? (
           // Rejected
@@ -163,6 +175,8 @@ export const AppNavigator = () => {
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+            <Stack.Screen name="Kvkk" component={KvkkScreen} />
+            <Stack.Screen name="Terms" component={TermsScreen} />
           </>
         )}
       </Stack.Navigator>
