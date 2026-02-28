@@ -16,6 +16,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { Video, ResizeMode } from 'expo-av';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { API_BASE_URL } from '../config/api';
+import { firebaseConfig } from '../config/firebase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ function detectVideoType(url: string, videoSource?: string): VideoType {
   return 'direct';
 }
 
-const STORAGE_BUCKET = 'sendikaapp.firebasestorage.app';
+const STORAGE_BUCKET = firebaseConfig.storageBucket || 'sendikaapp.firebasestorage.app';
 
 const toFirebaseStorageUrl = (bucket: string, objectPath: string): string =>
   `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(objectPath)}?alt=media`;

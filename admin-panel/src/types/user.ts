@@ -1,21 +1,16 @@
-export type UserRole = 'superadmin' | 'admin' | 'branch_manager' | 'user';
-
-export type UserStatus = 
-  | 'pending_details' 
-  | 'pending_branch_review' 
-  | 'active' 
-  | 'rejected';
-
-export interface User {
-  uid: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  status: UserStatus;
-  branchId?: string;
-  phone?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
+// Re-export all user-related types from shared package
+// Bu dosya yerel tip tanımlaması yerine @shared/types/user'ı kullanır
+export type { UserRole } from '@shared/constants/roles';
+export type { UserStatus } from '@shared/constants/status';
+export type {
+  User,
+  Timestamp,
+  RegisterBasicRequest,
+  RegisterDetailsRequest,
+  UserStatusUpdateData,
+  UserRoleUpdateData,
+  UserBranchUpdateData,
+  UserProfileUpdateData,
+  UserRegisterDetailsUpdateData,
+  CreateUserData,
+} from '@shared/types/user';

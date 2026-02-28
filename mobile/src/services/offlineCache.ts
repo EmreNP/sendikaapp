@@ -60,24 +60,36 @@ export async function cacheNews(data: any): Promise<void> {
   await setCache(CACHE_KEYS.NEWS, data);
 }
 
-export async function getCachedNews(): Promise<any | null> {
-  return getCache(CACHE_KEYS.NEWS, true); // Always return cache when called (offline fallback)
+/**
+ * Get cached news.
+ * @param isOnline - true when network is available; TTL is enforced only when online.
+ */
+export async function getCachedNews(isOnline = false): Promise<any | null> {
+  return getCache(CACHE_KEYS.NEWS, !isOnline); // Online: respect TTL, Offline: ignore expiry
 }
 
 export async function cacheAnnouncements(data: any): Promise<void> {
   await setCache(CACHE_KEYS.ANNOUNCEMENTS, data);
 }
 
-export async function getCachedAnnouncements(): Promise<any | null> {
-  return getCache(CACHE_KEYS.ANNOUNCEMENTS, true);
+/**
+ * Get cached announcements.
+ * @param isOnline - true when network is available; TTL is enforced only when online.
+ */
+export async function getCachedAnnouncements(isOnline = false): Promise<any | null> {
+  return getCache(CACHE_KEYS.ANNOUNCEMENTS, !isOnline); // Online: respect TTL, Offline: ignore expiry
 }
 
 export async function cacheHomeData(data: any): Promise<void> {
   await setCache(CACHE_KEYS.HOME_DATA, data);
 }
 
-export async function getCachedHomeData(): Promise<any | null> {
-  return getCache(CACHE_KEYS.HOME_DATA, true);
+/**
+ * Get cached home data.
+ * @param isOnline - true when network is available; TTL is enforced only when online.
+ */
+export async function getCachedHomeData(isOnline = false): Promise<any | null> {
+  return getCache(CACHE_KEYS.HOME_DATA, !isOnline); // Online: respect TTL, Offline: ignore expiry
 }
 
 /**

@@ -8,12 +8,38 @@ export type { Gender } from '../../../shared/constants/gender';
 export type { KonyaDistrict } from '../../../shared/constants/districts';
 export type { Position } from '../../../shared/constants/positions';
 
-// Shared User tipini re-export et ve mobile-specific alanları ekle
+// Shared tiplerini import et
 import type { User as SharedUser } from '../../../shared/types/user';
+import type { Timestamp } from '../../../shared/types/user';
+import type { News as SharedNews } from '../../../shared/types/news';
+import type { Announcement as SharedAnnouncement } from '../../../shared/types/announcement';
+import type { Branch as SharedBranch } from '../../../shared/types/branch';
+import type { HowToUseStep as SharedHowToUseStep, InstitutionCategory as SharedInstitutionCategory, ContractedInstitution as SharedContractedInstitution } from '../../../shared/types/contracted-institution';
+import type { CreateContactMessageRequest } from '../../../shared/types/contact';
 
+// Timestamp tipi API yanıtlarında farklı formatlarda gelebilir
+type ApiDate = string | Timestamp | Date;
+
+// Shared User tipini re-export et ve mobile-specific alanları ekle
 export interface User extends SharedUser {
   // Mobile-specific alanlar (backend'den gelebilecek ek alanlar)
   displayName?: string;
+}
+
+// HowToUseStep — shared'dan re-export
+export type HowToUseStep = SharedHowToUseStep;
+
+// Branch — shared'ı temel alır, mobile-specific görüntüleme alanları eklendi
+export interface Branch extends Omit<SharedBranch, 'createdAt' | 'updatedAt'> {
+  city?: string;
+  district?: string;
+  managerId?: string;
+  managerName?: string;
+  memberCount?: number;
+  coordinates?: { latitude: number; longitude: number };
+  isMainBranch?: boolean;
+  createdAt?: ApiDate;
+  updatedAt?: ApiDate;
 }
 
 export interface Training {
@@ -81,100 +107,49 @@ export interface TestContentDetail {
   order?: number;
 }
 
-export interface Branch {
-  id: string;
-  name: string;
-  address?: string;
-  city?: string;
-  district?: string;
-  phone?: string;
-  email?: string;
-  managerId?: string;
-  managerName?: string;
-  memberCount?: number;
-  coordinates?: {
-    latitude: number;
-    longitude: number;
-  };
-  isMainBranch?: boolean;
-  isActive: boolean;
-  createdAt?: string;
-}
-
-export interface News {
-  id: string;
-  title: string;
-  content: string;
+// ── News ─────────────────────────────────────────────────────────────────────────
+export interface News extends Omit<SharedNews, 'createdAt' | 'updatedAt' | 'publishedAt' | 'isFeatured' | 'createdBy' | 'updatedBy'> {
   summary?: string;
-  imageUrl?: string;
   category?: string;
   author?: string;
-  isPublished: boolean;
-  publishedAt?: string;
-  createdAt?: string;
-}
-
-export interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  summary?: string;
-  imageUrl?: string;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  isPublished: boolean;
   isFeatured?: boolean;
-  publishedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: ApiDate;
+  updatedAt?: ApiDate;
+  publishedAt?: ApiDate;
+}
+
+// ── Announcement ─────────────────────────────────────────────────────────────────
+export interface Announcement extends Omit<SharedAnnouncement, 'createdAt' | 'updatedAt' | 'publishedAt' | 'isFeatured' | 'content' | 'createdBy' | 'updatedBy'> {
+  content?: string;
+  summary?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
   expiresAt?: string;
-  createdAt?: string;
+  isFeatured?: boolean;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: ApiDate;
+  updatedAt?: ApiDate;
+  publishedAt?: ApiDate;
 }
 
-export interface FAQ {
-  id: string;
-  question: string;
-  answer: string;
-  category?: string;
-  order?: number;
-  isPublished: boolean;
+// ── ContactMessage ────────────────────────────────────────────────────────────────
+export type ContactMessage = CreateContactMessageRequest;
+
+// ── Contracted Institutions ───────────────────────────────────────────────────────
+export interface InstitutionCategory extends Omit<SharedInstitutionCategory, 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'> {
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt: ApiDate;
+  updatedAt: ApiDate;
 }
 
-export interface ContactMessage {
-  name: string;
-  email: string;
-  phone?: string;
-  subject: string;
-  message: string;
-}
-
-// Contracted Institutions
-export interface HowToUseStep {
-  stepNumber: number;
-  title: string;
-  description: string;
-}
-
-export interface InstitutionCategory {
-  id: string;
-  name: string;
-  order: number;
-  isActive: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-}
-
-export interface ContractedInstitution {
-  id: string;
-  title: string;
-  description: string;
-  categoryId: string;
-  categoryName?: string;
-  badgeText: string;
-  coverImageUrl: string;
-  logoUrl?: string;
-  howToUseSteps: HowToUseStep[];
-  isPublished: boolean;
-  order: number;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+export interface ContractedInstitution extends Omit<SharedContractedInstitution, 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'> {
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt: ApiDate;
+  updatedAt: ApiDate;
 }
 
 // Navigation Types
@@ -204,6 +179,7 @@ export type RootStackParamList = {
   DistrictRepresentative: undefined;
   PartnerInstitutions: undefined;
   PartnerDetail: { partner?: import('../data/partners').Partner; institution?: ContractedInstitution };
+  Profile: undefined;
   Notifications: undefined;
   ChangePassword: undefined;
 };

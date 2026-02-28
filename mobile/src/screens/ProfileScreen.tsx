@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import ApiService from '../services/api';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -70,7 +71,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      const ApiService = (await import('../services/api')).default;
                       await ApiService.deleteAccount();
                       await logout();
                     } catch (error: any) {

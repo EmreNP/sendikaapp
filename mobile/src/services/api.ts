@@ -4,25 +4,31 @@ import { auth } from '../config/firebase';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
-import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, FAQ, ContactMessage, ContractedInstitution, InstitutionCategory } from '../types';
+import type { User, Training, Lesson, LessonContent, Branch, News, Announcement, ContractedInstitution, InstitutionCategory } from '../types';
+import type { RegisterDetailsRequest } from '../../../shared/types/user';
+
+// Varsayılan istek zaman aşımı (ms)
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 class ApiService {
-  private async getAuthToken(): Promise<string | null> {
+  private async getAuthToken(forceRefresh = false): Promise<string | null> {
     const user = auth.currentUser;
     if (user) {
-      return await user.getIdToken();
+      return await user.getIdToken(forceRefresh);
     }
     return null;
   }
 
   private isNgrokUrl(url: string): boolean {
+    if (!__DEV__) return false;
     return /ngrok/i.test(url);
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    requireAuth: boolean = true
+    requireAuth: boolean = true,
+    _isRetry: boolean = false
   ): Promise<T> {
     const headers: HeadersInit = {
       Accept: 'application/json',
@@ -43,10 +49,22 @@ class ApiService {
       }
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    }).catch((err: any) => {
+    // AbortController ile timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      // AbortController timeout tetiklendi
+      if (err.name === 'AbortError') {
+        throw new Error('İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+      }
       // Network error - provide meaningful message
       if (err.message?.includes('Network request failed') || err.message?.includes('Failed to fetch')) {
         throw new Error('İnternet bağlantınız yok veya sunucuya ulaşılamıyor. Lütfen bağlantınızı kontrol edin.');
@@ -55,7 +73,9 @@ class ApiService {
         throw new Error('İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
       }
       throw new Error('Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.');
-    });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const contentType = response.headers.get('content-type') || '';
     const rawText = await response.text();
@@ -76,6 +96,18 @@ class ApiService {
     }
 
     if (!response.ok) {
+      // 401: Token süresi dolmuş olabilir — force refresh ile bir kez daha dene
+      if (response.status === 401 && requireAuth && !_isRetry && auth.currentUser) {
+        try {
+          const freshToken = await this.getAuthToken(true);
+          if (freshToken) {
+            return await this.request<T>(endpoint, options, requireAuth, true);
+          }
+        } catch {
+          // Force refresh de başarısız → normal 401 hatasına düş
+        }
+      }
+
       // HTTP status koduna göre anlamlı hata mesajları
       const serverMessage = data?.message;
       switch (response.status) {
@@ -163,16 +195,7 @@ class ApiService {
     return { user };
   }
 
-  async registerDetails(data: {
-    tcKimlikNo: string;
-    fatherName: string;
-    motherName: string;
-    birthPlace: string;
-    education: string;
-    kurumSicil: string;
-    isMemberOfOtherUnion?: boolean;
-    branchId: string;
-  }): Promise<{ user: User }> {
+  async registerDetails(data: RegisterDetailsRequest): Promise<{ user: User }> {
     const payload: Record<string, any> = {
       tcKimlikNo: data.tcKimlikNo,
       fatherName: data.fatherName,
@@ -444,16 +467,6 @@ class ApiService {
     const total = response.data.total || items.length;
     const hasMore = response.data.hasMore ?? false;
     return { items, total, hasMore };
-  }
-
-  // FAQ
-  async getFAQs(): Promise<FAQ[]> {
-    const response = await this.request<{ success: boolean; data: FAQ[] }>(
-      API_ENDPOINTS.FAQ.BASE,
-      {},
-      false
-    );
-    return response.data;
   }
 
   // Contact

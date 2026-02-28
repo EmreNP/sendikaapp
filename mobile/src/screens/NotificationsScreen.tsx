@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
@@ -42,7 +44,7 @@ interface Notification {
 }
 
 export const NotificationsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,11 +130,11 @@ export const NotificationsScreen: React.FC = () => {
 
     // Navigate
     if (notification.type === 'news' && notification.contentId) {
-      navigation.navigate('NewsDetail' as never, { newsId: notification.contentId } as never);
+      navigation.navigate('NewsDetail', { newsId: notification.contentId });
     } else if (notification.type === 'news') {
-      navigation.navigate('AllNews' as never);
+      navigation.navigate('AllNews');
     } else if (notification.type === 'announcement') {
-      navigation.navigate('AllAnnouncements' as never);
+      navigation.navigate('AllAnnouncements');
     }
   }, [readIds, notifications, navigation]);
 

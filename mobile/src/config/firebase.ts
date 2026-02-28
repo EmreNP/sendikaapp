@@ -1,9 +1,11 @@
 // Firebase Configuration
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+// @ts-ignore — getReactNativePersistence is in the RN build (firebase/auth react-native export)
+// but not in the default TS typings (moduleResolution: node doesn't pick react-native conditions)
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,

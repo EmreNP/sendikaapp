@@ -130,7 +130,7 @@ export const PartnerInstitutionsScreen: React.FC<PartnerInstitutionsScreenProps>
         const cat = categories.find(c => c.id === enriched.categoryId);
         if (cat) enriched.categoryName = cat.name;
       }
-      navigation.navigate('PartnerDetail' as never, { institution: enriched } as never);
+      navigation.navigate('PartnerDetail', { institution: enriched });
     } catch (error) {
       logger.error('Navigation error:', error);
     }

@@ -22,7 +22,7 @@ import ApiService from '../services/api';
 import { logger } from '../utils/logger';
 import { EDUCATION_LEVEL_OPTIONS } from '../../../shared/constants/education';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, Branch } from '../types';
+import type { RootStackParamList, Branch, EducationLevel } from '../types';
 
 type MembershipScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Membership'>;
@@ -130,7 +130,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
         fatherName: formData.fatherName,
         motherName: formData.motherName,
         birthPlace: formData.birthPlace,
-        education: formData.education,
+        education: formData.education as EducationLevel,
         kurumSicil: formData.kurumSicil,
         isMemberOfOtherUnion: !!formData.isMemberOfOtherUnion,
         branchId: formData.branchId,

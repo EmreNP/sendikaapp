@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { UserCog, Users, Lock, Mail, AlertCircle, Loader2, LogIn } from 'lucide-react';
 import { authService } from '@/services/auth/authService';
 import { useAuth } from '@/context/AuthContext';
 
@@ -64,8 +64,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo ve Başlık */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-2xl mb-4">
-            <Shield className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
+            <img src="/logo.png" alt="TDVS Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             TDVS Konya Yönetim Paneli
@@ -80,7 +80,7 @@ export default function LoginPage() {
           {/* Roller */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <Shield className="w-5 h-5 text-slate-700" />
+              <UserCog className="w-5 h-5 text-slate-700" />
               <div>
                 <div className="text-xs text-slate-700 font-medium">Admin</div>
                 <div className="text-xs text-gray-500">Tam Yetki</div>
@@ -165,7 +165,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <Shield className="w-5 h-5" />
+                  <LogIn className="w-5 h-5" />
                   <span>Giriş Yap</span>
                 </>
               )}

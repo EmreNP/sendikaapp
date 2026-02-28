@@ -60,11 +60,6 @@ export const API_ENDPOINTS = {
     BASE: '/api/announcements',
     BY_ID: (id: string) => `/api/announcements/${id}`,
   },
-  // FAQ
-  FAQ: {
-    BASE: '/api/faq',
-    BY_ID: (id: string) => `/api/faq/${id}`,
-  },
   // Contact
   CONTACT: {
     BASE: '/api/contact-messages',

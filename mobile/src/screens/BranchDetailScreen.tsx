@@ -56,24 +56,41 @@ export const BranchDetailScreen: React.FC<BranchDetailScreenProps> = ({
     await fetchBranchDetails();
   };
 
-  const handleCall = () => {
+  const handleCall = async () => {
     if (branch?.phone) {
-      Linking.openURL(`tel:${branch.phone}`);
+      const url = `tel:${branch.phone}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Bu cihazda arama yapmak desteklenmiyor.');
+      }
     }
   };
 
-  const handleEmail = () => {
+  const handleEmail = async () => {
     if (branch?.email) {
-      Linking.openURL(`mailto:${branch.email}`);
+      const url = `mailto:${branch.email}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Bu cihazda e-posta gönderimi desteklenmiyor.');
+      }
     }
   };
 
-  const handleMap = () => {
+  const handleMap = async () => {
     if (branch?.address) {
       const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         branch.address
       )}`;
-      Linking.openURL(url);
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Harita uygulaması açılamıyor.');
+      }
     }
   };
 

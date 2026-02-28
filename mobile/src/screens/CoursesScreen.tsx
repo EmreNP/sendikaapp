@@ -13,6 +13,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
@@ -91,6 +93,40 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_LIMIT = 25;
 
+  // Kurs ilerleme durumları: { [trainingId]: completedCount }
+  const [courseProgress, setCourseProgress] = useState<Record<string, number>>({});
+
+  // Her ekran odağa geldiğinde ilerlemeyi güncelle (CourseDetail'den dönüş)
+  useFocusEffect(
+    useCallback(() => {
+      if (trainings.length > 0) {
+        loadAllProgress(trainings);
+      }
+    }, [trainings])
+  );
+
+  const loadAllProgress = async (items: Training[]) => {
+    try {
+      const keys = items.map(t => `@sendika_completed_${t.id}`);
+      const entries = await AsyncStorage.multiGet(keys);
+      const progress: Record<string, number> = {};
+      entries.forEach(([key, value]) => {
+        if (value) {
+          const trainingId = key.replace('@sendika_completed_', '');
+          try {
+            const arr = JSON.parse(value) as string[];
+            progress[trainingId] = arr.length;
+          } catch {
+            progress[trainingId] = 0;
+          }
+        }
+      });
+      setCourseProgress(progress);
+    } catch (err) {
+      logger.error('Error loading course progress:', err);
+    }
+  };
+
 
   useEffect(() => {
     if (canAccessTrainings) {
@@ -145,6 +181,8 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
   const renderTrainingItem = useCallback(({ item, index }: { item: Training; index: number }) => {
     const palette = colorPalette[index % colorPalette.length];
     const icon = getTrainingIcon(item.title);
+    const completedCount = courseProgress[item.id] || 0;
+    const hasStarted = completedCount > 0;
 
     return (
       <TouchableOpacity
@@ -170,15 +208,25 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ navigation }) => {
               {item.description}
             </Text>
           )}
-          {item.lessonsCount != null && item.lessonsCount > 0 && (
-            <Text style={styles.categoryText}>{item.lessonsCount} ders</Text>
-          )}
+          <View style={styles.trainingMeta}>
+            {item.lessonsCount != null && item.lessonsCount > 0 && (
+              <Text style={styles.categoryText}>{item.lessonsCount} ders</Text>
+            )}
+            {hasStarted && (
+              <View style={styles.progressBadge}>
+                <Feather name="check-circle" size={12} color="#059669" />
+                <Text style={styles.progressBadgeText}>
+                  {completedCount} içerik tamamlandı
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <Feather name="chevron-right" size={20} color="#94a3b8" />
       </TouchableOpacity>
     );
-  }, [navigation]);
+  }, [navigation, courseProgress]);
 
   if (!canAccessTrainings) {
     return (
@@ -375,6 +423,28 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 12,
     color: '#64748b',
+  },
+  trainingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  progressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1fae5',
+  },
+  progressBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
   },
   trainingTitle: {
     fontSize: 18,

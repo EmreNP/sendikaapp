@@ -31,6 +31,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { NotificationBadgeProvider } from './src/context/NotificationBadgeContext';
 import { AppNavigator } from './src/navigation';
 import { UpdateModal } from './src/components/UpdateModal';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { checkForUpdate, UpdateCheckResult } from './src/services/updateChecker';
 
 // Uygulama yüklenene kadar splash screen'i göster
@@ -68,23 +69,25 @@ export default function App() {
   };
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <NotificationBadgeProvider>
-            <StatusBar style="auto" />
-            <AppNavigator />
-            {updateInfo && (
-              <UpdateModal
-                visible={showUpdateModal}
-                updateInfo={updateInfo}
-                onDismiss={!updateInfo.isForceUpdate && !updateInfo.isMaintenance ? handleDismissUpdate : undefined}
-              />
-            )}
-          </NotificationBadgeProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <NotificationBadgeProvider>
+              <StatusBar style="auto" />
+              <AppNavigator />
+              {updateInfo && (
+                <UpdateModal
+                  visible={showUpdateModal}
+                  updateInfo={updateInfo}
+                  onDismiss={!updateInfo.isForceUpdate && !updateInfo.isMaintenance ? handleDismissUpdate : undefined}
+                />
+              )}
+            </NotificationBadgeProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

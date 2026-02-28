@@ -12,6 +12,7 @@ import {
   FlatList,
   Animated,
   Linking,
+  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -123,73 +124,9 @@ const quickAccessItems = [
   { id: '6', title: 'DİBBYS', icon: 'database', route: 'DIBBYS', colors: ['#0891b2', '#0e7490'] as [string, string] },
 ];
 
-// Mock Duyurular - API boş ise kullanılacak
-const mockAnnouncements: Announcement[] = [
-  {
-    id: 'mock-1',
-    title: 'Ramazan Ayı Öncesi Toplu Sözleşme Görüşmesi',
-    content: 'Sendikamız, Ramazan ayı öncesinde din görevlilerinin özlük hakları için Diyanet İşleri Başkanlığı ile toplu sözleşme görüşmelerini başlattı. Tüm üyelerimizi bu süreçte yanımızda olmaya davet ediyoruz.',
-    priority: 'urgent',
-    isPublished: true,
-    createdAt: new Date().toISOString(),
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'mock-2',
-    title: 'Konya Şubesi Yeni Hizmet Binası Açılışı',
-    content: 'Sendikamızın Konya Şubesi yeni hizmet binası 15 Şubat 2026 tarihinde açılacaktır. Tüm üyelerimizi açılış törenine bekliyoruz.',
-    priority: 'high',
-    isPublished: true,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    publishedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'mock-3',
-    title: 'Din Görevlileri İçin Yeni Eğitim Programı',
-    content: 'Üyelerimiz için hazırlanan yeni mesleki gelişim eğitim programı başvuruları başlamıştır. Online ve yüz yüze eğitim seçenekleri mevcuttur.',
-    priority: 'normal',
-    isPublished: true,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    publishedAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+// Fallback yok — API boş dönerse boş liste gösterilir
 
-// Mock Haberler - API boş ise kullanılacak
-const mockNews: News[] = [
-  {
-    id: 'mock-news-1',
-    title: 'Türk Diyanet Vakıf-Sen Genel Başkanı Konya\'yı Ziyaret Etti',
-    content: 'Genel Başkanımız Nurettin Karabulut, Konya Şubemizi ziyaret ederek üyelerimizle bir araya geldi.',
-    summary: 'Genel Başkanımızın Konya ziyareti büyük ilgi gördü.',
-    category: 'Etkinlik',
-    imageUrl: undefined,
-    isPublished: true,
-    createdAt: new Date().toISOString(),
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'mock-news-2',
-    title: 'Din Görevlileri İçin Maaş Artışı Kararı',
-    content: 'Toplu sözleşme görüşmeleri sonucunda din görevlilerinin maaşlarına yüzde 30 zam yapılması kararlaştırıldı.',
-    summary: 'Maaş artışı tüm din görevlilerini kapsayacak.',
-    category: 'Duyuru',
-    imageUrl: undefined,
-    isPublished: true,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    publishedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'mock-news-3',
-    title: 'Kur\'an-ı Kerim Kursu Sertifika Töreni',
-    content: 'Şubemiz tarafından düzenlenen Kur\'an-ı Kerim kursunu başarıyla tamamlayan kursiyerlere sertifikaları takdim edildi.',
-    summary: '150 kursiyer sertifikalarını aldı.',
-    category: 'Eğitim',
-    imageUrl: undefined,
-    isPublished: true,
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    publishedAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-];
+
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, isPendingDetails } = useAuth();
@@ -238,36 +175,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => ({ items: [], total: 0, hasMore: false })),
         ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
       ]);
-      // API verisi varsa kullan, yoksa mock data kullan
+      // API verisi varsa kullan, yoksa boş liste göster
       const fetchedAnnouncements = announcementsData.items.slice(0, 5);
       const fetchedNews = newsData.items.slice(0, 3);
-      setAnnouncements(fetchedAnnouncements.length > 0 ? fetchedAnnouncements : mockAnnouncements);
-      setNews(fetchedNews.length > 0 ? fetchedNews : mockNews);
+      setAnnouncements(fetchedAnnouncements);
+      setNews(fetchedNews);
       
       // Slider için öne çıkan haberleri al (isFeatured=true)
-      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : (newsData.items.length > 0 ? newsData.items.slice(0, 3) : mockNews.slice(0, 3)));
+      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : newsData.items.slice(0, 3));
 
       // Cache successful data for offline use
       if (fetchedAnnouncements.length > 0) await cacheAnnouncements(fetchedAnnouncements);
       if (fetchedNews.length > 0) await cacheNews(newsData.items);
     } catch (error) {
       logger.error('Error fetching data:', error);
-      // Try loading from cache first, then fall back to mock data
+      // Try loading from cache for offline use
       const cachedNewsData = await getCachedNews();
       const cachedAnnouncementsData = await getCachedAnnouncements();
       
       if (cachedAnnouncementsData && cachedAnnouncementsData.length > 0) {
         setAnnouncements(cachedAnnouncementsData);
       } else {
-        setAnnouncements(mockAnnouncements);
+        setAnnouncements([]);
       }
       
       if (cachedNewsData && cachedNewsData.length > 0) {
         setNews(cachedNewsData.slice(0, 3));
         setSliderNews(cachedNewsData.slice(0, 3));
       } else {
-        setNews(mockNews);
-        setSliderNews(mockNews.slice(0, 3));
+        setNews([]);
+        setSliderNews([]);
       }
     } finally {
       setIsLoading(false);
@@ -280,20 +217,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setRefreshing(false);
   }, []);
 
-  const handleQuickAccess = useCallback((route: string) => {
+  const handleQuickAccess = useCallback(async (route: string) => {
     if (route === 'Hutbeler') {
-      Linking.openURL('https://dinhizmetleri.diyanet.gov.tr/kategoriler/yayinlarimiz/hutbeler/t%C3%BCrk%C3%A7e');
+      const url = 'https://dinhizmetleri.diyanet.gov.tr/kategoriler/yayinlarimiz/hutbeler/t%C3%BCrk%C3%A7e';
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Bağlantı açılamıyor.');
+      }
     } else if (route === 'DIBBYS') {
       // DİBBYS direkt login sayfasına yönlendir
-      Linking.openURL('http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d');
+      const url = 'http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d';
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Bağlantı açılamıyor.');
+      }
     } else if (route === 'News') {
-      navigation.navigate('AllNews' as never);
+      navigation.navigate('AllNews');
     } else if (route === 'Contact') {
-      navigation.navigate('Contact' as never);
+      navigation.navigate('Contact');
     } else if (route === 'Muktesep') {
-      navigation.navigate('Muktesep' as never);
+      navigation.navigate('Muktesep');
     } else if (route === 'PartnerInstitutions') {
-      navigation.navigate('PartnerInstitutions' as never);
+      navigation.navigate('PartnerInstitutions');
     }
   }, [navigation]);
 
@@ -318,13 +267,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const formatDate = (date: string | Date) => {
-    const d = new Date(date);
+  type AnyDate = string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined | null;
+  const toDate = (d: AnyDate): Date => {
+    if (!d) return new Date();
+    if (typeof d === 'object' && 'seconds' in d) return new Date(((d as any).seconds ?? (d as any)._seconds ?? 0) * 1000);
+    return new Date(d as string | Date);
+  };
+  const formatDate = (date: AnyDate) => {
+    const d = toDate(date);
     return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const formatTime = (date: string | Date) => {
-    const d = new Date(date);
+  const formatTime = (date: AnyDate) => {
+    const d = toDate(date);
     return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -332,7 +287,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const renderSliderItem = useCallback(({ item }: { item: News }) => (
     <TouchableOpacity 
       style={[styles.slideContainer, { width: screenWidth - 32, height: LAYOUT.sliderHeight }]}
-      onPress={() => navigation.navigate('NewsDetail' as never, { newsId: item.id } as never)}
+      onPress={() => navigation.navigate('NewsDetail', { newsId: item.id })}
       activeOpacity={0.9}
       accessibilityLabel={`Haber: ${item.title}`}
       accessibilityRole="button"
@@ -424,7 +379,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={styles.announcementCard}
-        onPress={() => navigation.navigate('AllAnnouncements' as never)}
+        onPress={() => navigation.navigate('AllAnnouncements')}
         activeOpacity={0.9}
         accessibilityLabel={`Duyuru: ${currentAnnouncement.title}`}
         accessibilityRole="button"
@@ -444,7 +399,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             
             <Text style={styles.announcementSummary} numberOfLines={3}>
-              {stripHtmlTags((currentAnnouncement as Announcement).summary || currentAnnouncement.content)}
+              {stripHtmlTags((currentAnnouncement as Announcement).summary || currentAnnouncement.content || '')}
             </Text>
             
             <View style={styles.announcementMeta}>
@@ -502,10 +457,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Sağ İkon: Hamburger Menu */}
         <View style={styles.headerRightIcons}>
           <HamburgerMenu
-            onMembershipClick={() => navigation.navigate('Membership' as never)}
-            onNotificationsClick={() => navigation.navigate('Notifications' as never)} 
-            onAboutClick={() => navigation.navigate('About' as never)}
-            onProfileClick={() => navigation.navigate('Profile' as never)}
+            onMembershipClick={() => navigation.navigate('Membership')}
+            onNotificationsClick={() => navigation.navigate('Notifications')} 
+            onAboutClick={() => navigation.navigate('About')}
+            onProfileClick={() => navigation.navigate('Profile')}
           />
         </View>
       </LinearGradient>
@@ -521,7 +476,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {isPendingDetails && (
           <TouchableOpacity
             style={styles.membershipBanner}
-            onPress={() => navigation.navigate('Membership' as never)}
+            onPress={() => navigation.navigate('Membership')}
             activeOpacity={0.8}
             accessibilityLabel="Üyeliğinizi tamamlayın"
             accessibilityRole="button"
@@ -610,7 +565,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
             <TouchableOpacity 
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('AllAnnouncements' as never)}
+              onPress={() => navigation.navigate('AllAnnouncements')}
               accessibilityLabel="Tüm duyuruları gör"
               accessibilityRole="button"
             >

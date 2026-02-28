@@ -11,7 +11,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-import app from '../config/firebase';
+import app, { firebaseConfig } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ type RouteParams = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STORAGE_BUCKET = 'sendikaapp.firebasestorage.app';
+const STORAGE_BUCKET = firebaseConfig.storageBucket || 'sendikaapp.firebasestorage.app';
 
 /** Extract the Firebase Storage object path from any URL the backend returns. */
 const extractStoragePath = (rawUrl: string): string | null => {

@@ -11,6 +11,7 @@ import {
   getStoredToken,
   clearStoredToken,
   getDeviceType,
+  listenForTokenRefresh,
 } from '../services/notificationService';
 import apiService from '../services/api';
 import { logger } from '../utils/logger';
@@ -28,6 +29,7 @@ export function useNotifications(isAuthenticated: boolean) {
   const navigation = useNavigation<NavigationProp>();
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
+  const tokenRefreshListener = useRef<Notifications.Subscription>();
 
   // Token'ı backend'e kaydet
   const registerToken = useCallback(async () => {
@@ -102,7 +104,17 @@ export function useNotifications(isAuthenticated: boolean) {
       handleNotificationResponse
     );
 
-    // 5. Uygulama kapalıyken gelen bildirime tıklanarak açıldıysa
+    // 5. FCM token yenilendiğinde backend'e otomatik kaydet
+    tokenRefreshListener.current = listenForTokenRefresh(async (newToken: string) => {
+      try {
+        await apiService.registerPushToken(newToken, getDeviceType());
+        logger.log('✅ Yenilenen push token backend\'e kaydedildi');
+      } catch (error) {
+        logger.error('Yenilenen push token kaydedilemedi:', error);
+      }
+    });
+
+    // 6. Uygulama kapalıyken gelen bildirime tıklanarak açıldıysa
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
         handleNotificationResponse(response);
@@ -116,6 +128,9 @@ export function useNotifications(isAuthenticated: boolean) {
       }
       if (responseListener.current) {
         Notifications.removeNotificationSubscription(responseListener.current);
+      }
+      if (tokenRefreshListener.current) {
+        Notifications.removeNotificationSubscription(tokenRefreshListener.current);
       }
     };
   }, [isAuthenticated, registerToken, handleNotificationResponse]);

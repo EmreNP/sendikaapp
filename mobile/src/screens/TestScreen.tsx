@@ -117,13 +117,8 @@ export const TestScreen: React.FC = () => {
       });
       setResults(questionResults);
       setSubmitted(true);
-      if (contentId && trainingId) {
-        (navigation.navigate as (screen: string, params: object) => void)('CourseDetail', {
-          trainingId,
-          lessonId,
-          completedContentId: contentId,
-        });
-      }
+      // NOT: Burada navigate etmiyoruz — kullanıcı sonuç ekranını görsün.
+      // Sonuç ekranından "Kapat" butonuyla CourseDetail'e dönecek.
     };
 
     if (unanswered > 0) {
@@ -167,7 +162,17 @@ export const TestScreen: React.FC = () => {
         {/* Minimal top bar */}
         <View style={styles.reviewTopBar}>
           <Text style={styles.reviewTopBarTitle}>{test.title}</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.reviewTopBarClose}>
+          <TouchableOpacity onPress={() => {
+            if (contentId && trainingId) {
+              (navigation.navigate as (screen: string, params: object) => void)('CourseDetail', {
+                trainingId,
+                lessonId,
+                completedContentId: contentId,
+              });
+            } else {
+              navigation.goBack();
+            }
+          }} style={styles.reviewTopBarClose}>
             <Feather name="x" size={22} color="#64748b" />
           </TouchableOpacity>
         </View>
@@ -236,7 +241,17 @@ export const TestScreen: React.FC = () => {
                 <Text style={styles.scoreSummaryBold}>{correctCount}</Text> doğru  ·  <Text style={styles.scoreSummaryBold}>{totalQuestions - correctCount}</Text> yanlış  ·  <Text style={styles.scoreSummaryBold}>{totalQuestions}</Text> soru
               </Text>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => {
+              if (contentId && trainingId) {
+                (navigation.navigate as (screen: string, params: object) => void)('CourseDetail', {
+                  trainingId,
+                  lessonId,
+                  completedContentId: contentId,
+                });
+              } else {
+                navigation.goBack();
+              }
+            }}>
               <Text style={styles.closeButtonText}>Kapat</Text>
             </TouchableOpacity>
           </View>

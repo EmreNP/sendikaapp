@@ -98,7 +98,14 @@ export const AllNewsScreen: React.FC<AllNewsScreenProps> = ({ navigation }) => {
     }
   }, [loadingMore, hasMore, page]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateInput: string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined | null) => {
+    if (!dateInput) return '';
+    let dateString: string | Date;
+    if (typeof dateInput === 'object' && 'seconds' in dateInput) {
+      dateString = new Date((dateInput.seconds ?? (dateInput as any)._seconds ?? 0) * 1000);
+    } else {
+      dateString = dateInput as string | Date;
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('tr-TR', {
       day: 'numeric',

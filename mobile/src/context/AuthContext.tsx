@@ -6,6 +6,7 @@ import apiService from '../services/api';
 import { getStoredToken, clearStoredToken } from '../services/notificationService';
 import { logger } from '../utils/logger';
 import type { User, UserStatus, UserRole } from '../types';
+import type { RegisterDetailsRequest } from '../../../shared/types/user';
 
 interface AuthContextType {
   user: User | null;
@@ -31,7 +32,7 @@ interface AuthContextType {
     kadroUnvani: string;
     gender: 'male' | 'female';
   }) => Promise<void>;
-  registerDetails: (data: any) => Promise<void>;
+  registerDetails: (data: RegisterDetailsRequest) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(userData);
   };
 
-  const registerDetails = async (data: any) => {
+  const registerDetails = async (data: RegisterDetailsRequest) => {
     const { user: userData } = await apiService.registerDetails(data);
     setUser(userData);
   };

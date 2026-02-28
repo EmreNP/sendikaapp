@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
+import type { Subscription } from 'expo-notifications';
 
 const FCM_TOKEN_KEY = '@fcm_token';
 
@@ -111,4 +112,34 @@ export async function clearStoredToken(): Promise<void> {
  */
 export function getDeviceType(): 'ios' | 'android' {
   return Platform.OS === 'ios' ? 'ios' : 'android';
+}
+
+/**
+ * FCM token yenileme dinleyicisi başlat.
+ * OS, token'ı yenilediğinde (uygulama güncellemesi, yedekten geri yükleme vb.)
+ * yeni token'ı backend'e otomatik kaydeder.
+ *
+ * @param onTokenRefresh Yeni token backend'e gönderilmek üzere çağrılır.
+ *                       Genellikle ApiService.registerPushToken(token, deviceType) kullanılır.
+ * @returns Aboneliği iptal etmek için kullanılabilecek Subscription nesnesi.
+ */
+export function listenForTokenRefresh(
+  onTokenRefresh: (token: string) => Promise<void>,
+): Subscription {
+  return Notifications.addPushTokenListener(async (event) => {
+    const newToken = event.data as string;
+    if (!newToken) return;
+
+    try {
+      const oldToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+      if (newToken !== oldToken) {
+        logger.log('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
+        await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
+        await onTokenRefresh(newToken);
+        logger.log('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
+      }
+    } catch (error) {
+      logger.error('FCM token yenileme sırasında hata:', error);
+    }
+  });
 }
