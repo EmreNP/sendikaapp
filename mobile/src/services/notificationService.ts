@@ -5,9 +5,10 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { secureStorage } from './secureStorage';
 import { logger } from '../utils/logger';
+import { Sentry } from './sentry';
 import type { EventSubscription } from 'expo-modules-core';
 
-const FCM_TOKEN_KEY = '@fcm_token';
+const FCM_TOKEN_KEY = 'fcm_token';
 
 /**
  * Expo Go ortamında mı çalıştığımızı kontrol et.
@@ -31,20 +32,14 @@ export function isExpoGo(): boolean {
  * Bildirim davranışını yapılandır
  * Uygulama ön plandayken bildirimlerin nasıl gösterileceğini belirler
  */
+/**
+ * NOT: Bildirim handler artık App.tsx modül seviyesinde yapılandırılıyor.
+ * Bu fonksiyon geriye dönük uyumluluk için korunmuştur ama artık
+ * handler App.tsx'te set edildiği için ek bir işlem yapmaz.
+ */
 export function configureNotificationHandler() {
-  try {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
-  } catch (error) {
-    logger.warn('Bildirim handler yapılandırılamadı:', error);
-  }
+  // Handler artık App.tsx modül seviyesinde set ediliyor.
+  // Bu fonksiyon mevcut çağrıları bozmamak için korunuyor.
 }
 
 /**
@@ -104,14 +99,23 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     // çünkü backend FCM token bekliyor (admin.messaging().sendEachForMulticast)
     const tokenResponse = await Notifications.getDevicePushTokenAsync();
     const token = tokenResponse.data as string;
-    logger.log('📱 Push token alındı:', token.substring(0, 30) + '...');
+    logger.warn('📱 Push token alındı:', token.substring(0, 30) + '...');
 
     // 6. Token'ı güvenli depoya kaydet (logout'ta kullanmak için)
-    await secureStorage.setItem(FCM_TOKEN_KEY, token);
+    // ÖNEMLİ: SecureStore hatası token dönüşünü engellemeMELİ.
+    // Token backend'e kaydedilmesi için her durumda döndürülür.
+    try {
+      await secureStorage.setItem(FCM_TOKEN_KEY, token);
+    } catch (storageError) {
+      logger.warn('⚠️ FCM token SecureStore\'a kaydedilemedi (backend kaydı etkilenmez):', storageError);
+    }
 
     return token;
   } catch (error) {
-    logger.warn('Push token alınamadı:', error);
+    logger.error('❌ Push token alınamadı:', error);
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+      tags: { flow: 'push-token-retrieval' },
+    });
     return null;
   }
 }
@@ -123,7 +127,12 @@ export async function getStoredToken(): Promise<string | null> {
   try {
     return await secureStorage.getItem(FCM_TOKEN_KEY);
   } catch {
-    return null;
+    // SecureStore erişim hatası — eski '@fcm_token' key'i ile de dene
+    try {
+      return await secureStorage.getItem('fcm_token');
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -169,19 +178,30 @@ export function listenForTokenRefresh(
       if (!newToken) return;
 
       try {
-        const oldToken = await secureStorage.getItem(FCM_TOKEN_KEY);
+        const oldToken = await secureStorage.getItem(FCM_TOKEN_KEY).catch(() => null);
         if (newToken !== oldToken) {
-          logger.log('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
-          await secureStorage.setItem(FCM_TOKEN_KEY, newToken);
+          logger.warn('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
           await onTokenRefresh(newToken);
-          logger.log('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
+          // Backend'e kaydettikten sonra local'e de kaydet
+          try {
+            await secureStorage.setItem(FCM_TOKEN_KEY, newToken);
+          } catch {
+            // SecureStore hatası backend kaydını etkilemez
+          }
+          logger.warn('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
         }
       } catch (error) {
-        logger.warn('FCM token yenileme sırasında hata:', error);
+        logger.error('FCM token yenileme sırasında hata:', error);
+        Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+          tags: { flow: 'fcm-token-refresh' },
+        });
       }
     });
   } catch (error) {
-    logger.warn('Push token dinleyicisi başlatılamadı:', error);
+    logger.error('Push token dinleyicisi başlatılamadı:', error);
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+      tags: { flow: 'push-token-listener-init' },
+    });
     return null;
   }
 }

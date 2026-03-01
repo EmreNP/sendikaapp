@@ -7,7 +7,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import {
-  configureNotificationHandler,
   registerForPushNotificationsAsync,
   getStoredToken,
   clearStoredToken,
@@ -17,6 +16,7 @@ import {
 } from '../services/notificationService';
 import apiService from '../services/api';
 import { logger } from '../utils/logger';
+import { Sentry } from '../services/sentry';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,13 +36,21 @@ export function useNotifications(isAuthenticated: boolean) {
   // Token'ı backend'e kaydet
   const registerToken = useCallback(async () => {
     try {
+      logger.warn('🔔 Push token kaydı başlıyor...');
       const token = await registerForPushNotificationsAsync();
       if (token) {
+        logger.warn('📱 Token alındı, backend\'e gönderiliyor...');
         await apiService.registerPushToken(token, getDeviceType());
-        logger.log('✅ Push token backend\'e kaydedildi');
+        logger.warn('✅ Push token backend\'e kaydedildi');
+      } else {
+        logger.error('⚠️ Push token alınamadı — registerForPushNotificationsAsync null döndü');
+        Sentry.captureMessage('Push token null döndü', 'warning');
       }
     } catch (error) {
-      logger.warn('Push token kaydedilemedi:', error);
+      logger.error('❌ Push token kaydedilemedi:', error);
+      Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+        tags: { flow: 'push-token-registration' },
+      });
     }
   }, []);
 
@@ -94,8 +102,8 @@ export function useNotifications(isAuthenticated: boolean) {
       return;
     }
 
-    // 1. Bildirim handler'ını yapılandır (foreground davranışı)
-    configureNotificationHandler();
+    // 1. Bildirim handler artık App.tsx modül seviyesinde yapılandırılıyor
+    //    (component mount'ından önce hazır olması için)
 
     // 2. Token al ve kaydet
     registerToken();
@@ -118,7 +126,10 @@ export function useNotifications(isAuthenticated: boolean) {
         await apiService.registerPushToken(newToken, getDeviceType());
         logger.log('✅ Yenilenen push token backend\'e kaydedildi');
       } catch (error) {
-        logger.warn('Yenilenen push token kaydedilemedi:', error);
+        logger.error('Yenilenen push token kaydedilemedi:', error);
+        Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+          tags: { flow: 'push-token-refresh-registration' },
+        });
       }
     });
     if (refreshSub) {

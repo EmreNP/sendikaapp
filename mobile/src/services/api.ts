@@ -52,6 +52,10 @@ class ApiService {
       const token = await this.getAuthToken();
       if (token) {
         (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      } else {
+        // Auth token yoksa isteği göndermeden hata fırlat
+        // Aksi halde 401 döner ve sessizce yutulur
+        throw new Error('Oturum bilgisi bulunamadı (auth token null). Lütfen tekrar giriş yapın.');
       }
     }
 

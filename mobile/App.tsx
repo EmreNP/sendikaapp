@@ -6,6 +6,7 @@ import { StyleSheet, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import * as Notifications from 'expo-notifications';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UpdateModal } from './src/components/UpdateModal';
 import { AuthProvider } from './src/context/AuthContext';
@@ -17,6 +18,18 @@ import { checkForUpdate, UpdateCheckResult } from './src/services/updateChecker'
 // Sentry'yi en erken noktada başlat
 initSentry();
 setupGlobalErrorHandler();
+
+// 🔔 Bildirim handler'ını modül seviyesinde (component dışında) yapılandır.
+// Bu ZORUNLU olarak burada olmalı — useEffect içinde olursa bildirim geldiğinde
+// handler henüz set edilmemiş olabilir ve bildirim sessizce düşürülür.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 // react-native-render-html kütüphanesinin iç yapısında defaultProps kullanılıyor.
 // Bu React 18.2+ ile uyarı veriyor ama kütüphane henüz güncellenmedi.

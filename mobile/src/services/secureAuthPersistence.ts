@@ -24,6 +24,19 @@ const AUTH_STORE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
 
+/**
+ * Firebase Auth key'lerini SecureStore-uyumlu formata dönüştür.
+ * Firebase "firebase:authUser:APIKey:[DEFAULT]" gibi key'ler kullanır ama
+ * expo-secure-store sadece alfanümerik, ".", "-", "_" kabul eder.
+ * ":" → "__c__", "[" → "__lb__", "]" → "__rb__" ile değiştirilir.
+ */
+function sanitizeKey(key: string): string {
+  return key
+    .replace(/:/g, '__c__')
+    .replace(/\[/g, '__lb__')
+    .replace(/\]/g, '__rb__');
+}
+
 /** SecureStore erişilebilirlik durumu (ilk çağrıda test edilir) */
 let _secureStoreAvailable: boolean | null = null;
 
@@ -60,8 +73,9 @@ export const SecureAuthPersistence = {
   async getItem(key: string): Promise<string | null> {
     if (await isSecureStoreAvailable()) {
       try {
+        const safeKey = sanitizeKey(key);
         // Önce SecureStore'da ara
-        const secureValue = await SecureStore.getItemAsync(key, AUTH_STORE_OPTIONS);
+        const secureValue = await SecureStore.getItemAsync(safeKey, AUTH_STORE_OPTIONS);
         if (secureValue !== null) return secureValue;
 
         // SecureStore'da yok — AsyncStorage'dan migration dene
@@ -70,7 +84,7 @@ export const SecureAuthPersistence = {
           logger.info(
             `[SecureAuthPersistence] Auth verisi AsyncStorage → SecureStore'a migrate ediliyor`
           );
-          await SecureStore.setItemAsync(key, asyncValue, AUTH_STORE_OPTIONS);
+          await SecureStore.setItemAsync(safeKey, asyncValue, AUTH_STORE_OPTIONS);
           await AsyncStorage.removeItem(key);
           return asyncValue;
         }
@@ -91,7 +105,8 @@ export const SecureAuthPersistence = {
   async setItem(key: string, value: string): Promise<void> {
     if (await isSecureStoreAvailable()) {
       try {
-        await SecureStore.setItemAsync(key, value, AUTH_STORE_OPTIONS);
+        const safeKey = sanitizeKey(key);
+        await SecureStore.setItemAsync(safeKey, value, AUTH_STORE_OPTIONS);
         // Eski AsyncStorage verisini temizle (migration sonrası artık)
         try {
           await AsyncStorage.removeItem(key);
@@ -117,7 +132,7 @@ export const SecureAuthPersistence = {
     const errors: Error[] = [];
 
     try {
-      await SecureStore.deleteItemAsync(key, AUTH_STORE_OPTIONS);
+      await SecureStore.deleteItemAsync(sanitizeKey(key), AUTH_STORE_OPTIONS);
     } catch (e) {
       errors.push(e instanceof Error ? e : new Error(String(e)));
     }
