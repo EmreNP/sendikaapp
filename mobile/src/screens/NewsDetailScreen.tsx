@@ -7,7 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Share,
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -79,18 +78,6 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
     });
   };
 
-  const handleShare = async () => {
-    if (!newsItem) return;
-    try {
-      await Share.share({
-        message: `${newsItem.title}\n\nBu haberi uygulamadan okuyun.`,
-        title: newsItem.title,
-      });
-    } catch (error) {
-      logger.error('Error sharing:', error);
-    }
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -155,12 +142,6 @@ export const NewsDetailScreen: React.FC<NewsDetailScreenProps> = ({
             onPress={() => navigation.goBack()}
           >
             <Feather name="arrow-left" size={22} color="#ffffff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={handleShare}
-          >
-            <Feather name="share-2" size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
@@ -277,14 +258,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareButton: {
     width: 44,
     height: 44,
     borderRadius: 22,

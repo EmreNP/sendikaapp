@@ -1,27 +1,50 @@
 // Notification Service - FCM Token yönetimi ve push bildirim işlemleri
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { secureStorage } from './secureStorage';
 import { logger } from '../utils/logger';
-import type { Subscription } from 'expo-notifications';
+import type { EventSubscription } from 'expo-modules-core';
 
 const FCM_TOKEN_KEY = '@fcm_token';
+
+/**
+ * Expo Go ortamında mı çalıştığımızı kontrol et.
+ * SDK 53+ itibarıyla push bildirimler Expo Go'da desteklenmiyor,
+ * sadece development build / standalone build'de çalışır.
+ */
+export function isExpoGo(): boolean {
+  try {
+    // 1. Birincil kontrol: executionEnvironment (SDK 46+)
+    if (Constants.executionEnvironment === 'storeClient') return true;
+    // 2. Yedek kontrol: appOwnership (eski sürümler için)
+    const legacyOwnership = (Constants as Record<string, unknown>).appOwnership;
+    if (legacyOwnership === 'expo') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Bildirim davranışını yapılandır
  * Uygulama ön plandayken bildirimlerin nasıl gösterileceğini belirler
  */
 export function configureNotificationHandler() {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (error) {
+    logger.warn('Bildirim handler yapılandırılamadı:', error);
+  }
 }
 
 /**
@@ -45,6 +68,12 @@ export async function setupNotificationChannel() {
  * @returns FCM/Expo push token veya null
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  // Expo Go'da push bildirimler SDK 53+ itibarıyla desteklenmiyor
+  if (isExpoGo()) {
+    logger.warn('⚠️ Push bildirimler Expo Go\'da desteklenmiyor. Development build kullanın.');
+    return null;
+  }
+
   // Fiziksel cihaz kontrolü - emülatörde FCM çalışmaz ama Expo Push Token çalışabilir
   if (!Device.isDevice) {
     logger.warn('Push bildirimler sadece fiziksel cihazlarda tam çalışır. Emülatörde token alınmaya çalışılacak.');
@@ -82,7 +111,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     return token;
   } catch (error) {
-    logger.error('Push token alınamadı:', error);
+    logger.warn('Push token alınamadı:', error);
     return null;
   }
 }
@@ -105,7 +134,7 @@ export async function clearStoredToken(): Promise<void> {
   try {
     await secureStorage.removeItem(FCM_TOKEN_KEY);
   } catch (error) {
-    logger.error('Stored token temizlenemedi:', error);
+    logger.warn('Stored token temizlenemedi:', error);
   }
 }
 
@@ -127,21 +156,32 @@ export function getDeviceType(): 'ios' | 'android' {
  */
 export function listenForTokenRefresh(
   onTokenRefresh: (token: string) => Promise<void>,
-): Subscription {
-  return Notifications.addPushTokenListener(async (event) => {
-    const newToken = event.data as string;
-    if (!newToken) return;
+): EventSubscription | null {
+  // Expo Go'da addPushTokenListener desteklenmiyor (SDK 53+)
+  if (isExpoGo()) {
+    logger.warn('⚠️ Token yenileme dinleyicisi Expo Go\'da desteklenmiyor.');
+    return null;
+  }
 
-    try {
-      const oldToken = await secureStorage.getItem(FCM_TOKEN_KEY);
-      if (newToken !== oldToken) {
-        logger.log('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
-        await secureStorage.setItem(FCM_TOKEN_KEY, newToken);
-        await onTokenRefresh(newToken);
-        logger.log('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
+  try {
+    return Notifications.addPushTokenListener(async (event) => {
+      const newToken = event.data as string;
+      if (!newToken) return;
+
+      try {
+        const oldToken = await secureStorage.getItem(FCM_TOKEN_KEY);
+        if (newToken !== oldToken) {
+          logger.log('🔄 FCM token yenilendi, backend\'e kaydediliyor…');
+          await secureStorage.setItem(FCM_TOKEN_KEY, newToken);
+          await onTokenRefresh(newToken);
+          logger.log('✅ Yeni FCM token backend\'e başarıyla kaydedildi.');
+        }
+      } catch (error) {
+        logger.warn('FCM token yenileme sırasında hata:', error);
       }
-    } catch (error) {
-      logger.error('FCM token yenileme sırasında hata:', error);
-    }
-  });
+    });
+  } catch (error) {
+    logger.warn('Push token dinleyicisi başlatılamadı:', error);
+    return null;
+  }
 }

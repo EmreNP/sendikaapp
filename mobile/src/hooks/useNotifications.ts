@@ -13,6 +13,7 @@ import {
   clearStoredToken,
   getDeviceType,
   listenForTokenRefresh,
+  isExpoGo,
 } from '../services/notificationService';
 import apiService from '../services/api';
 import { logger } from '../utils/logger';
@@ -41,7 +42,7 @@ export function useNotifications(isAuthenticated: boolean) {
         logger.log('✅ Push token backend\'e kaydedildi');
       }
     } catch (error) {
-      logger.error('Push token kaydedilemedi:', error);
+      logger.warn('Push token kaydedilemedi:', error);
     }
   }, []);
 
@@ -55,7 +56,7 @@ export function useNotifications(isAuthenticated: boolean) {
         logger.log('✅ Push token deaktive edildi');
       }
     } catch (error) {
-      logger.error('Push token deaktive edilemedi:', error);
+      logger.warn('Push token deaktive edilemedi:', error);
     }
   }, []);
 
@@ -78,7 +79,7 @@ export function useNotifications(isAuthenticated: boolean) {
           navigation.navigate('Notifications');
         }
       } catch (error) {
-        logger.error('Bildirim yönlendirme hatası:', error);
+        logger.warn('Bildirim yönlendirme hatası:', error);
       }
     },
     [navigation]
@@ -86,6 +87,12 @@ export function useNotifications(isAuthenticated: boolean) {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    // Expo Go'da push bildirimler SDK 53+ itibarıyla desteklenmiyor
+    // Tüm bildirim kurulumunu atla
+    if (isExpoGo()) {
+      return;
+    }
 
     // 1. Bildirim handler'ını yapılandır (foreground davranışı)
     configureNotificationHandler();
@@ -106,21 +113,28 @@ export function useNotifications(isAuthenticated: boolean) {
     );
 
     // 5. FCM token yenilendiğinde backend'e otomatik kaydet
-    tokenRefreshListener.current = listenForTokenRefresh(async (newToken: string) => {
+    const refreshSub = listenForTokenRefresh(async (newToken: string) => {
       try {
         await apiService.registerPushToken(newToken, getDeviceType());
         logger.log('✅ Yenilenen push token backend\'e kaydedildi');
       } catch (error) {
-        logger.error('Yenilenen push token kaydedilemedi:', error);
+        logger.warn('Yenilenen push token kaydedilemedi:', error);
       }
     });
+    if (refreshSub) {
+      tokenRefreshListener.current = refreshSub;
+    }
 
     // 6. Uygulama kapalıyken gelen bildirime tıklanarak açıldıysa
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        handleNotificationResponse(response);
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          handleNotificationResponse(response);
+        }
+      })
+      .catch((error) => {
+        logger.warn('getLastNotificationResponseAsync hatası:', error);
+      });
 
     // Cleanup
     return () => {

@@ -339,7 +339,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Front QuickAccessGrid - white card with gradient icon
   const renderQuickAccessItem = (item: typeof quickAccessItems[0]) => {
     // Responsive genişlik: En az 100px, ideal 3 sütun
-    const cardWidth = Math.max(100, (screenWidth - 32 - 24) / 3);
+    // Math.floor ile sub-pixel taşmayı önle (3x2 grid bozulmasını engeller)
+    const cardWidth = Math.floor(Math.max(100, (screenWidth - 32 - 24) / 3));
     
     return (
       <TouchableOpacity
@@ -837,11 +838,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickAccessCard: {
-    width: (_initScreenWidth - 32 - 24) / 3, // 3 columns with gap
+    width: Math.floor((_initScreenWidth - 32 - 24) / 3), // 3 columns with gap
     alignItems: 'center',
     paddingVertical: DEFAULT_LAYOUT.iconPadding,
     paddingHorizontal: 2,
-    minWidth: 100,
   },
   quickAccessIcon: {
     width: DEFAULT_LAYOUT.iconSize,

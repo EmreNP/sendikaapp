@@ -98,8 +98,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     { icon: 'shield', label: 'Gizlilik Politikası ve KVKK', action: () => navigation.navigate('Kvkk' as never) },
     { icon: 'file-text', label: 'Kullanım Koşulları', action: () => navigation.navigate('Terms' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
-    // Admin Panel - sadece admin ve şube yöneticileri için
-    ...((role === 'admin' || role === 'branch_manager') ? [
+    // Admin Panel - superadmin, admin ve şube yöneticileri için
+    ...((role === 'superadmin' || role === 'admin' || role === 'branch_manager') ? [
       { icon: 'settings' as keyof typeof Feather.glyphMap, label: 'Admin Panel', action: () => Linking.openURL('https://tdvs-konya.web.app/login') },
     ] : []),
   ];

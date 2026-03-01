@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     alignItems: 'center',
-    width: (width - 96) / 3, // 3 sütun (6 öğe = 3x2)
+    width: Math.floor((width - 96) / 3), // 3 sütun (6 öğe = 3x2) - Math.floor ile sub-pixel taşma önlenir
   },
   featureIconWrapper: {
     marginBottom: 8,

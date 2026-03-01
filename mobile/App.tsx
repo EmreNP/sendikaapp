@@ -1,13 +1,20 @@
 // Main App Entry Point
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, LogBox } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { initSentry, setupGlobalErrorHandler } from './src/services/sentry';
+import { StyleSheet, LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-// Sentry'yi en erken noktada başlat (diğer import'lardan önce)
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { UpdateModal } from './src/components/UpdateModal';
+import { AuthProvider } from './src/context/AuthContext';
+import { NotificationBadgeProvider } from './src/context/NotificationBadgeContext';
+import { AppNavigator } from './src/navigation';
+import { initSentry, setupGlobalErrorHandler } from './src/services/sentry';
+import { checkForUpdate, UpdateCheckResult } from './src/services/updateChecker';
+
+// Sentry'yi en erken noktada başlat
 initSentry();
 setupGlobalErrorHandler();
 
@@ -34,12 +41,6 @@ if (__DEV__) {
     originalConsoleError(...args);
   };
 }
-import { AuthProvider } from './src/context/AuthContext';
-import { NotificationBadgeProvider } from './src/context/NotificationBadgeContext';
-import { AppNavigator } from './src/navigation';
-import { UpdateModal } from './src/components/UpdateModal';
-import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { checkForUpdate, UpdateCheckResult } from './src/services/updateChecker';
 
 // Uygulama yüklenene kadar splash screen'i göster
 SplashScreen.preventAutoHideAsync().catch(() => {

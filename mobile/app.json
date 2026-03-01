@@ -7,9 +7,9 @@
     "icon": "./assets/tdv-sen-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/tdv-sen-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a2e"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -31,7 +31,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.tdvs.konya",
       "googleServicesFile": "./google-services.json",
@@ -57,10 +57,23 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/tdv-sen-logo.png",
+          "imageWidth": 250,
           "resizeMode": "contain",
-          "backgroundColor": "#1a1a2e"
+          "backgroundColor": "#ffffff",
+          "android": {
+            "image": "./assets/tdv-sen-logo.png",
+            "imageWidth": 250,
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff",
+            "windowSplashScreenAnimatedIconBackgroundColor": "#ffffff",
+            "dark": {
+              "image": "./assets/tdv-sen-logo.png",
+              "imageWidth": 250,
+              "resizeMode": "contain",
+              "backgroundColor": "#ffffff"
+            }
+          }
         }
       ],
       [
@@ -78,14 +91,21 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "1.9.24"
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0",
+            "kotlinVersion": "2.1.0"
           }
         }
       ],
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "TDVS Konya",
+          "project": "TDVS Konya",
+          "uploadSourceMaps": true
+        }
+      ]
     ],
     "extra": {
       "eas": {
