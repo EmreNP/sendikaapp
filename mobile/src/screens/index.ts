@@ -19,7 +19,6 @@ export { PendingApprovalScreen } from './PendingApprovalScreen';
 export { RejectedScreen } from './RejectedScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { MuktesepScreen } from './MuktesepScreen';
-export { DistrictRepresentativeScreen } from './DistrictRepresentativeScreen';
 export { PartnerInstitutionsScreen } from './PartnerInstitutionsScreen';
 export { PartnerDetailScreen } from './PartnerDetailScreen';
 export { TestScreen } from './TestScreen';

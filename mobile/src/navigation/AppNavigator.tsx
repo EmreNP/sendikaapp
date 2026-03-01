@@ -33,7 +33,6 @@ import {
   ProfileScreen,
   EditProfileScreen,
   MuktesepScreen,
-  DistrictRepresentativeScreen,
   PartnerInstitutionsScreen,
   PartnerDetailScreen,
   DocumentScreen,
@@ -168,7 +167,6 @@ export const AppNavigator = () => {
             <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Membership" component={MembershipScreen} />
             <Stack.Screen name="Muktesep" component={MuktesepScreen} />
-            <Stack.Screen name="DistrictRepresentative" component={DistrictRepresentativeScreen} />
             <Stack.Screen name="PartnerInstitutions" component={PartnerInstitutionsScreen} />
             <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />

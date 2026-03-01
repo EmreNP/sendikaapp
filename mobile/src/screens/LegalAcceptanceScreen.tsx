@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../utils/logger';
@@ -9,6 +10,7 @@ import { useSecureScreen } from '../hooks/useSecureScreen';
 
 export const LegalAcceptanceScreen: React.FC = () => {
   useSecureScreen();
+  const navigation = useNavigation<any>();
   const { acceptLegalTerms, logout } = useAuth();
   const [kvkkAccepted, setKvkkAccepted] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);

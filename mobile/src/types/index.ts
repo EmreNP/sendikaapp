@@ -176,7 +176,6 @@ export type RootStackParamList = {
   Contact: undefined;
   About: undefined;
   Muktesep: undefined;
-  DistrictRepresentative: undefined;
   PartnerInstitutions: undefined;
   PartnerDetail: { partner?: import('../data/partners').Partner; institution?: ContractedInstitution };
   Profile: undefined;

@@ -35,7 +35,19 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tdvs.konya",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -57,14 +69,21 @@
           "color": "#2563eb",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
-        }      ],
+        }
+      ],
+      "expo-secure-store",
+      "./plugins/withNetworkSecurityConfig",
       [
-        "@sentry/react-native/expo",
+        "expo-build-properties",
         {
-          "organization": "SENTRY_ORG_BURAYA",
-          "project": "SENTRY_PROJECT_BURAYA"
-        }      ],
-      "expo-secure-store"
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "1.9.24"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

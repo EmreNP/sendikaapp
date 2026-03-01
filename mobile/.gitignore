@@ -45,6 +45,10 @@ yarn-error.*
 /ios
 /android
 
+# Firebase config (distribute via EAS secrets / CI)
+google-services.json
+android/app/google-services.json
+
 # Release keystore files
 android/keystore/*.keystore
 android/keystore/*.jks
