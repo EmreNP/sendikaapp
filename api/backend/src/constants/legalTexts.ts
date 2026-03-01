@@ -1,73 +1,132 @@
 export const privacyText = {
-  title: "Gizlilik Politikası ve KVKK Aydınlatma Metni",
-  lastUpdated: "28 Şubat 2026",
+  title: "Kişisel Verilerin Korunması Aydınlatma Metni",
+  lastUpdated: "01 Mart 2026",
   content: `
     <section>
-      <h2>1. Veri Sorumlusu</h2>
-      <p>
-        Türk Diyanet Vakıf Sen (Bundan böyle "Veri Sorumlusu" veya "Sendika" olarak anılacaktır.)<br />
-        <strong>İletişim Adresi:</strong> <a href="https://tdvs-konya.web.app">https://tdvs-konya.web.app</a>
-      </p>
+      <h1>TÜRKİYE DİYANET VE VAKIF HİZMETLERİ KOLU KAMU GÖREVLİLERİ SENDİKASI</h1>
+      <h2>KİŞİSEL VERİLERİN KORUNMASI AYDINLATMA METNİ</h2>
     </section>
 
     <section>
-      <h2>2. Toplanan Kişisel Verileriniz</h2>
-      <p>Sendikamızın mobil uygulamasını kullanmanız ve üyelik oluşturmanız sürecinde aşağıdaki kişisel verileriniz toplanmakta ve işlenmektedir:</p>
+      <h2>1. GİRİŞ</h2>
+      <p>
+        İşbu aydınlatma metni, 6698 sayılı Kişisel Verilerin Korunması Kanununun (“Kanun”) 10. maddesi uyarınca, TÜRKİYE DİYANET VE VAKIF HİZMETLERİ KOLU KAMU GÖREVLİLERİ SENDİKASI (“Kurum”) tüzel kişiliği, ilgili müdürlük ve birimleri ve hizmet merkezlerinde toplanan kişisel verilerin işlenmesine ilişkin veri sahiplerinin/ilgili kişilerin aydınlatılması amacı ile hazırlanmıştır.
+      </p>
+      <p>
+        Kurum, kişisel verilerin işlenmesi, korunması ve güvenliği hususuna azami hassasiyet ve gayret göstermektedir.
+      </p>
+      <p>
+        Kişisel veriler Kurum tarafından her türlü işitsel, yazılı, görsel ya da elektronik yöntemlerle toplanabilecektir.
+      </p>
+      <p>
+        Bu kapsamda ve Kanun gereğince ilgili kişilerin kişisel verileri Kurum tarafından Veri Sorumlusu sıfatıyla işlenebilecektir.
+      </p>
+
+      <h3>Uygulama Kapsamında Toplanan/İşlenen Veri Kategorileri (Ek Bilgilendirme)</h3>
+      <p>
+        Kurum’un mobil uygulaması ve çevrimiçi hizmetleri kapsamında, hizmetlerin sunulması ve güvenliğinin sağlanması amacıyla aşağıdaki veri kategorileri işlenebilmektedir:
+      </p>
       <ul>
-        <li><strong>Kimlik Bilgileri:</strong> Ad, Soyad, T.C. Kimlik Numarası, Doğum Tarihi, Doğum Yeri, Anne Adı, Baba Adı, Cinsiyet bilgileri.</li>
+        <li><strong>Kimlik Bilgileri:</strong> Ad, Soyad, T.C. Kimlik Numarası, Doğum Tarihi, Doğum Yeri, Anne Adı, Baba Adı, Cinsiyet.</li>
         <li><strong>İletişim Bilgileri:</strong> Telefon Numarası, E-posta Adresi.</li>
         <li><strong>Mesleki ve Eğitim Bilgileri:</strong> Öğrenim Durumu, Kurum Sicil Numarası, Kadro Ünvanı, Görev Yapılan İlçe/Şube, Başka Bir Sendikaya Üyelik Durumu.</li>
-        <li><strong>Sistem ve İşlem Güvenliği Bilgileri:</strong> Uygulama içi log (işlem) kayıtları, kullanıcı kimlik doğrulayıcı verileri (UID vb.), IP adresi, şifre ve güvenlik bilgileri, kullanıcıya ait sisteme yüklenen/gönderilen ıslak imzalı üyelik formlarının PDF kopyaları.</li>
+        <li><strong>İletişim/Talep İçeriği:</strong> İletişim formu üzerinden ilettiğiniz konu başlığı ve mesaj içerikleri.</li>
+        <li><strong>Sistem ve İşlem Güvenliği Bilgileri:</strong> Uygulama içi işlem kayıtları, kullanıcı kimlik doğrulayıcı verileri (UID vb.), IP adresi, cihaz/uygulama teknik bilgileri, hata/çökme (crash) kayıtları ve bunlara ilişkin tanılama verileri.</li>
+        <li><strong>Bildirim Bilgileri:</strong> Anlık bildirim gönderimi için cihaz bildirimi belirteçleri (push token) ve bu kapsamda yapılan bildirim tercih/izin kayıtları.</li>
+        <li><strong>Belge Verileri:</strong> Sisteme yüklenen/gönderilen ıslak imzalı üyelik formlarının PDF kopyaları.</li>
+        <li><strong>Cihaz Depolama (Geçici):</strong> Uygulama performansı ve kullanım kolaylığı için bazı içeriklerin (örn. görüntülenen PDF belgeler) cihazda geçici olarak önbelleğe alınması.</li>
       </ul>
     </section>
 
     <section>
-      <h2>3. Kişisel Verilerin İşlenme Amacı ve Hukuki Sebebi</h2>
-      <p>Kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 5. maddesinde belirtilen; "Kanunlarda açıkça öngörülmesi", "Bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması", "Veri sorumlusunun hukuki yükümlülüğünü yerine getirebilmesi", "İlgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için zorunlu olması" ve gerekli durumlarda <strong>Açık Rızanızın alınması</strong> hukuki sebeplerine dayanılarak aşağıdaki amaçlarla işlenmektedir:</p>
+      <h2>2. KİŞİSEL VERİLERİN İŞLENME AMACI</h2>
+      <p>
+        Kişisel veriler, Kanun’un 5. ve 6. maddelerinde belirtilen kişisel veri işleme şartları ile Kanun’da belirtilen amaçlar çerçevesinde ve sınırı olmamak kaydıyla aşağıda belirtilen amaçlarla işlenmektedir. Buna göre kişisel verilerin işlenme amacı;
+      </p>
       <ul>
-        <li>Sendika üyelik işlemlerinin yürütülmesi ve yasal bildirimlerin gerçekleştirilmesi,</li>
-        <li>Sendikal faaliyetlerin, eğitim ve etkinliklerin kullanıcılara duyurulması,</li>
-        <li>Sendika avantajlarından (anlaşmalı kurumlar vb.) yararlandırılması,</li>
-        <li>Uygulama içi kimlik doğrulamanın ve işlem güvenliğinin sağlanması,</li>
-        <li>İletişim süreçlerinin yürütülmesi ve olası talep/şikayetlerin değerlendirilmesi.</li>
+        <li>Çalışanlar İçin İş Akdi Ve Mevzuat Kaynaklı Yükümlülüklerin Yerine Getirilmesi,</li>
+        <li>Çalışanlar İçin Yan Haklar Ve Menfaatleri Süreçlerinin Yürütülmesi,</li>
+        <li>Faaliyetlerin Mevzuata Uygun Yürütülmesi,</li>
+        <li>Hukuk İşlerinin Takibi Ve Yürütülmesi,</li>
+        <li>İletişim Faaliyetlerinin Yürütülmesi,</li>
+        <li>İnsan Kaynakları Süreçlerinin Planlanması,</li>
+        <li>İş Faaliyetlerinin Yürütülmesi/ Denetimi,</li>
+        <li>İş Sağlığı Ve Güvenliği Faaliyetlerinin Yürütülmesi,</li>
+        <li>Sözleşmeden Kaynaklı Yükümlülüklerin Yerine Getirilmesi,</li>
+        <li>Sendika Üyeleri İçin Yan Haklar Ve Menfaatleri Süreçlerinin Yürütülmesi.</li>
       </ul>
-    </section>
-
-    <section>
-      <h2>4. Üçüncü Kişilere Aktarım</h2>
       <p>
-        Kişisel verileriniz kural olarak üçüncü kişilerle ticari amaçla paylaşılmaz. Ancak, mobil uygulama ve sistem altyapısının sağlanması, veritabanı yönetimi, anlık bildirimlerin ve güvenliğin sağlanabilmesi amacıyla teknoloji altyapı hizmeti sunan bulut tabanlı sunucularda (Firebase - Google LLC vb.) şifreli olarak, yurtiçi veya yasal çerçevelere uygun olarak yurtdışı altyapılarında güvenle saklanmaktadır. Ayrıca, hukuki bir uyuşmazlık veya yasal zorunluluk olması durumunda kanunen yetkili kamu kurum ve kuruluşları ile de paylaşılabilmektedir.
+        Kurum, kişisel verilerin hukuka aykırı olarak işlenmesinin ve verilere hukuka aykırı olarak erişilmesinin önlenmesi ve kişisel verilerin güvenli bir şekilde muhafaza edilmesi amacıyla gerekli hukuki, teknik ve idari tedbirleri en üst seviyede almaya gayret göstermektedir.
       </p>
     </section>
 
     <section>
-      <h2>5. Veri Güvenliği ve Saklama Süresi</h2>
+      <h2>3. KİŞİSEL VERİLERİN PAYLAŞILMASI VE AKTARILMASI</h2>
       <p>
-        Kişisel verileriniz, işlenme amacının gerektirdiği süre boyunca veya ilgili mevzuatta öngörülen yasal saklama süreleri (Sendikalar Kanunu, KVKK saklama ve imha politikaları vb.) kadar yetkisiz erişimlere ve siber saldırılara karşı güvenli ortamlarda muhafaza edilir. Saklama süresi dolan verileriniz, kanuna ve imha politikamıza uygun olarak silinmekte, yok edilmekte veya anonim hale getirilmektedir.
+        Çalışanlar, hizmet alıcıları, tedarikçiler, bağlı ve ilgili kuruluşlar ve vatandaşlardan toplanan kişisel veriler, Kanun’un 8. ve 9. maddelerinde belirtilen şartlar çerçevesinde Kurum’un tedarikçileri, hizmet sağlayıcıları ve yasal olarak yetkili kurum ve kuruluşlar ile ilgili mevzuatlar çerçevesinde, kişisel veri işleme şartları ve amaçları doğrultusunda paylaşılabilecektir.
+      </p>
+      <p>
+        Kurum, kişisel verilerin paylaşılması halinde gerekli idari ve teknik tedbirleri, tüm güvenlik önlemlerini almaya özen göstermektedir. Kurum verilerinizin aktarılması ve paylaşılması hususunda dikkat ve özen yükümlülüğüne uymakta, verilerinize ve güvenliğine değer vermektedir.
+      </p>
+
+      <h3>Uygulama Altyapısı Kapsamında Aktarım (Ek Bilgilendirme)</h3>
+      <p>
+        Mobil uygulama ve çevrimiçi hizmetlerin çalıştırılabilmesi, güvenliğinin sağlanması, bildirim gönderimi ve hata/performans takibi kapsamında; bulut altyapısı ve teknoloji hizmeti sunan tedarikçi/hizmet sağlayıcılardan (örn. kimlik doğrulama ve veritabanı hizmetleri için Firebase/Google; uygulama hata izleme için Sentry veya benzeri hizmetler) destek alınabilmekte; bu kapsamda veriler yurt içinde ve/veya yasal çerçevelere uygun olarak yurt dışında bulunan altyapılarda işlenebilmektedir.
       </p>
     </section>
 
     <section>
-      <h2>6. Kullanıcı Hakları ve Yardım Ayrıca Veri Silme (Hesap Kapatma) Yönergesi (ÖNEMLİ)</h2>
+      <h2>4. KİŞİSEL VERİ TOPLAMA YÖNTEMİ VE HUKUKİ SEBEBİ</h2>
       <p>
-        KVKK'nın 11. maddesi uyarınca; verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, amacına uygun kullanılıp kullanılmadığını öğrenme, eksik veya yanlış işlenmişse düzeltilmesini isteme ve kanunda öngörülen şartlar çerçevesinde <strong>verilerinizin silinmesini/yok edilmesini talep etme</strong> hakkına her zaman sahipsiniz.
+        Kurum kişisel verileri, her türlü işitsel, yazılı, görsel ve elektronik ortamda ve işbu aydınlatma metninde belirtilen amaçlar çerçevesinde, Kurum’un sunmuş olduğu hizmetlerin yasalara ve ilgili mevzuata uygun olarak sunulabilmesi ve yine Kurum’un sözleşme ve yasalardan doğan yükümlülüklerini eksiksiz olarak yerine getirebilmesi gibi birçok hukuki sebebe dayalı olarak toplamakta, Kanun’da belirtilen şartlara uygun olarak işlemekte, paylaşmakta ve aktarmaktadır. Hukuki dayanaklara ilişkin temel bazı temeller;
       </p>
-      
-      <h3>Hesap ve Veri Silme İşlemi (Account & Data Deletion):</h3>
+      <ul>
+        <li>Kişinin Açık Rızasının Varlığı,</li>
+        <li>İlgili Kişinin Temel Hak Ve Özgürlüklerine Zarar Vermemek Kaydıyla, Veri Sorumlusunun Meşru Menfaatleri İçin Veri İşlenmesinin Zorunlu Olması,</li>
+        <li>Kanunlarda Öngörülmesi,</li>
+        <li>Mevzuat Kaynaklı Hukuki Yükümlülüklerin Yerine Getirilmesi,</li>
+        <li>Sözleşmenin Kurulması Veya İfası İçin Gerekliliği,</li>
+        <li>Veri Sorumlusunun Hukuki Yükümlülüğünü Yerine Getirebilmesi İçin Zorunlu Olması.</li>
+      </ul>
       <p>
-        Kullanıcılarımız, diledikleri zaman mobil uygulama içerisindeki [Profil &gt; Hesabı Sil] adımlarını takip ederek veya doğrudan web sitemizdeki veri silme portalını kullanarak hesaplarını ve kişisel verilerini sildirme hakkına sahiptir. Uygulamayı cihazınızdan kaldırmış olsanız dahi, hesabınızı kalıcı olarak silmek için <a href="https://tdvs-konya.web.app/delete-account">https://tdvs-konya.web.app/delete-account</a> adresini ziyaret edebilir ve veri silme talebinizi anında gerçekleştirebilirsiniz. Silme işlemi onaylandığında, yasal olarak saklanması zorunlu olan log kayıtları (örn: 5651 sayılı kanun gereği) haricindeki tüm kişisel verileriniz sistemlerimizden kalıcı olarak yok edilir.
+        Toplama yöntemleri; mobil uygulama üzerinden üyelik/kayıt işlemleri, profil güncellemeleri, iletişim formları, uygulama içi işlem kayıtları, bildirim altyapısı ve teknik tanılama kayıtları (crash/hata kayıtları) gibi kanallar aracılığıyla olabilmektedir.
       </p>
-      <div>
-        <strong>Mobil Uygulamadan Nasıl Yapılır?</strong>
-        <ol>
-          <li>Mobil uygulamaya giriş yapın.</li>
-          <li>Alt menüden <strong>Profil</strong> sekmesine gidin.</li>
-          <li>Ekranın alt kısmında bulunan <strong>"Hesabımı Sil"</strong> butonuna tıklayın.</li>
-          <li>Ekranda çıkan uyarıyı onayladığınızda işleminiz anında gerçekleştirilir.</li>
-        </ol>
-      </div>
+    </section>
+
+    <section>
+      <h2>5. KİŞİSEL VERİ SAHİPLERİNİN HAKLARI VE HAKLARIN KORUNMASI</h2>
+      <p>Kişisel veri sahipleri Kanun’un 11. maddesi uyarınca;</p>
+      <ol>
+        <li>Kişisel veri işlenip işlenmediğini öğrenme,</li>
+        <li>Kişisel verileri işlenmişse buna ilişkin bilgi talep etme,</li>
+        <li>Kişisel verilerin işlenme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
+        <li>Yurt içinde veya yurt dışında kişisel verilerin aktarıldığı üçüncü kişileri bilme,</li>
+        <li>Kişisel verilerin eksik veya yanlış işlenmiş olması hâlinde bunların düzeltilmesini isteme,</li>
+        <li>Kanunun 7. maddesinde öngörülen şartlar çerçevesinde kişisel verilerin silinmesini veya yok edilmesini isteme,</li>
+        <li>Kanunun 5. ve 6. maddeleri uyarınca yapılan işlemlerin, kişisel verilerin aktarıldığı üçüncü kişilere bildirilmesini isteme,</li>
+        <li>İşlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle kişinin kendisi aleyhine bir sonucun ortaya çıkmasına itiraz etme,</li>
+        <li>Kişisel verilerin kanuna aykırı olarak işlenmesi sebebiyle zarara uğraması hâlinde zararın giderilmesini talep etme, haklarına sahiptir.</li>
+      </ol>
       <p>
-        * Bu işlemi yaptığınızda; kullanıcı hesabınız, veritabanlarımızdaki kimlik, iletişim, konum gibi tüm kişisel verileriniz, yüklediğiniz üyelik dökümanları ve uygulama içi aktivite loglarınız anında, otomatik, <strong>kalıcı ve geri döndürülemez</strong> bir şekilde silinmektedir. Tarafımızda bu verilerin hiçbir kopyası saklanmaz.
+        Söz konusu hakların kullanılması için, kişisel veri sahipleri tarafından Kurum’a, yazılı olarak veya Kişisel Verileri Koruma Kurulu tarafından belirlenecek diğer yöntemlerle başvurulması halinde, başvurular talebin niteliğine göre en kısa zamanda ancak her halükârda en geç 30 gün içerisinde sonuçlandırılır.
+      </p>
+      <p>
+        Söz konusu başvurular şu an için ücretsizdir. Ancak işlemin maliyet gerektirmesi durumunda, başvuruya konu iş ve işlemlerin maliyeti ile sınırlı olmak üzere, bu hususta Kişisel Verileri Koruma Kurulunca bir ücret öngörülmesi halinde, Kurum’un Kişisel Verileri Koruma Kurulunca belirlenen tarifedeki ücreti talep etme hakkı saklıdır.
+      </p>
+
+      <h3>Hesap ve Veri Silme İşlemi (Ek Bilgilendirme)</h3>
+      <p>
+        Kullanıcılarımız, diledikleri zaman mobil uygulama içerisindeki <strong>Profil &gt; Hesabı Sil</strong> adımlarını takip ederek hesap silme talebinde bulunabilir. Ayrıca, uygulamayı cihazınızdan kaldırmış olsanız dahi, hesap silme talebinizi iletmek için <a href="https://tdvs-konya.web.app/delete-account">https://tdvs-konya.web.app/delete-account</a> adresi kullanılabilir. Talebin alınmasını müteakip, yasal olarak saklanması zorunlu olan kayıtlar hariç olmak üzere, kişisel veriler ilgili mevzuat ve Kurum’un saklama-imha süreçleri çerçevesinde silinir, yok edilir veya anonim hale getirilir.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. İLETİŞİM</h2>
+      <p>
+        İşbu aydınlatma metni kapsamında yer alan hususlara ilişkin detaylı bilgilere TÜRKİYE DİYANET VE VAKIF HİZMETLERİ KOLU KAMU GÖREVLİLERİ SENDİKASI Kişisel Verilerin Korunması ve İşlenmesi Politikasından ulaşılabilmektedir.
+      </p>
+      <p>
+        Kanun’dan doğan haklarınızı kullanmak için, kimlik bilgilerinizi, kullanmak istediğiniz hakkı ve talebinizin konusunu anlatan detaylı açıklamanızı <a href="https://www.turkdiyanetvakifsen.org.tr">https://www.turkdiyanetvakifsen.org.tr</a> adresinden edinebileceğiniz başvuru formunu doldurarak imzalı şekilde Erzurum Mahallesi Talatpaşa Bulvarı No:160 Kat:4 Cebeci / ANKARA adresine başvuru formunda belirtilen yollardan birini kullanarak gönderebilirsiniz.
       </p>
     </section>
   `
