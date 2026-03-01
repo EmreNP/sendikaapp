@@ -46,7 +46,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth * 0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const { role, logout, user } = useAuth();
+  const { role, logout, user, isPendingDetails, status } = useAuth();
 
   const openMenu = () => {
     setIsOpen(true);
@@ -179,17 +179,21 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
             >
               {/* Top Action Cards */}
               <View style={styles.topCardsRow}>
-                {/* Member Registration Card - Always visible */}
+                {/* Member Registration / Profile Card - isPendingDetails ise Üye Ol, değilse Profili Gör */}
                 <TouchableOpacity
                   style={styles.actionCardHalf}
                   onPress={() => {
                     closeMenu();
-                    onMembershipClick?.();
+                    if (isPendingDetails) {
+                      onMembershipClick?.();
+                    } else {
+                      onProfileClick?.();
+                    }
                   }}
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={['#2563eb', '#1d4ed8', '#1e40af']}
+                    colors={isPendingDetails ? ['#2563eb', '#1d4ed8', '#1e40af'] : ['#059669', '#047857', '#065f46']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.actionCardGradient}
@@ -197,14 +201,16 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                     <View style={styles.cardGlow} />
                     <View style={styles.cardHeader}>
                       <View style={styles.cardIconBg}>
-                        <Feather name="user-plus" size={16} color="#ffffff" />
+                        <Feather name={isPendingDetails ? 'user-plus' : 'user'} size={16} color="#ffffff" />
                       </View>
-                      <View style={styles.cardBadgeOrange}>
-                        <Text style={styles.cardBadgeText}>Yeni</Text>
-                      </View>
+                      {isPendingDetails && (
+                        <View style={styles.cardBadgeOrange}>
+                          <Text style={styles.cardBadgeText}>Yeni</Text>
+                        </View>
+                      )}
                     </View>
                     <View style={styles.cardFooter}>
-                      <Text style={styles.cardTitle}>Sendikaya Üye Ol</Text>
+                      <Text style={styles.cardTitle}>{isPendingDetails ? 'Sendikaya Üye Ol' : 'Profili Gör'}</Text>
                       <View style={styles.cardAction}>
                         <Text style={styles.cardActionText}>Görüntüle</Text>
                         <Feather name="chevron-right" size={12} color="rgba(255,255,255,0.8)" />
@@ -364,7 +370,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
                         : user?.email || 'Kullanıcı'}
                     </Text>
                     <Text style={styles.userRole}>
-                      {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : 'Üye'}
+                      {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : status === 'resigned' ? 'İstifa Etmiş Üye' : status === 'active' ? 'Sendika Üyesi' : 'Üye'}
                     </Text>
                   </View>
                   <Feather name="chevron-right" size={16} color="#94a3b8" />

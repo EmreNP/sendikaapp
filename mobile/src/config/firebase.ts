@@ -1,7 +1,9 @@
 // Firebase Configuration
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeAuth, getAuth } from 'firebase/auth';
+// @ts-expect-error — Metro bundler react-native entry point'u çözümler; tarayıcı type'larında export yok
+import { getReactNativePersistence } from 'firebase/auth';
+import { SecureAuthPersistence } from '../services/secureAuthPersistence';
 
 export const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -20,13 +22,14 @@ if (getApps().length === 0) {
   app = getApps()[0];
 }
 
-// Initialize Auth with AsyncStorage persistence.
-// getReactNativePersistence + AsyncStorage is Firebase'in resmi React Native yöntemi.
-// Custom SecureStorePersistence release build'de modül yüklenirken hata fırlatabilir.
+// Initialize Auth with SecureStore-backed persistence.
+// Auth token'ları Android Keystore / iOS Keychain ile şifrelenir.
+// SecureStore kullanılamazsa otomatik AsyncStorage fallback yapılır.
+// Mevcut AsyncStorage verisi ilk okumada SecureStore'a migrate edilir.
 let auth: ReturnType<typeof getAuth>;
 try {
   auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
+    persistence: getReactNativePersistence(SecureAuthPersistence),
   });
 } catch {
   // initializeAuth zaten çağrıldıysa (hot-reload vb.) mevcut instance'ı döndür

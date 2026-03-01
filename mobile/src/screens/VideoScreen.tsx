@@ -136,7 +136,7 @@ const YouTubePlayer: React.FC<{ videoId: string; width: number; height: number }
           play={playing}
           videoId={videoId}
           onReady={() => setLoading(false)}
-          onChangeState={(state) => {
+          onChangeState={(state: string) => {
             if (['playing', 'paused', 'buffering'].includes(state)) setLoading(false);
             if (state === 'ended') setPlaying(false);
           }}

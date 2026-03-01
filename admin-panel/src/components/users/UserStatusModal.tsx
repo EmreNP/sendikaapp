@@ -190,9 +190,11 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
       case 'pending_branch_review':
         return 'Şube İncelemesi';
       case 'active':
-        return 'Aktif';
+        return 'Sendika Üyesi';
       case 'rejected':
         return 'Reddedildi';
+      case 'resigned':
+        return 'İstifa Etti';
       default:
         return status;
     }
@@ -207,17 +209,28 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
       return [
         { value: 'pending_details', label: 'Detaylar Bekleniyor' },
         { value: 'pending_branch_review', label: 'Şube İncelemesi' },
-        { value: 'active', label: 'Aktif' },
+        { value: 'active', label: 'Sendika Üyesi' },
         { value: 'rejected', label: 'Reddedildi' },
+        { value: 'resigned', label: 'İstifa Etti' },
       ];
     }
     
     // Branch Manager aktif kullanıcıların durumunu değiştiremez
     if (userRole === 'branch_manager') {
       if (currentStatus === 'active') {
-        // Aktif kullanıcılar için durum değişikliği izni yok
+        // Aktif kullanıcılar için sadece istifa seçeneği
         return [
           { value: currentStatus, label: getStatusLabel(currentStatus) },
+          { value: 'resigned', label: 'İstifa Etti' },
+        ];
+      }
+      
+      if (currentStatus === 'resigned') {
+        // İstifa etmiş kullanıcılar için yeniden aktif veya değerlendirme
+        return [
+          { value: currentStatus, label: getStatusLabel(currentStatus) },
+          { value: 'active', label: 'Sendika Üyesi' },
+          { value: 'pending_details', label: 'Detaylar Bekleniyor' },
         ];
       }
       
@@ -225,7 +238,7 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
       return [
         { value: 'pending_details', label: 'Detaylar Bekleniyor' },
         { value: 'pending_branch_review', label: 'Şube İncelemesi' },
-        { value: 'active', label: 'Aktif' },
+        { value: 'active', label: 'Sendika Üyesi' },
         { value: 'rejected', label: 'Reddedildi' },
       ];
     }

@@ -14,12 +14,14 @@ import {
   Linking,
   Alert,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { HamburgerMenu } from '../components/HamburgerMenu';
 import { OfflineBanner } from '../components/OfflineBanner';
 import ApiService from '../services/api';
@@ -130,6 +132,14 @@ const quickAccessItems = [
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, isPendingDetails } = useAuth();
+
+  // Status bar'ı light arka plan için dark-content'e ayarla
+  useFocusEffect(
+    useCallback(() => {
+      StatusBar.setBarStyle('dark-content');
+    }, [])
+  );
+
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const LAYOUT = useMemo(() => calculateDynamicLayout(screenWidth, screenHeight), [screenWidth, screenHeight]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -228,7 +238,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
     } else if (route === 'DIBBYS') {
       // DİBBYS direkt login sayfasına yönlendir
-      const url = 'http://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d';
+      const url = 'https://dibbys.diyanet.gov.tr/Login.aspx?enc=HAd1rtUZbsmBBo0sEDuy4U2vPzpkTelv19DifeZ3rEY%3d';
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         Linking.openURL(url);

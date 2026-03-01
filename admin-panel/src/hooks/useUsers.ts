@@ -173,9 +173,11 @@ export function useUsers({ userRole, userBranchId }: UseUsersParams) {
       case 'pending_branch_review':
         return 'Şube Onayı Bekleniyor';
       case 'active':
-        return 'Kabul Edildi';
+        return 'Sendika Üyesi';
       case 'rejected':
         return 'Reddedildi';
+      case 'resigned':
+        return 'İstifa Etti';
       default:
         return status;
     }

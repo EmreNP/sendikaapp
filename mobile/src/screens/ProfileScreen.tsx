@@ -1,5 +1,5 @@
 // Profile Screen - User Profile with Logout
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   useSecureScreen();
-  const { user, logout, role } = useAuth();
+  const { user, logout, role, status } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -98,6 +98,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     { icon: 'shield', label: 'Gizlilik Politikası ve KVKK', action: () => navigation.navigate('Kvkk' as never) },
     { icon: 'file-text', label: 'Kullanım Koşulları', action: () => navigation.navigate('Terms' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
+    // Admin Panel - sadece admin ve şube yöneticileri için
+    ...((role === 'admin' || role === 'branch_manager') ? [
+      { icon: 'settings' as keyof typeof Feather.glyphMap, label: 'Admin Panel', action: () => Linking.openURL('https://tdvs-konya.web.app/login') },
+    ] : []),
   ];
 
   return (
@@ -129,7 +133,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {role && (
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>
-                {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : 'Üye'}
+                {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : status === 'resigned' ? 'İstifa Etmiş Üye' : status === 'active' ? 'Sendika Üyesi' : 'Üye'}
               </Text>
             </View>
           )}

@@ -2,6 +2,15 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import type { Branch } from '@/hooks/useUsers';
 
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tüm Durumlar' },
+  { value: 'active', label: 'Sendika Üyesi' },
+  { value: 'pending_branch_review', label: 'Şube Onayı Bekleniyor' },
+  { value: 'pending_details', label: 'Detaylar Bekleniyor' },
+  { value: 'rejected', label: 'Reddedildi' },
+  { value: 'resigned', label: 'İstifa Etti' },
+];
+
 interface UserFiltersProps {
   userRole?: string;
   userTypeFilter: 'users' | 'managers';
@@ -10,12 +19,12 @@ interface UserFiltersProps {
   setSearchTerm: (value: string) => void;
   statusFilter: string;
   setStatusFilter: (value: string) => void;
-  pendingStatus: string | null;
-  pendingCount: number;
   branchFilter: string;
   setBranchFilter: (value: string) => void;
   branches: Branch[];
   onCreateUser: () => void;
+  onExportExcel?: () => void;
+  isExporting?: boolean;
 }
 
 const UserFilters = React.memo(function UserFilters({
@@ -26,12 +35,12 @@ const UserFilters = React.memo(function UserFilters({
   setSearchTerm,
   statusFilter,
   setStatusFilter,
-  pendingStatus,
-  pendingCount,
   branchFilter,
   setBranchFilter,
   branches,
   onCreateUser,
+  onExportExcel,
+  isExporting,
 }: UserFiltersProps) {
   const isAdminOrSuper = userRole === 'admin' || userRole === 'superadmin';
 
@@ -65,20 +74,8 @@ const UserFilters = React.memo(function UserFilters({
         </nav>
       </div>
 
-      {/* Add Member Button */}
-      <div className="flex justify-end mt-2">
-        {userRole && userRole !== 'user' && (
-          <button
-            onClick={onCreateUser}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            Yeni Üye Ekle
-          </button>
-        )}
-      </div>
-
       {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         {/* Search Bar */}
         <div className="flex-1 relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -91,36 +88,20 @@ const UserFilters = React.memo(function UserFilters({
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Status Filter - Only for users */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status Filter Dropdown - Only for users tab */}
           {userTypeFilter === 'users' && (
-            <div className="inline-flex bg-gray-100 rounded-lg p-1">
-              <button
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  statusFilter === 'all'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                onClick={() => setStatusFilter('all')}
-              >
-                Tümü
-              </button>
-              <button
-                className={`relative px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  statusFilter === pendingStatus
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                onClick={() => pendingStatus && setStatusFilter(pendingStatus)}
-              >
-                Bekleyen
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 shadow-sm">
-                    {pendingCount > 99 ? '99+' : pendingCount}
-                  </span>
-                )}
-              </button>
-            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-xs font-medium appearance-none"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           )}
 
           {/* Branch Filter - Only for admin/superadmin */}
@@ -137,6 +118,40 @@ const UserFilters = React.memo(function UserFilters({
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Excel Export - Only for admin/superadmin */}
+          {isAdminOrSuper && onExportExcel && (
+            <button
+              onClick={onExportExcel}
+              disabled={isExporting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+            >
+              {isExporting ? (
+                <>
+                  <span className="animate-spin inline-block w-3 h-3 border border-white border-t-transparent rounded-full" />
+                  İndiriliyor...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M3 15h18M9 3v18" />
+                  </svg>
+                  Excel İndir
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Add Member Button */}
+          {userRole && userRole !== 'user' && (
+            <button
+              onClick={onCreateUser}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              Yeni Üye Ekle
+            </button>
           )}
         </div>
       </div>

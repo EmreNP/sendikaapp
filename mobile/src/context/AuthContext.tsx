@@ -16,6 +16,7 @@ interface AuthContextType {
   role: UserRole | null;
   isPendingDetails: boolean;
   isActive: boolean;
+  isResigned: boolean;
   isAdmin: boolean;
   isBranchManager: boolean;
   canAccessTrainings: boolean;
@@ -142,6 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role: user?.role || null,
     isPendingDetails: user?.status === 'pending_details',
     isActive: user?.status === 'active',
+    isResigned: user?.status === 'resigned',
     isAdmin,
     isBranchManager,
     // Follow backend doc: only admins bypass status check. Branch managers/users must be 'active' to access trainings.

@@ -83,7 +83,7 @@ export default function App() {
         <SafeAreaProvider>
           <AuthProvider>
             <NotificationBadgeProvider>
-              <StatusBar style="auto" />
+              <StatusBar style="dark" />
               <AppNavigator />
               {updateInfo && (
                 <UpdateModal

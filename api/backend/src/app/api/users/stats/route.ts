@@ -67,6 +67,8 @@ export const GET = asyncHandler(async (request: NextRequest) => {
         } else if (status === USER_STATUS.REJECTED) {
           acc.rejected++;
           acc.byStatus.rejected++;
+        } else if (status === USER_STATUS.RESIGNED) {
+          acc.byStatus.resigned++;
         }
         
         // Role-based counts
@@ -99,6 +101,7 @@ export const GET = asyncHandler(async (request: NextRequest) => {
           pending_branch_review: 0,
           active: 0,
           rejected: 0,
+          resigned: 0,
         },
       });
       

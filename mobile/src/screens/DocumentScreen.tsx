@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Pdf from 'react-native-pdf';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import app, { firebaseConfig } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';

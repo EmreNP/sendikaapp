@@ -77,8 +77,8 @@ export const PATCH = asyncHandler(async (
         }
         
         // Branch Manager aktif kullanıcıların durumunu değiştiremez
-        if (currentStatus === USER_STATUS.ACTIVE) {
-        throw new AppAuthorizationError('Aktif kullanıcıların durumunu değiştiremezsiniz');
+        if (currentStatus === USER_STATUS.ACTIVE && newStatus !== USER_STATUS.RESIGNED) {
+        throw new AppAuthorizationError('Aktif kullanıcıların durumunu yalnızca istifa olarak değiştirebilirsiniz');
         }
         
         // Branch Manager aktif olmayan tüm kullanıcıların durumunu değiştirebilir
@@ -97,7 +97,14 @@ export const PATCH = asyncHandler(async (
             USER_STATUS.PENDING_DETAILS,       // Yeniden değerlendirme için geri al
             USER_STATUS.PENDING_BRANCH_REVIEW, // Şube incelemesine gönder
             USER_STATUS.ACTIVE,                // Direkt aktif yap
-          ]
+          ],
+          [USER_STATUS.ACTIVE]: [
+            USER_STATUS.RESIGNED,              // İstifa
+          ],
+          [USER_STATUS.RESIGNED]: [
+            USER_STATUS.ACTIVE,                // Yeniden aktif yap
+            USER_STATUS.PENDING_DETAILS,       // Yeniden değerlendirme
+          ],
         };
         
         const allowed = allowedTransitions[currentStatus as string] || [];
@@ -203,6 +210,27 @@ export const PATCH = asyncHandler(async (
             logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
             logger.error(`❌ CRITICAL: Failed to create branch manager return log: ${logError}`);
           }
+        } else if (newStatus === USER_STATUS.RESIGNED) {
+          try {
+            const branchManagerResignLogDataRaw: any = {
+              userId: targetUserId,
+              action: 'branch_manager_resignation',
+              performedBy: user.uid,
+              performedByRole: 'branch_manager',
+              previousStatus: currentStatus,
+              newStatus: USER_STATUS.RESIGNED,
+            };
+            
+            if (note) {
+              branchManagerResignLogDataRaw.note = note;
+            }
+            
+            await createRegistrationLog(branchManagerResignLogDataRaw);
+            logCreated = true;
+          } catch (err: unknown) {
+            logError = isErrorWithMessage(err) ? err.message : 'Bilinmeyen hata';
+            logger.error(`❌ CRITICAL: Failed to create branch manager resignation log: ${logError}`);
+          }
         }
       }
       
@@ -214,6 +242,8 @@ export const PATCH = asyncHandler(async (
           adminAction = 'admin_approval';
         } else if (newStatus === USER_STATUS.REJECTED) {
           adminAction = 'admin_rejection';
+        } else if (newStatus === USER_STATUS.RESIGNED) {
+          adminAction = 'admin_resignation';
         } else if (newStatus === USER_STATUS.PENDING_DETAILS || newStatus === USER_STATUS.PENDING_BRANCH_REVIEW) {
           adminAction = 'admin_return';
         }

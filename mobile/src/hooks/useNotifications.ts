@@ -2,6 +2,7 @@
 // FCM token yönetimi, push bildirim dinleme ve deep linking
 import { useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
+import type { EventSubscription } from 'expo-modules-core';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
@@ -27,9 +28,9 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
  */
 export function useNotifications(isAuthenticated: boolean) {
   const navigation = useNavigation<NavigationProp>();
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
-  const tokenRefreshListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<EventSubscription | undefined>(undefined);
+  const responseListener = useRef<EventSubscription | undefined>(undefined);
+  const tokenRefreshListener = useRef<EventSubscription | undefined>(undefined);
 
   // Token'ı backend'e kaydet
   const registerToken = useCallback(async () => {
@@ -123,15 +124,9 @@ export function useNotifications(isAuthenticated: boolean) {
 
     // Cleanup
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
-      if (tokenRefreshListener.current) {
-        Notifications.removeNotificationSubscription(tokenRefreshListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+      tokenRefreshListener.current?.remove();
     };
   }, [isAuthenticated, registerToken, handleNotificationResponse]);
 

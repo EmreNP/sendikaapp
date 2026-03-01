@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuth } from '@/context/AuthContext';
 import { Users as UsersIcon } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
@@ -43,8 +44,6 @@ export default function UsersPage() {
     setSelectedUserIds,
     confirmDialog,
     setConfirmDialog,
-    pendingStatus,
-    pendingCount,
     getStatusLabel,
     fetchUsers,
     handleSelectAll,
@@ -70,7 +69,91 @@ export default function UsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Row action handlers that open confirm dialogs / modals
+  // Excel export
+  const [isExporting, setIsExporting] = useState(false);
+
+  const STATUS_LABEL: Record<string, string> = {
+    active: 'Sendika Üyesi',
+    pending_branch_review: 'Şube Onayı Bekleniyor',
+    pending_details: 'Detaylar Bekleniyor',
+    rejected: 'Reddedildi',
+    resigned: 'İstifa Etti',
+  };
+
+  const GENDER_LABEL: Record<string, string> = {
+    male: 'Erkek',
+    female: 'Kadın',
+  };
+
+  const ROLE_LABEL: Record<string, string> = {
+    superadmin: 'Süper Admin',
+    admin: 'Admin',
+    branch_manager: 'Şube Yöneticisi',
+    user: 'Kullanıcı',
+  };
+
+  const formatTimestamp = (ts: any): string => {
+    if (!ts) return '';
+    if (ts instanceof Date) return ts.toLocaleDateString('tr-TR');
+    if (ts._seconds || ts.seconds) {
+      const secs = ts._seconds ?? ts.seconds;
+      return new Date(secs * 1000).toLocaleDateString('tr-TR');
+    }
+    return String(ts);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const response = await apiRequest<{ users: any[]; total: number }>('/api/users/export');
+      const allUsers = response.users;
+
+      // Şube id → adı map'i
+      const branchMap: Record<string, string> = {};
+      branches.forEach((b) => { branchMap[b.id] = b.name; });
+
+      const rows = allUsers.map((u) => ({
+        'Ad': u.firstName || '',
+        'Soyad': u.lastName || '',
+        'E-posta': u.email || '',
+        'Telefon': u.phone || '',
+        'Cinsiyet': GENDER_LABEL[u.gender] || u.gender || '',
+        'Doğum Tarihi': formatTimestamp(u.birthDate),
+        'Görev İlçesi': u.district || '',
+        'Kadro Ünvanı': u.kadroUnvani || '',
+        'TC Kimlik No': u.tcKimlikNo || '',
+        'Baba Adı': u.fatherName || '',
+        'Anne Adı': u.motherName || '',
+        'Doğum Yeri': u.birthPlace || '',
+        'Öğrenim': u.education || '',
+        'Kurum Sicil': u.kurumSicil || '',
+        'Başka Sendika Üyesi': u.isMemberOfOtherUnion ? 'Evet' : 'Hayır',
+        'Şube': branchMap[u.branchId] || u.branchId || '',
+        'Rol': ROLE_LABEL[u.role] || u.role || '',
+        'Durum': STATUS_LABEL[u.status] || u.status || '',
+        'Hesap Aktif': u.isActive ? 'Evet' : 'Hayır',
+        'Kayıt Tarihi': formatTimestamp(u.createdAt),
+        'Güncelleme Tarihi': formatTimestamp(u.updatedAt),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Kullanıcılar');
+
+      // Kolon genişliklerini otomatik ayarla
+      const colWidths = Object.keys(rows[0] || {}).map((key) => ({
+        wch: Math.max(key.length, ...rows.map((r: any) => String(r[key] || '').length)) + 2,
+      }));
+      ws['!cols'] = colWidths;
+
+      const date = new Date().toLocaleDateString('tr-TR').replace(/\./g, '-');
+      XLSX.writeFile(wb, `kullanicilar_${date}.xlsx`);
+    } catch (error) {
+      logger.error('Excel export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const onDeactivateUser = (userItem: UserItem) => {
     setConfirmDialog({
       isOpen: true,
@@ -161,12 +244,12 @@ export default function UsersPage() {
           setSearchTerm={setSearchTerm}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
-          pendingStatus={pendingStatus}
-          pendingCount={pendingCount}
           branchFilter={branchFilter}
           setBranchFilter={setBranchFilter}
           branches={branches}
           onCreateUser={() => setIsCreateModalOpen(true)}
+          onExportExcel={handleExportExcel}
+          isExporting={isExporting}
         />
 
         {/* Error Message */}

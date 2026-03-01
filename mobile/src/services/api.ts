@@ -272,7 +272,7 @@ class ApiService {
     );
     try {
       const validated = GetCurrentUserResponseSchema.parse(response);
-      return validated.data.user as User;
+      return validated.data.user as unknown as User;
     } catch (zodError) {
       Sentry.captureException(zodError, { tags: { endpoint: 'updateProfile', type: 'zod_validation' } });
       return response.data.user;
@@ -289,7 +289,7 @@ class ApiService {
     );
     try {
       const validated = GetCurrentUserResponseSchema.parse(response);
-      return validated.data.user as User;
+      return validated.data.user as unknown as User;
     } catch (zodError) {
       Sentry.captureException(zodError, { tags: { endpoint: 'acceptLegalTerms', type: 'zod_validation' } });
       return response.data.user;
@@ -302,7 +302,7 @@ class ApiService {
     );
     try {
       const validated = GetCurrentUserResponseSchema.parse(response);
-      return validated.data.user as User;
+      return validated.data.user as unknown as User;
     } catch (zodError) {
       Sentry.captureException(zodError, { tags: { endpoint: 'getCurrentUser', type: 'zod_validation' } });
       // Validation başarısız olsa da veriyi döndür (graceful degradation)

@@ -193,6 +193,8 @@ function UserDetailModal({ userId, isOpen, onClose, initialTab = 'details', onUs
         return 'bg-amber-100 text-amber-800';
       case 'rejected':
         return 'bg-red-100 text-red-800';
+      case 'resigned':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -205,9 +207,11 @@ function UserDetailModal({ userId, isOpen, onClose, initialTab = 'details', onUs
       case 'pending_branch_review':
         return 'Şube İncelemesi';
       case 'active':
-        return 'Aktif';
+        return 'Sendika Üyesi';
       case 'rejected':
         return 'Reddedildi';
+      case 'resigned':
+        return 'İstifa Etti';
       default:
         return status;
     }
