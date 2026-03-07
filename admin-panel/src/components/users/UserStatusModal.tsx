@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef, memo} from 'react';
-import { X, Upload, FileText, Download } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback, memo} from 'react';
+import { X, Upload, FileText, Download, Pen } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
-import { generateUserRegistrationPDF, generateMergedRegistrationPDF } from '@/utils/pdfGenerator';
+import { generateUserRegistrationPDF, generateMergedRegistrationPDF, generateSinglePdfFromFieldValues, generateMergedPdfFromFieldValues } from '@/utils/pdfGenerator';
+import { PdfFormEditor, SignaturePad } from './PdfFormEditor';
+import { fetchBaskanSignature, saveBaskanSignature } from '@/services/api/signatureService';
 import { logger } from '@/utils/logger';
 import type { User } from '@shared/types/user';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
@@ -30,7 +32,19 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const [previewMode, setPreviewMode] = useState<'kayit' | 'merged'>('kayit');
+  const [editedFieldValues, setEditedFieldValues] = useState<Record<string, string | boolean>>({});
+  const [defaultSignatures, setDefaultSignatures] = useState<Record<string, string>>({});
+  const [showSigManager, setShowSigManager] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Başkan imzasını Firebase'den çek. Modal açıldığında taze değeri getir.
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchBaskanSignature().then((dataUrl) => {
+      if (dataUrl) setDefaultSignatures({ basknsignature: dataUrl });
+      else setDefaultSignatures({});
+    });
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -55,6 +69,7 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
       setPreviewPdfUrl(null);
       setShowDownloadOptions(false);
       setPreviewMode('kayit');
+      setEditedFieldValues({});
       
       // Fetch user data and branches
       if (userId) {
@@ -113,12 +128,31 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
       return;
     }
     try {
-      const userBranch = branches.find(b => b.id === userData.branchId);
-      // Download READ-ONLY (flattened) PDF based on current preview mode
-      if (previewMode === 'merged') {
-        await generateMergedRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+      const safeName = `${userData.firstName || 'Kullanici'}_${userData.lastName || 'Bilgileri'}`.replace(/[^a-zA-Z0-9_ığüşöçİĞÜŞÖÇ]/g, '_');
+
+      // editedFieldValues, PdfFormEditor'dan gelen güncel değerler.
+      // Bu değerler adminin preview'da yaptığı düzenlemeleri içerir.
+      if (Object.keys(editedFieldValues).length > 0) {
+        // PdfFormEditor aktif: düzenlenmiş değerlerle PDF oluştur
+        if (previewMode === 'merged') {
+          await generateMergedPdfFromFieldValues(editedFieldValues, {
+            download: true,
+            fileName: `${safeName}_Kayit_ve_Istifa_Formu.pdf`,
+          });
+        } else {
+          await generateSinglePdfFromFieldValues('/templates/kayitformu.pdf', editedFieldValues, {
+            download: true,
+            fileName: `${safeName}_Kayit_Formu.pdf`,
+          });
+        }
       } else {
-        await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+        // Fallback: düzenlenmiş değer yoksa orijinal userData ile oluştur
+        const userBranch = branches.find(b => b.id === userData.branchId);
+        if (previewMode === 'merged') {
+          await generateMergedRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+        } else {
+          await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+        }
       }
     } catch (err: unknown) {
       logger.error('PDF download error:', err);
@@ -126,11 +160,16 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
     }
   };
 
+  const handleEditorFieldValuesChange = useCallback((values: Record<string, string | boolean>) => {
+    setEditedFieldValues(values);
+  }, []);
+
   const closePreview = () => {
     if (previewPdfUrl) {
       // Clean up the object URL to avoid memory leaks
       URL.revokeObjectURL(previewPdfUrl);
       setPreviewPdfUrl(null);
+      setEditedFieldValues({});
     }
   };
 
@@ -471,20 +510,38 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
                   <span className="ml-2 text-sm font-normal text-green-600">(Kayıt + İstifa Formu)</span>
                 )}
               </h3>
-              <button onClick={closePreview} className="text-gray-400 hover:text-gray-500">
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSigManager(true)}
+                  title="Başkan imzasını güncelle"
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
+                    defaultSignatures.basknsignature
+                      ? 'border-green-400 bg-green-50 text-green-700 hover:bg-green-100'
+                      : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Pen className="w-3.5 h-3.5" />
+                  Başkan İmzası
+                  {defaultSignatures.basknsignature && (
+                    <img src={defaultSignatures.basknsignature} className="h-4 w-6 object-contain rounded ml-1" alt="" />
+                  )}
+                </button>
+                <button onClick={closePreview} className="text-gray-400 hover:text-gray-500">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 bg-gray-100 p-4 overflow-hidden relative">
-              <iframe 
-                src={previewPdfUrl} 
-                className="w-full h-full rounded border border-gray-300 bg-white"
-                title="PDF Preview"
+            <div className="flex-1 bg-gray-100 overflow-hidden relative">
+              <PdfFormEditor
+                pdfUrl={previewPdfUrl}
+                onFieldValuesChange={handleEditorFieldValuesChange}
+                defaultSignatures={defaultSignatures}
               />
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-lg">
               <p className="mr-auto text-sm text-gray-500 my-auto">
-                <span className="font-semibold text-gray-700">Not:</span> Form üzerinde doğrudan düzenleme yapabilirsiniz. İndirdikten sonra düzenlemeler korunacaktır.
+                <span className="font-semibold text-gray-700">Not:</span> Alanları düzenleyip İndir'e basın. Yaptığınız değişiklikler indirilen PDF'e yansıyacaktır.
               </p>
               <button
                 type="button"
@@ -504,6 +561,20 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Başkan imzası yönetim modali */}
+      {showSigManager && (
+        <SignaturePad
+          fieldLabel="Başkan İmzası (Varsayılan)"
+          initialValue={defaultSignatures.basknsignature}
+          onSave={async (dataUrl) => {
+            await saveBaskanSignature(dataUrl || null);
+            setDefaultSignatures(dataUrl ? { basknsignature: dataUrl } : {});
+            setShowSigManager(false);
+          }}
+          onClose={() => setShowSigManager(false)}
+        />
       )}
     </div>
   );

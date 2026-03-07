@@ -1,3 +1,19 @@
+// Polyfill for Map.prototype.getOrInsertComputed (TC39 Stage 3).
+// Required by pdfjs-dist v5.x but not yet available in all browsers.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+if (typeof Map !== 'undefined' && !(Map.prototype as any).getOrInsertComputed) {
+  (Map.prototype as any).getOrInsertComputed = function(
+    key: unknown,
+    callbackfn: (key: unknown) => unknown
+  ): unknown {
+    if (!this.has(key)) {
+      this.set(key, callbackfn(key));
+    }
+    return this.get(key);
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'

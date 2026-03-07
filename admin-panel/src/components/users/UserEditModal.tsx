@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef, memo} from 'react';
+import { useEffect, useState, useRef, useCallback, memo} from 'react';
 import { X, Upload, FileText, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
-import { generateUserRegistrationPDF, generateMergedRegistrationPDF } from '@/utils/pdfGenerator';
+import { generateUserRegistrationPDF, generateMergedRegistrationPDF, generateSinglePdfFromFieldValues, generateMergedPdfFromFieldValues } from '@/utils/pdfGenerator';
+import { PdfFormEditor } from './PdfFormEditor';
+import { fetchBaskanSignature } from '@/services/api/signatureService';
 import { EDUCATION_LEVEL_OPTIONS } from '@shared/constants/education';
 import { KONYA_DISTRICTS } from '@shared/constants/districts';
 import { logger } from '@/utils/logger';
@@ -80,8 +82,27 @@ function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
 
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
-  const [previewMode, setPreviewMode] = useState<'kayit' | 'merged'>('kayit');
+  const [previewMode, setPreviewMode] = useState<'kayit' | 'merged'>('kayit');  
+  const [editorFieldValues, setEditorFieldValues] = useState<Record<string, string | boolean>>({});
+  const [defaultSignatures, setDefaultSignatures] = useState<Record<string, string>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Modal açıldığında başkan imzasını Firebase'den çek
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchBaskanSignature().then((dataUrl) => {
+      if (dataUrl) setDefaultSignatures({ basknsignature: dataUrl });
+      else setDefaultSignatures({});
+    });
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** PdfFormEditor her alan değişikliğinde bu callback'i çağırır */
+  const handleEditorFieldValuesChange = useCallback(
+    (values: Record<string, string | boolean>) => {
+      setEditorFieldValues(values);
+    },
+    []
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -123,13 +144,15 @@ function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
       const userBranch = branches.find(b => b.id === branchId);
       const userData = getFormDataAsUser();
       
-      // Generate EDITABLE PDF for preview
+      // isReadOnly: false → form alanları korunur; PdfFormEditor bunları okuyarak
+      // üstlerine React input overlay eder. İndirme sırasında editorFieldValues kullanılır.
       let url: string;
       if (mode === 'merged') {
         url = await generateMergedRegistrationPDF(userData, userBranch, { download: false, isReadOnly: false });
       } else {
         url = await generateUserRegistrationPDF(userData, userBranch, { download: false, isReadOnly: false });
       }
+      setEditorFieldValues({}); // yeni önizlemede eski değerleri sıfırla
       setPreviewPdfUrl(url);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'PDF oluşturulurken bir hata oluştu');
@@ -137,18 +160,43 @@ function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
   };
 
   const handleDownloadFinalPDF = async () => {
+    // editorFieldValues: PdfFormEditor'daki güncel alan değerleri (kullanıcı
+    // düzenlemelerini içerir). Bu değerler template'e uygulanarak indirilir.
+    
+    // Eğer editorFieldValues boş ise önizlemedeki mevcut hali indirmeyi deneyebilir,
+    // ancak biz generate/render akışını sağlama almak için her halükarda generator kullanacağız.
+    const hasEditorValues = editorFieldValues && Object.keys(editorFieldValues).length > 0;
+
+    const userData = getFormDataAsUser();
+    const baseName =
+      previewMode === 'merged'
+        ? `${userData.firstName || 'Kullanici'}_${userData.lastName || 'Bilgileri'}_Kayit_ve_Istifa_Formu.pdf`
+        : `${userData.firstName || 'Kullanici'}_${userData.lastName || 'Bilgileri'}_Kayit_Formu.pdf`;
+    const fileName = baseName.replace(/[^a-zA-Z0-9_\u0131\u011f\u00fc\u015f\u00f6\u00e7\u0130\u011e\u00dc\u015e\u00d6\u00c7.]/g, '_');
+
     try {
-      const userBranch = branches.find(b => b.id === branchId);
-      const userData = getFormDataAsUser();
-      
-      // Download READ-ONLY (flattened) PDF based on current preview mode
-      if (previewMode === 'merged') {
-        await generateMergedRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
-      } else {
-        await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+      if (!hasEditorValues) {
+        // Eğer kullanıcı hiç inputa dokunmadıysa veya boş kaldıysa, default generator'ü çalıştır kullan.
+        const userBranch = branches.find((b) => b.id === branchId);
+        if (previewMode === 'merged') {
+          await generateMergedRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+        } else {
+          await generateUserRegistrationPDF(userData, userBranch, { download: true, isReadOnly: true });
+        }
+        return;
       }
-    } catch (err: unknown) {
-      logger.error('PDF download error:', err);
+
+      // Değerler var ise, editor'den alınan değerleri kullanarak PDF üret.
+      if (previewMode === 'merged') {
+        await generateMergedPdfFromFieldValues(editorFieldValues, { download: true, fileName });
+      } else {
+        await generateSinglePdfFromFieldValues('/templates/kayitformu.pdf', editorFieldValues, {
+          download: true,
+          fileName,
+        });
+      }
+    } catch (err) {
+      logger.error('PDF download (field values) hatası:', err);
       setError('PDF indirilirken bir hata oluştu');
     }
   };
@@ -817,16 +865,16 @@ function UserEditModal({ userId, isOpen, onClose, onSuccess }: Props) {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 bg-gray-100 p-4 overflow-hidden relative">
-              <iframe 
-                src={previewPdfUrl} 
-                className="w-full h-full rounded border border-gray-300 bg-white"
-                title="PDF Preview"
+            <div className="flex-1 overflow-hidden">
+              <PdfFormEditor
+                pdfUrl={previewPdfUrl}
+                onFieldValuesChange={handleEditorFieldValuesChange}
+                defaultSignatures={defaultSignatures}
               />
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-lg">
               <p className="mr-auto text-sm text-gray-500 my-auto">
-                <span className="font-semibold text-gray-700">Not:</span> Form üzerinde doğrudan düzenleme yapabilirsiniz. İndirdikten sonra düzenlemeler korunacaktır.
+                <span className="font-semibold text-gray-700">Not:</span> Alanlarda değişiklik yapın, ardından "İndir" tuşuna basın. Yaptığınız düzenlemeler PDF'e yansıyacaktır.
               </p>
               <button
                 type="button"

@@ -10,6 +10,11 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  optimizeDeps: {
+    // pdfjs-dist kendi worker'ını yönetir; Vite'ın pre-bundle etmesi
+    // 'a.getOrInsertComputed is not a function' gibi runtime hatalarına yol açabilir.
+    exclude: ['pdfjs-dist'],
+  },
   server: {
     port: 3002,
     host: true,

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, Bell, Calendar, LogOut, User as UserIcon, BarChart3, Briefcase, X } from 'lucide-react';
+import { Users, Building2, Newspaper, BookOpen, ChevronLeft, ChevronRight, MessageSquare, Bell, Calendar, LogOut, User as UserIcon, BarChart3, Briefcase, X, Pen } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProfileModal from '@/components/common/ProfileModal';
+import { SignaturePad } from '@/components/users/PdfFormEditor';
+import { fetchBaskanSignature, saveBaskanSignature, invalidateBaskanSignatureCache } from '@/services/api/signatureService';
 import { contactService } from '@/services/api/contactService';
 import { logger } from '@/utils/logger';
 
@@ -83,6 +85,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showProfileOptions, setShowProfileOptions] = useState(false);
+  const [showSigPad, setShowSigPad] = useState(false);
+  const [sigInitialValue, setSigInitialValue] = useState<string | undefined>(undefined);
+  const [sigReady, setSigReady] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -159,6 +164,19 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       setShowProfileModal(false);
     }
   }, [isExpanded]);
+
+  // Modal açıldığında mevcut imzayı Firebase'den çek
+  useEffect(() => {
+    if (!showSigPad) {
+      setSigReady(false);
+      return;
+    }
+    setSigReady(false);
+    fetchBaskanSignature().then((dataUrl) => {
+      setSigInitialValue(dataUrl ?? undefined);
+      setSigReady(true);
+    });
+  }, [showSigPad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Determine if sidebar should show expanded (mobile always expanded, desktop on hover)
   const showExpanded = mobileOpen || isExpanded;
@@ -291,6 +309,16 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               <UserIcon className="w-4 h-4" />
               {showExpanded ? 'Profilimi Düzenle' : 'Profil'}
             </button>
+            {user?.role === 'superadmin' && (
+              <button
+                role="menuitem"
+                onClick={() => { setShowSigPad(true); setShowProfileOptions(false); }}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+              >
+                <Pen className="w-4 h-4" />
+                {showExpanded ? 'Başkan İmzası' : 'İmza'}
+              </button>
+            )}
             <button
               role="menuitem"
               onClick={handleSignOut}
@@ -323,6 +351,20 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
       {/* Profile Modal */}
       <ProfileModal isOpen={showProfileModal} onClose={() => { setShowProfileModal(false); setShowProfileOptions(false); }} />
+
+      {/* Başkan İmzası Güncelle Modal - Sadece Süper Admin */}
+      {showSigPad && sigReady && (
+        <SignaturePad
+          fieldLabel="Başkan İmzası (Varsayılan)"
+          initialValue={sigInitialValue}
+          onSave={async (dataUrl) => {
+            await saveBaskanSignature(dataUrl || null);
+            invalidateBaskanSignatureCache();
+            setShowSigPad(false);
+          }}
+          onClose={() => setShowSigPad(false)}
+        />
+      )}
     </aside>
   );
 

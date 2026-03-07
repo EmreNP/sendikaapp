@@ -1,4 +1,4 @@
-import { PDFDocument, PDFName, PDFDict, PDFArray, PDFObject } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFDict, PDFArray, PDFObject, PDFTextField, PDFCheckBox } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { logger } from './logger';
 
@@ -166,8 +166,7 @@ export async function generateUserRegistrationPDF(
     // ── Work / position info ────────────────────────
     setField('ilcename', userData.district || '');
     setField('kurumsicil', userData.kurumSicil || '');
-    setField('kadrounvan', userData.kadroUnvani || '');
-
+    setField('kadrounvan', userData.kadroUnvani || '');    setField('tel', userData.phone || '');
     // Kullanıcı isteği üzerine tarih alanı boş bırakılıyor
     // const today = new Date();
     // setField('day', today.getDate().toString().padStart(2, '0'));
@@ -452,6 +451,7 @@ async function fillTemplatePDF(
   setField('ilcename', userData.district || '');
   setField('kurumsicil', userData.kurumSicil || '');
   setField('kadrounvan', userData.kadroUnvani || '');
+  setField('tel', userData.phone || '');
 
   // ── Gender ──
   if (userData.gender === 'male') checkBox('male');
@@ -526,6 +526,208 @@ export async function generateMergedRegistrationPDF(
     return url;
   } catch (error) {
     logger.error('Birleşik PDF oluşturulurken hata:', error);
+    throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW FIELD VALUES ile PDF oluşturma
+// PdfFormEditor'dan gelen düzenleme değerlerini doğrudan template'e uygular.
+// Bu sayede kullanıcının view'da yaptığı değişiklikler indirilen PDF'e yansır.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bir template PDF'ini raw key-value map ile doldurur, düzleştirir ve
+ * blob URL'i döner veya indirir.
+ * @internal - generateMergedPdfFromFieldValues'a da yardımcı olarak kullanılır.
+ */
+async function applyFieldValuesToPdf(
+  templateBytes: ArrayBuffer,
+  fontBytes: ArrayBuffer,
+  fieldValues: Record<string, string | boolean>
+): Promise<PDFDocument> {
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  pdfDoc.registerFontkit(fontkit);
+  const turkishFont = await pdfDoc.embedFont(fontBytes);
+  const form = pdfDoc.getForm();
+  const allFields = form.getFields();
+
+  // React state'ten gelen fieldValues'da örneğin "ad" = "Emre" var.
+  for (const [fieldName, value] of Object.entries(fieldValues)) {
+    try {
+      const field = allFields.find((f) => f.getName() === fieldName);
+      if (!field) {
+        logger.debug(`PDF Field not found for key: ${fieldName}`);
+        continue;
+      }
+
+      if (field instanceof PDFCheckBox) {
+        // Boolean true veya 'On' / 'Yes' gibi truthy string → işaretle
+        const shouldCheck =
+          value === true ||
+          (typeof value === 'string' &&
+            value.toLowerCase() !== '' &&
+            value.toLowerCase() !== 'off' &&
+            value.toLowerCase() !== 'false');
+        if (shouldCheck) field.check();
+        else field.uncheck();
+        // updateAppearances olmadan flatten() eski (boş) görünümü bazar
+        try { field.updateAppearances(); } catch { /* ignore */ }
+      } else if (field instanceof PDFTextField) {
+        if (typeof value === 'string') {
+          field.setText(value);
+          field.updateAppearances(turkishFont);
+        }
+      }
+    } catch (e) {
+      logger.error(`Error setting field ${fieldName}:`, e);
+    }
+  }
+
+  // İmza / resim alanları: data URL ise ilgili sayfaya görüntü olarak yerleştir
+  for (const [fieldName, value] of Object.entries(fieldValues)) {
+    if (typeof value !== 'string' || !value.startsWith('data:image/')) continue;
+    const field = allFields.find((f) => f.getName() === fieldName);
+    if (!field) continue;
+    try {
+      const widgets = field.acroField.getWidgets();
+      const pages = pdfDoc.getPages();
+      for (const widget of widgets) {
+        const rect = widget.getRectangle();
+        // Hangi sayfada olduğunu dict eşleştirmesiyle bul
+        let targetPage = pages[0];
+        for (const page of pages) {
+          const annotsObj = page.node.lookup(PDFName.of('Annots'));
+          if (!(annotsObj instanceof PDFArray)) continue;
+          let found = false;
+          for (let wi = 0; wi < annotsObj.size(); wi++) {
+            if (annotsObj.lookup(wi) === widget.dict) { found = true; break; }
+          }
+          if (found) { targetPage = page; break; }
+        }
+        // base64 → Uint8Array
+        const base64 = value.replace(/^data:image\/[^;]+;base64,/, '');
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const isJpeg = value.startsWith('data:image/jpeg') || value.startsWith('data:image/jpg');
+        const img = isJpeg ? await pdfDoc.embedJpg(bytes) : await pdfDoc.embedPng(bytes);
+        targetPage.drawImage(img, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+      }
+    } catch (imgErr) {
+      logger.error(`Error embedding image for field ${fieldName}:`, imgErr);
+    }
+  }
+
+  flattenForm(pdfDoc);
+  return pdfDoc;
+}
+
+/**
+ * PdfFormEditor'dan gelen field values ile TEK template (kayıt veya istifa)
+ * PDF'i oluşturur. İndirir veya blob URL döner.
+ */
+export async function generateSinglePdfFromFieldValues(
+  templatePath: '/templates/kayitformu.pdf' | '/templates/istifaformu.pdf',
+  fieldValues: Record<string, string | boolean>,
+  options: { download?: boolean; fileName?: string } = {}
+): Promise<string> {
+  const { download = true, fileName = 'form.pdf' } = options;
+
+  try {
+    const [templateResponse, fontResponse] = await Promise.all([
+      fetch(`${templatePath}?t=${Date.now()}`),
+      fetch('/fonts/Roboto-Regular.ttf'),
+    ]);
+
+    if (!templateResponse.ok)
+      throw new Error(`Template PDF yüklenemedi (HTTP ${templateResponse.status})`);
+    if (!fontResponse.ok)
+      throw new Error(`Font dosyası yüklenemedi (HTTP ${fontResponse.status})`);
+
+    const [templateBytes, fontBytes] = await Promise.all([
+      templateResponse.arrayBuffer(),
+      fontResponse.arrayBuffer(),
+    ]);
+
+    const pdfDoc = await applyFieldValuesToPdf(templateBytes, fontBytes, fieldValues);
+
+    const pdfBytes = await pdfDoc.save({ updateFieldAppearances: false });
+    const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    if (download) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }
+
+    return url;
+  } catch (error) {
+    logger.error('PDF (field values) oluşturulurken hata:', error);
+    throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+  }
+}
+
+/**
+ * PdfFormEditor'dan gelen field values ile BİRLEŞİK (kayıt + istifa)
+ * PDF'i oluşturur. İndirir veya blob URL döner.
+ */
+export async function generateMergedPdfFromFieldValues(
+  fieldValues: Record<string, string | boolean>,
+  options: { download?: boolean; fileName?: string } = {}
+): Promise<string> {
+  const { download = true, fileName = 'Kayit_ve_Istifa_Formu.pdf' } = options;
+
+  try {
+    const [kayitRes, istifaRes, fontRes] = await Promise.all([
+      fetch(`/templates/kayitformu.pdf?t=${Date.now()}`),
+      fetch(`/templates/istifaformu.pdf?t=${Date.now()}`),
+      fetch('/fonts/Roboto-Regular.ttf'),
+    ]);
+
+    if (!kayitRes.ok) throw new Error('Kayıt formu template yüklenemedi');
+    if (!istifaRes.ok) throw new Error('İstifa formu template yüklenemedi');
+    if (!fontRes.ok) throw new Error('Font dosyası yüklenemedi');
+
+    const [kayitBytes, istifaBytes, fontBytes] = await Promise.all([
+      kayitRes.arrayBuffer(),
+      istifaRes.arrayBuffer(),
+      fontRes.arrayBuffer(),
+    ]);
+
+    // Her iki template'i aynı field values ile doldur ve düzleştir
+    const [kayitDoc, istifaDoc] = await Promise.all([
+      applyFieldValuesToPdf(kayitBytes, fontBytes, fieldValues),
+      applyFieldValuesToPdf(istifaBytes, fontBytes, fieldValues),
+    ]);
+
+    // Birleştir
+    const mergedDoc = await PDFDocument.create();
+    const kayitPages = await mergedDoc.copyPages(kayitDoc, kayitDoc.getPageIndices());
+    for (const page of kayitPages) mergedDoc.addPage(page);
+    const istifaPages = await mergedDoc.copyPages(istifaDoc, istifaDoc.getPageIndices());
+    for (const page of istifaPages) mergedDoc.addPage(page);
+
+    const pdfBytes = await mergedDoc.save({ updateFieldAppearances: false });
+    const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    if (download) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }
+
+    return url;
+  } catch (error) {
+    logger.error('Birleşik PDF (field values) oluşturulurken hata:', error);
     throw new Error('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
   }
 }

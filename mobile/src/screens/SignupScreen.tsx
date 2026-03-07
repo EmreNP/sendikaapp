@@ -122,12 +122,12 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       valid = false;
     }
 
-    // Telefon - 10-11 haneli numara
+    // Telefon - 10 haneli numara (başında 0 olmadan)
     if (!formData.phone.trim()) {
       newErrors.phone = 'Telefon numarası gereklidir';
       valid = false;
-    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = '10-11 haneli telefon numarası giriniz';
+    } else if (!/^5[0-9]{9}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = '10 haneli telefon numarası giriniz (Örn: 5551234567)';
       valid = false;
     }
 
@@ -360,14 +360,17 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                     <TextInput
                       style={styles.input}
                       value={formData.phone}
-                      onChangeText={(text) => updateField('phone', text)}
-                      placeholder="Örn: 05551234567"
+                      onChangeText={(text) => {
+                        const normalized = text.replace(/\D/g, '').replace(/^0+/, '');
+                        updateField('phone', normalized);
+                      }}
+                      placeholder="Örn: 5551234567"
                       placeholderTextColor="#94a3b8"
                       keyboardType="phone-pad"
                       accessibilityLabel="Telefon"
                     />
                   </View>
-                  <Text style={styles.hintText}>Başında 0 ile 11 hane (Örn: 05551234567)</Text>
+                  <Text style={styles.hintText}>0 olmadan 10 hane (Örn: 5551234567)</Text>
                   {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
                 </View>
 

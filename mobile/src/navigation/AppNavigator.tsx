@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '../context/AuthContext';
@@ -58,11 +59,18 @@ const TabIcon = ({ name, focused }: { name: keyof typeof Feather.glyphMap; focus
 
 // Main Tab Navigator
 const MainTabs = () => {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 64 + insets.bottom,
+            paddingBottom: 8 + insets.bottom,
+          },
+        ],
         tabBarActiveTintColor: '#2563eb', // blue-600 (frontend ile aynı)
         tabBarInactiveTintColor: '#64748b', // gray-500
         tabBarLabelStyle: styles.tabLabel,
@@ -193,8 +201,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.9)', // bg-white/90
     borderTopWidth: 1,
     borderTopColor: 'rgba(229,231,235,0.6)', // gray-200/60
-    height: 64, // h-16
-    paddingBottom: 8,
     paddingTop: 8,
     shadowColor: '#1e40af', // blue-900/10
     shadowOffset: { width: 0, height: -4 },
