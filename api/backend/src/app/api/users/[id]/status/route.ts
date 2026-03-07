@@ -76,27 +76,25 @@ export const PATCH = asyncHandler(async (
         throw new AppAuthorizationError('Bu kullanıcıya erişim yetkiniz yok');
         }
         
-        // Branch Manager aktif kullanıcıların durumunu değiştiremez
-        if (currentStatus === USER_STATUS.ACTIVE && newStatus !== USER_STATUS.RESIGNED) {
-        throw new AppAuthorizationError('Aktif kullanıcıların durumunu yalnızca istifa olarak değiştirebilirsiniz');
-        }
-        
         // Branch Manager aktif olmayan tüm kullanıcıların durumunu değiştirebilir
         const allowedTransitions: Record<string, string[]> = {
           [USER_STATUS.PENDING_BRANCH_REVIEW]: [
             USER_STATUS.ACTIVE,           // Onaylama (PDF ile direkt aktif)
             USER_STATUS.REJECTED,         // Reddetme
             USER_STATUS.PENDING_DETAILS,  // Geri gönderme (düzeltme gerekli)
+            USER_STATUS.RESIGNED,         // İstifa
           ],
           [USER_STATUS.PENDING_DETAILS]: [
             USER_STATUS.PENDING_BRANCH_REVIEW, // Gönder: detaylar tamamlandı, şube kontrolü
             USER_STATUS.ACTIVE,                // Direkt onayla (şube yöneticisi onayı ile)
             USER_STATUS.REJECTED,              // Reddet
+            USER_STATUS.RESIGNED,              // İstifa
           ],
           [USER_STATUS.REJECTED]: [
             USER_STATUS.PENDING_DETAILS,       // Yeniden değerlendirme için geri al
             USER_STATUS.PENDING_BRANCH_REVIEW, // Şube incelemesine gönder
             USER_STATUS.ACTIVE,                // Direkt aktif yap
+            USER_STATUS.RESIGNED,              // İstifa
           ],
           [USER_STATUS.ACTIVE]: [
             USER_STATUS.RESIGNED,              // İstifa

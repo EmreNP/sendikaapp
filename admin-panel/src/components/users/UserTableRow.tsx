@@ -163,7 +163,7 @@ const UserTableRow = React.memo(function UserTableRow({
               }
             />
           )}
-          {userTypeFilter === 'users' && (isAdminOrSuper || (userRole === 'branch_manager' && userItem.status !== 'active')) && (
+          {userTypeFilter === 'users' && (isAdminOrSuper || userRole === 'branch_manager') && (
             <ActionButton
               icon={RefreshCw}
               variant="status"

@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef, useCallback, memo} from 'react';
-import { X, Upload, FileText, Download, Pen } from 'lucide-react';
+import { X, Upload, FileText, Download } from 'lucide-react';
 import { apiRequest } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { uploadUserRegistrationForm } from '@/utils/fileUpload';
 import { generateUserRegistrationPDF, generateMergedRegistrationPDF, generateSinglePdfFromFieldValues, generateMergedPdfFromFieldValues } from '@/utils/pdfGenerator';
-import { PdfFormEditor, SignaturePad } from './PdfFormEditor';
-import { fetchBaskanSignature, saveBaskanSignature } from '@/services/api/signatureService';
+import { PdfFormEditor } from './PdfFormEditor';
+import { fetchBaskanSignature } from '@/services/api/signatureService';
 import { logger } from '@/utils/logger';
 import type { User } from '@shared/types/user';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
@@ -34,7 +34,6 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
   const [previewMode, setPreviewMode] = useState<'kayit' | 'merged'>('kayit');
   const [editedFieldValues, setEditedFieldValues] = useState<Record<string, string | boolean>>({});
   const [defaultSignatures, setDefaultSignatures] = useState<Record<string, string>>({});
-  const [showSigManager, setShowSigManager] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Başkan imzasını Firebase'den çek. Modal açıldığında taze değeri getir.
@@ -279,6 +278,7 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
         { value: 'pending_branch_review', label: 'Şube İncelemesi' },
         { value: 'active', label: 'Sendika Üyesi' },
         { value: 'rejected', label: 'Reddedildi' },
+        { value: 'resigned', label: 'İstifa Etti' },
       ];
     }
     
@@ -511,22 +511,6 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
                 )}
               </h3>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSigManager(true)}
-                  title="Başkan imzasını güncelle"
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
-                    defaultSignatures.basknsignature
-                      ? 'border-green-400 bg-green-50 text-green-700 hover:bg-green-100'
-                      : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Pen className="w-3.5 h-3.5" />
-                  Başkan İmzası
-                  {defaultSignatures.basknsignature && (
-                    <img src={defaultSignatures.basknsignature} className="h-4 w-6 object-contain rounded ml-1" alt="" />
-                  )}
-                </button>
                 <button onClick={closePreview} className="text-gray-400 hover:text-gray-500">
                   <X className="w-6 h-6" />
                 </button>
@@ -563,19 +547,7 @@ function UserStatusModal({ userId, currentStatus, isOpen, onClose, onSuccess }: 
         </div>
       )}
 
-      {/* Başkan imzası yönetim modali */}
-      {showSigManager && (
-        <SignaturePad
-          fieldLabel="Başkan İmzası (Varsayılan)"
-          initialValue={defaultSignatures.basknsignature}
-          onSave={async (dataUrl) => {
-            await saveBaskanSignature(dataUrl || null);
-            setDefaultSignatures(dataUrl ? { basknsignature: dataUrl } : {});
-            setShowSigManager(false);
-          }}
-          onClose={() => setShowSigManager(false)}
-        />
-      )}
+
     </div>
   );
 }

@@ -677,7 +677,7 @@ function UserDetailModal({ userId, isOpen, onClose, initialTab = 'details', onUs
               <>
                 {/* Status Yönetimi - Kompakt Tasarım */}
                 {user && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || 
-                  (currentUser?.role === 'branch_manager' && (user.status === 'pending_branch_review' || user.status === 'pending_details'))) && (
+                  (currentUser?.role === 'branch_manager' && ['pending_branch_review', 'pending_details', 'active', 'resigned'].includes(user.status))) && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
