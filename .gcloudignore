@@ -21,8 +21,7 @@ mobile/
 # Admin panel
 admin-panel/
 
-# Documents
-documents/
+# Markdown docs (top-level only)
 *.md
 
 # Logs

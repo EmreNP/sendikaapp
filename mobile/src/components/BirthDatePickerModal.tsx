@@ -209,14 +209,15 @@ export const BirthDatePickerModal: React.FC<BirthDatePickerModalProps> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      {/* Dışa tıklama overlay */}
-      <TouchableOpacity
-        style={s.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        {/* Sheet - dokunuş yukarı çıkmasın */}
-        <View style={s.sheet} onStartShouldSetResponder={() => true}>
+      <View style={s.overlay}>
+        {/* Dışa tıklama overlay - sheet'in arkasında ayrı katman */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        {/* Sheet - TouchableOpacity dışında, scroll gesture'ları engellenmez */}
+        <View style={s.sheet}>
 
           {/* Handle */}
           <View style={s.handle} />
@@ -295,7 +296,7 @@ export const BirthDatePickerModal: React.FC<BirthDatePickerModalProps> = ({
           </TouchableOpacity>
 
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 };
