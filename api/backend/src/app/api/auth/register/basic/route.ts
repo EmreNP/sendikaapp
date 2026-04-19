@@ -18,6 +18,11 @@ import { isErrorWithMessage } from '@/lib/utils/response';
 import admin from 'firebase-admin';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface RegisterBasicRequest {
   firstName: string;
   lastName: string;

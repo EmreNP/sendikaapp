@@ -122,6 +122,7 @@ export interface News extends Omit<SharedNews, 'createdAt' | 'updatedAt' | 'publ
 
 // ── Announcement ─────────────────────────────────────────────────────────────────
 export interface Announcement extends Omit<SharedAnnouncement, 'createdAt' | 'updatedAt' | 'publishedAt' | 'isFeatured' | 'content' | 'createdBy' | 'updatedBy'> {
+  _id?: string;
   content?: string;
   summary?: string;
   priority?: 'low' | 'normal' | 'high' | 'urgent';
@@ -161,7 +162,6 @@ export type RootStackParamList = {
   Main: undefined;
   MainTabs: undefined;
   Membership: undefined;
-  EditProfile: undefined;
   PendingApproval: undefined;
   Rejected: undefined;
   CourseDetail: { trainingId: string; lessonId?: string; completedContentId?: string };
@@ -171,6 +171,7 @@ export type RootStackParamList = {
   Video: { url: string; videoSource?: string; title?: string; contentId?: string };
   BranchDetail: { branchId: string };
   NewsDetail: { newsId: string };
+  AnnouncementDetail: { announcementId: string };
   AllAnnouncements: undefined;
   AllNews: undefined; 
   Contact: undefined;
@@ -179,6 +180,7 @@ export type RootStackParamList = {
   PartnerInstitutions: undefined;
   PartnerDetail: { partner?: import('../data/partners').Partner; institution?: ContractedInstitution };
   Profile: undefined;
+  ProfileDetail: undefined;
   Notifications: undefined;
   ChangePassword: undefined;
   LegalAcceptance: undefined;

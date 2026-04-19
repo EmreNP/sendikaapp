@@ -16,6 +16,11 @@ import { AppValidationError, AppNotFoundError, AppAuthorizationError, AppConflic
 import admin from 'firebase-admin';
 
 import { logger } from '../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET /api/users/me - Kendi kullanıcı bilgilerini getir
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

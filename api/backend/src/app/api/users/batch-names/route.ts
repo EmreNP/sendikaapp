@@ -7,6 +7,11 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 /**
  * POST /api/users/batch-names
  * Birden fazla kullanıcının ad-soyad bilgilerini toplu olarak getirir.

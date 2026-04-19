@@ -12,6 +12,11 @@ import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppNotFoundError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { searchInBatches } from '@/lib/utils/pagination';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET - Mesajları listele
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

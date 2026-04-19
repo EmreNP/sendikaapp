@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +27,7 @@ export const PendingApprovalScreen: React.FC = () => {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* Icon */}
           <View style={styles.iconContainer}>
@@ -90,6 +92,7 @@ export const PendingApprovalScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+        </ScrollView>
       </SafeAreaView>
     </LinearGradient>
   );

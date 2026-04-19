@@ -18,7 +18,7 @@
     "redirects": [
       {
         "source": "/",
-        "destination": "https://turkdiyanetvakifsen.org.tr/Anasayfa",
+        "destination": "https://turkdiyanetvakifsen.org.tr",
         "type": 301
       }
     ],

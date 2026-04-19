@@ -20,6 +20,11 @@ import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/Ap
 import { sendMulticastNotification, saveNotificationHistory } from '@/lib/services/notificationService';
 import { createAuditLog } from '@/lib/services/auditLogService';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 interface SendNotificationRequest {
   title: string;
   body: string;

@@ -16,6 +16,11 @@ import { parseJsonBody, parseQueryParamAsNumber } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET - Tüm eğitimleri listele
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

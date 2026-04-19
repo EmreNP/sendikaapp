@@ -14,6 +14,11 @@ import { AppValidationError, AppAuthorizationError, AppInternalServerError, AppB
 import { isErrorWithMessage } from '@/lib/utils/response';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // İzin verilen kategoriler
 const ALLOWED_CATEGORIES = ['news', 'announcements', 'user-documents', 'videos', 'video-thumbnails', 'lesson-documents', 'activity-images', 'institution-images'] as const;
 type AllowedCategory = typeof ALLOWED_CATEGORIES[number];

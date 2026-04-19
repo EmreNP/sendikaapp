@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -28,8 +27,6 @@ import {
   setUnreadCount,
 } from '../services/notificationStorage';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface Notification {
   id: string;
@@ -134,7 +131,12 @@ export const NotificationsScreen: React.FC = () => {
     } else if (notification.type === 'news') {
       navigation.navigate('AllNews');
     } else if (notification.type === 'announcement') {
-      navigation.navigate('AllAnnouncements');
+      const announcementId = (notification as any).announcementId || notification.contentId;
+      if (typeof announcementId === 'string' && announcementId.length > 0) {
+        navigation.navigate('AnnouncementDetail', { announcementId });
+      } else {
+        navigation.navigate('AllAnnouncements');
+      }
     }
   }, [readIds, notifications, navigation]);
 

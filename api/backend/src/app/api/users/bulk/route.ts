@@ -13,6 +13,11 @@ import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/Ap
 import { isErrorWithMessage } from '@/lib/utils/response';
 
 import { logger } from '../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // POST - Toplu işlem
 export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

@@ -13,6 +13,11 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
 import { logger } from '../../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Dersin tüm içeriklerini listele (video, document, test birleştirilmiş)
 export const GET = asyncHandler(async (
   request: NextRequest,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,11 +10,10 @@ import { logger } from '../utils/logger';
 import { useSecureScreen } from '../hooks/useSecureScreen';
 import ApiService from '../services/api';
 
-const { width } = Dimensions.get('window');
-
 const TermsScreen = () => {
   useSecureScreen();
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
   const [data, setData] = useState<{ title?: string, lastUpdated?: string, content?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

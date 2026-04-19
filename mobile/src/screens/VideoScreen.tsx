@@ -1,5 +1,5 @@
 // VideoScreen – YouTube / Vimeo / Uploaded video player
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { API_BASE_URL } from '../config/api';
 import { firebaseConfig } from '../config/firebase';
@@ -156,7 +156,7 @@ const YouTubePlayer: React.FC<{ videoId: string; width: number; height: number }
   );
 };
 
-// ─── Vimeo → resolves stream → expo-av ───────────────────────────────────────
+// ─── Vimeo → resolves stream → expo-video ──────────────────────────────────────
 
 const VimeoPlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
@@ -211,17 +211,32 @@ const VimeoPlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
   return <DirectPlayer uri={streamUrl} />;
 };
 
-// ─── Direct / Uploaded Player (expo-av) ──────────────────────────────────────
+// ─── Direct / Uploaded Player (expo-video) ──────────────────────────────────────
 
 const DirectPlayer: React.FC<{ uri: string }> = ({ uri }) => {
-  const videoRef = useRef<Video>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const player = useVideoPlayer(uri, (p) => {
+    p.play();
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 12000);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    const subscription = player.addListener('statusChange', ({ status, error: playerError }) => {
+      if (status === 'readyToPlay') setLoading(false);
+      if (status === 'error') {
+        logger.warn('Video error:', playerError?.message);
+        setError(true);
+        setLoading(false);
+      }
+    });
+    return () => subscription.remove();
+  }, [player]);
 
   if (error) {
     return (
@@ -234,22 +249,11 @@ const DirectPlayer: React.FC<{ uri: string }> = ({ uri }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Video
-        ref={videoRef}
-        source={{ uri }}
+      <VideoView
+        player={player}
         style={{ flex: 1 }}
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay
-        useNativeControls
-        onLoad={() => setLoading(false)}
-        onPlaybackStatusUpdate={(s) => {
-          if (s.isLoaded && loading) setLoading(false);
-        }}
-        onError={(err) => {
-          logger.warn('Video error:', err);
-          setError(true);
-          setLoading(false);
-        }}
+        contentFit="contain"
+        nativeControls
       />
       {loading && (
         <View style={styles.overlay}>

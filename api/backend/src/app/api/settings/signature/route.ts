@@ -7,6 +7,11 @@ import { AppAuthorizationError, AppValidationError } from '@/lib/utils/errors/Ap
 import { parseJsonBody } from '@/lib/utils/request';
 import { USER_ROLE } from '@shared/constants/roles';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 const SETTINGS_DOC = db.collection('settings').doc('baskanSignature');
 
 // GET /api/settings/signature

@@ -19,6 +19,11 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET /api/activity-categories - List all categories (all authenticated users)
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

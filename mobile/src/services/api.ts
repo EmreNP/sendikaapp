@@ -533,6 +533,15 @@ class ApiService {
     return { items, total, hasMore };
   }
 
+  async getAnnouncementItem(id: string): Promise<Announcement> {
+    const response = await this.request<{ success: boolean; data: { announcement: Announcement } }>(
+      API_ENDPOINTS.ANNOUNCEMENTS.BY_ID(id),
+      {},
+      true
+    );
+    return response.data.announcement;
+  }
+
   // Contact
   async getTopics(): Promise<any[]> {
     const response = await this.request<{ success: boolean; data: { topics: any[] } }>(

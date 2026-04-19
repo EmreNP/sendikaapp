@@ -1,4 +1,4 @@
-// Login Screen - Redesigned to match front web design
+// Login Screen - Professional full-screen layout
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -12,8 +12,8 @@ import {
   TextInput,
   Animated,
   Easing,
-  Dimensions,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,13 +25,18 @@ import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
-const { width, height } = Dimensions.get('window');
-
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 380;
+  const isVerySmallScreen = screenWidth < 340 || screenHeight < 700;
+  const responsiveLogoSize = isVerySmallScreen ? 112 : isSmallScreen ? 128 : 146;
+  const responsiveAppLabelSize = isVerySmallScreen ? 15 : isSmallScreen ? 16 : 18;
+  const responsiveHeroTitleSize = isVerySmallScreen ? 34 : isSmallScreen ? 38 : 44;
+
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,10 +46,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    // Rotating animation for Persian motif
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -54,16 +58,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       })
     ).start();
 
-    // Fade in and slide up animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 500,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 500,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -111,28 +114,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Gradient Background */}
+      {/* Background gradient */}
       <LinearGradient
-        colors={['#0f172a', '#312e81', '#0f172a']}
+        colors={['#0f172a', '#1e3a8a', '#0f172a']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Islamic Pattern Overlay */}
-      <View style={styles.patternOverlay}>
-        <IslamicTileBackground opacity={0.1} />
+      {/* Islamic pattern overlay */}
+      <View style={styles.patternOverlay} pointerEvents="none">
+        <IslamicTileBackground opacity={0.05} />
       </View>
 
-      {/* Animated Persian Motif */}
-      <View style={styles.decorativeElements} pointerEvents="none">
-        <Animated.View
-          style={[
-            styles.motifTopLeft,
-            { transform: [{ rotate: rotation }] },
-          ]}
-        >
-          <CircularPersianMotif size={500} color="#ffffff" opacity={0.07} />
+      {/* Decorative rotating motif */}
+      <View style={styles.decorativeLayer} pointerEvents="none">
+        <Animated.View style={[styles.motifBg, { transform: [{ rotate: rotation }] }]}>
+          <CircularPersianMotif size={600} color="#3b82f6" opacity={0.05} />
         </Animated.View>
       </View>
 
@@ -146,159 +144,151 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Back Button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              accessibilityLabel="Geri"
-              accessibilityRole="button"
-            >
-              <Feather name="arrow-left" size={20} color="#ffffff" />
-              <Text style={styles.backButtonText}>Geri</Text>
-            </TouchableOpacity>
+            {/* Top nav */}
+            <View style={styles.topNav}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.goBack()}
+                accessibilityLabel="Geri"
+                accessibilityRole="button"
+              >
+                <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
 
-            {/* Main Card */}
+            {/* Hero */}
             <Animated.View
               style={[
-                styles.card,
+                styles.hero,
                 {
                   opacity: fadeAnim,
                   transform: [{ translateY: slideAnim }],
+                  paddingTop: isVerySmallScreen ? 16 : isSmallScreen ? 22 : 28,
+                  paddingBottom: isVerySmallScreen ? 30 : 44,
                 },
               ]}
             >
-              {/* Card Header */}
-              <LinearGradient
-                colors={['#4338ca', '#1e40af']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardHeader}
-              >
-                <View style={styles.cardHeaderPattern}>
-                  <IslamicTileBackground opacity={0.1} />
+              <View style={[styles.logoWrap, { width: responsiveLogoSize, height: responsiveLogoSize }] }>
+                <Image
+                  source={require('../../assets/logo.png')}
+                  style={[styles.logoImg, { width: responsiveLogoSize, height: responsiveLogoSize }]}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={[styles.appLabel, { fontSize: responsiveAppLabelSize, letterSpacing: isSmallScreen ? 0.8 : 1.2 }]}>TDVS Konya</Text>
+              <Text style={[styles.heroTitle, { fontSize: responsiveHeroTitleSize, lineHeight: Math.round(responsiveHeroTitleSize * 1.08) }]}>Hoşgeldiniz</Text>
+            </Animated.View>
+
+            {/* Form */}
+            <Animated.View
+              style={[styles.form, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+            >
+              {/* Email */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>E-posta</Text>
+                <View style={[styles.inputRow, errors.email ? styles.inputRowError : null]}>
+                  <Feather
+                    name="mail"
+                    size={16}
+                    color={errors.email ? '#f87171' : '#ffffff'}
+                    style={styles.fieldIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: '' }); }}
+                    placeholder="ornek@gmail.com"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    accessibilityLabel="E-posta adresi"
+                  />
                 </View>
-                <View style={styles.cardHeaderContent}>
-                  <View style={styles.iconContainer}>
-                    <Image
-                      source={require('../../assets/logo.png')}
-                      style={styles.logoImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <Text style={styles.title}>Giriş Yap</Text>
-                  <Text style={styles.subtitle}>Hesabınıza giriş yapın</Text>
-                </View>
-              </LinearGradient>
+                {errors.email ? <Text style={styles.errorMsg}>{errors.email}</Text> : null}
+              </View>
 
-              {/* Card Body */}
-              <View style={styles.cardBody}>
-                {/* Email Input */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>E-posta Adresi</Text>
-                  <View style={[styles.inputWrapper, errors.email ? styles.inputError : null]}>
-                    <Feather name="mail" size={18} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={email}
-                      onChangeText={(text) => {
-                        setEmail(text);
-                        setErrors({ ...errors, email: '' });
-                      }}
-                      placeholder="Örn: isminiz@gmail.com"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      accessibilityLabel="E-posta adresi"
-                      accessibilityHint="Kayıt olurken kullandığınız e-posta adresini girin"
-                    />
-                  </View>
-                  <Text style={styles.hintText}>Kayıt olurken kullandığınız e-posta adresini yazın</Text>
-                  {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-                </View>
-
-                {/* Password Input */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Şifre</Text>
-                  <View style={[styles.inputWrapper, errors.password ? styles.inputError : null]}>
-                    <Feather name="lock" size={18} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={password}
-                      onChangeText={(text) => {
-                        setPassword(text);
-                        setErrors({ ...errors, password: '' });
-                      }}
-                      placeholder="Şifrenizi girin"
-                      placeholderTextColor="#94a3b8"
-                      secureTextEntry={!showPassword}
-                      autoComplete="password"
-                      accessibilityLabel="Şifre"
-                      accessibilityHint="Hesap şifrenizi girin"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeButton}
-                      accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                      accessibilityRole="button"
-                    >
-                      <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color="#94a3b8" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.hintText}>Kayıt olurken belirlediğiniz şifrenizi yazın</Text>
-                  {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-                </View>
-
-                {/* Submit Button */}
-                <TouchableOpacity
-                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                  onPress={handleLogin}
-                  disabled={loading}
-                  activeOpacity={0.9}
-                  accessibilityLabel="Giriş yap"
-                  accessibilityRole="button"
-                  accessibilityHint="Hesabınıza giriş yapmak için dokunun"
-                >
-                  <LinearGradient
-                    colors={['#4338ca', '#1e40af']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.submitButtonGradient}
-                  >
-                    {loading ? (
-                      <Feather name="loader" size={20} color="#ffffff" />
-                    ) : (
-                      <>
-                        <Feather name="log-in" size={20} color="#ffffff" style={styles.buttonIcon} />
-                        <Text style={styles.submitButtonText}>Giriş Yap</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Forgot Password Link */}
-                <TouchableOpacity
-                  style={styles.forgotPasswordContainer}
-                  onPress={() => navigation.navigate('ForgotPassword' as never)}
-                  accessibilityLabel="Şifremi unuttum"
-                  accessibilityRole="link"
-                >
-                  <Feather name="key" size={14} color="#4338ca" style={{ marginRight: 4 }} />
-                  <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
-                </TouchableOpacity>
-
-                {/* Signup Link */}
-                <View style={styles.signupContainer}>
-                  <Text style={styles.signupText}>Hesabınız yok mu? </Text>
+              {/* Password */}
+              <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.fieldLabel}>Şifre</Text>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('Signup')}
-                    accessibilityLabel="Kayıt ol"
+                    onPress={() => navigation.navigate('ForgotPassword' as never)}
                     accessibilityRole="link"
-                    accessibilityHint="Yeni hesap oluşturmak için dokunun"
                   >
-                    <Text style={styles.signupLink}>Kayıt Ol</Text>
+                    <Text style={styles.forgotLink}>Şifremi unuttum</Text>
                   </TouchableOpacity>
                 </View>
+                <View style={[styles.inputRow, errors.password ? styles.inputRowError : null]}>
+                  <Feather
+                    name="lock"
+                    size={16}
+                    color={errors.password ? '#f87171' : '#ffffff'}
+                    style={styles.fieldIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    value={password}
+                    onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: '' }); }}
+                    placeholder="Şifreniz"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    secureTextEntry={!showPassword}
+                    autoComplete="password"
+                    accessibilityLabel="Şifre"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeBtn}
+                    accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  >
+                    <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="rgba(148,163,184,0.6)" />
+                  </TouchableOpacity>
+                </View>
+                {errors.password ? <Text style={styles.errorMsg}>{errors.password}</Text> : null}
+              </View>
+
+              {/* Submit */}
+              <TouchableOpacity
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Giriş Yap"
+              >
+                <LinearGradient
+                  colors={['#2563eb', '#1d4ed8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitGradient}
+                >
+                  {loading ? (
+                    <Feather name="loader" size={20} color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitText}>Giriş Yap</Text>
+                      <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>veya</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Register link */}
+              <View style={styles.linkRow}>
+                <Text style={styles.linkRowText}>Hesabınız yok mu?</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Signup')}
+                  accessibilityRole="link"
+                >
+                  <Text style={styles.linkRowAction}> Kayıt Ol</Text>
+                </TouchableOpacity>
               </View>
             </Animated.View>
           </ScrollView>
@@ -317,15 +307,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
-  decorativeElements: {
+  decorativeLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
     overflow: 'hidden',
   },
-  motifTopLeft: {
+  motifBg: {
     position: 'absolute',
-    top: -200,
-    left: -200,
+    top: -120,
+    right: -120,
   },
   safeArea: {
     flex: 1,
@@ -336,165 +326,176 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-    justifyContent: 'center',
+    paddingBottom: 48,
   },
-  backButton: {
+  // Top nav
+  topNav: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Hero
+  hero: {
+    alignItems: 'center',
+    paddingTop: 28,
+    paddingBottom: 44,
+    paddingHorizontal: 24,
+  },
+  logoWrap: {
+    width: 146,
+    height: 146,
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    marginBottom: 20,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  logoImg: {
+    width: 146,
+    height: 146,
+  },
+  appLabel: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 1.2,
+    textTransform: 'none',
+    marginBottom: 12,
+  },
+  heroTitle: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 0,
+    letterSpacing: -0.3,
+  },
+  // Form
+  form: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+  },
+  fieldGroup: {
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.65)',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  forgotLink: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
+    backgroundColor: 'rgba(10,20,50,0.65)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.2)',
+    height: 52,
+    paddingHorizontal: 16,
   },
-  backButtonText: {
-    fontSize: 16,
-    color: '#ffffff',
+  inputRowError: {
+    borderColor: 'rgba(248,113,113,0.5)',
+  },
+  fieldIcon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#f1f5f9',
+  },
+  eyeBtn: {
+    padding: 4,
     marginLeft: 8,
   },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 20,
-  },
-  cardHeader: {
-    padding: 32,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  cardHeaderPattern: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cardHeaderContent: {
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 40,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(199, 210, 254, 1)',
-  },
-  cardBody: {
-    padding: 32,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#334155',
-    marginBottom: 8,
+  errorMsg: {
+    fontSize: 12,
+    color: '#f87171',
+    marginTop: 6,
     marginLeft: 4,
   },
-  inputWrapper: {
+  // Submit
+  submitBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
   },
-  inputError: {
-    borderColor: '#ef4444',
+  submitText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.2,
   },
-  inputIcon: {
-    marginRight: 10,
+  // Divider
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
   },
-  input: {
+  dividerLine: {
     flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
-  eyeButton: {
-    padding: 4,
-  },
-  hintText: {
+  dividerText: {
     fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-    marginLeft: 4,
-    fontStyle: 'italic',
+    color: 'rgba(148,163,184,0.45)',
+    marginHorizontal: 12,
   },
-  errorText: {
-    fontSize: 12,
-    color: '#ef4444',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  submitButton: {
-    marginTop: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonGradient: {
+  // Link row
+  linkRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    alignItems: 'center',
   },
-  buttonIcon: {
-    marginRight: 8,
+  linkRowText: {
+    fontSize: 14,
+    color: 'rgba(148,163,184,0.65)',
   },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  linkRowAction: {
+    fontSize: 14,
     color: '#ffffff',
-  },
-  forgotPasswordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '500',
-  },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  signupText: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  signupLink: {
-    fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

@@ -26,13 +26,14 @@ import {
   AllNewsScreen,
   NewsDetailScreen,
   AllAnnouncementsScreen,
+  AnnouncementDetailScreen,
   ContactScreen,
   AboutScreen,
   MembershipScreen,
   PendingApprovalScreen,
   RejectedScreen,
   ProfileScreen,
-  EditProfileScreen,
+  ProfileDetailScreen,
   MuktesepScreen,
   PartnerInstitutionsScreen,
   PartnerDetailScreen,
@@ -171,6 +172,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="AllNews" component={AllNewsScreen} />
             <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
             <Stack.Screen name="AllAnnouncements" component={AllAnnouncementsScreen} />
+            <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
             <Stack.Screen name="Contact" component={ContactScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Membership" component={MembershipScreen} />
@@ -178,7 +180,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="PartnerInstitutions" component={PartnerInstitutionsScreen} />
             <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
             <Stack.Screen name="Kvkk" component={KvkkScreen} />

@@ -1,4 +1,4 @@
-// Forgot Password Screen - Şifre Sıfırlama
+// Forgot Password Screen - Full-screen blue theme
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -12,7 +12,8 @@ import {
   TextInput,
   Animated,
   Easing,
-  Dimensions,
+  Image,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,13 +25,18 @@ import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
-const { width } = Dimensions.get('window');
-
 type ForgotPasswordScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 };
 
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 380;
+  const isVerySmallScreen = screenWidth < 340 || screenHeight < 700;
+  const responsiveLogoSize = isVerySmallScreen ? 112 : isSmallScreen ? 128 : 146;
+  const responsiveAppLabelSize = isVerySmallScreen ? 15 : isSmallScreen ? 16 : 18;
+  const responsiveHeroTitleSize = isVerySmallScreen ? 34 : isSmallScreen ? 38 : 44;
+
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -38,7 +44,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -53,12 +59,12 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 500,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 500,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -85,14 +91,11 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
   const handleResetPassword = async () => {
     if (!validateEmail()) return;
-
     setLoading(true);
     try {
       await ApiService.requestPasswordReset(email.trim().toLowerCase());
       setSent(true);
     } catch (err: any) {
-      // Backend güvenlik gereği her durumda başarılı döner (email olsun olmasın)
-      // Ama network hatası olabilir
       Alert.alert(
         'Hata',
         getUserFriendlyErrorMessage(err, 'Şifre sıfırlama isteği gönderilemedi. Lütfen tekrar deneyin.')
@@ -102,76 +105,82 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
     }
   };
 
+  const Background = () => (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0f172a', '#1e3a8a', '#0f172a']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.patternOverlay} pointerEvents="none">
+        <IslamicTileBackground opacity={0.05} />
+      </View>
+      <View style={styles.decorativeLayer} pointerEvents="none">
+        <Animated.View style={[styles.motifBg, { transform: [{ rotate: rotation }] }]}>
+          <CircularPersianMotif size={600} color="#3b82f6" opacity={0.05} />
+        </Animated.View>
+      </View>
+    </View>
+  );
+
   if (sent) {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#0f172a', '#312e81', '#0f172a']}
+          colors={['#0f172a', '#1e3a8a', '#0f172a']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.patternOverlay}>
-          <IslamicTileBackground opacity={0.1} />
+        <View style={styles.patternOverlay} pointerEvents="none">
+          <IslamicTileBackground opacity={0.05} />
+        </View>
+        <View style={styles.decorativeLayer} pointerEvents="none">
+          <Animated.View style={[styles.motifBg, { transform: [{ rotate: rotation }] }]}>
+            <CircularPersianMotif size={600} color="#3b82f6" opacity={0.05} />
+          </Animated.View>
         </View>
 
         <SafeAreaView style={styles.safeArea}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Feather name="arrow-left" size={20} color="#ffffff" />
-              <Text style={styles.backButtonText}>Geri</Text>
-            </TouchableOpacity>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.topNav}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
 
-            <View style={styles.successCard}>
-              <View style={styles.successIconContainer}>
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  style={styles.successIcon}
-                >
+            <Animated.View style={[styles.successSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.successIconWrap}>
+                <LinearGradient colors={['#16a34a', '#15803d']} style={styles.successIconGrad}>
                   <Feather name="mail" size={32} color="#ffffff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.successTitle}>E-posta Gönderildi!</Text>
-              <Text style={styles.successMessage}>
+              <Text style={styles.successTitle}>E-posta Gönderildi</Text>
+              <Text style={styles.successMsg}>
                 Şifre sıfırlama bağlantısı{'\n'}
                 <Text style={styles.successEmail}>{email}</Text>
                 {'\n'}adresine gönderildi.
               </Text>
               <Text style={styles.successHint}>
-                E-postanızı kontrol edin. Gelen kutunuzda bulamazsanız spam/gereksiz klasörünü de kontrol edin.
+                Gelen kutunuzu kontrol edin. Bulamazsanız spam klasörünü de kontrol edin.
               </Text>
 
               <TouchableOpacity
-                style={styles.backToLoginButton}
+                style={styles.submitBtn}
                 onPress={() => navigation.navigate('Login')}
+                activeOpacity={0.85}
               >
-                <LinearGradient
-                  colors={['#4338ca', '#1e40af']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.backToLoginGradient}
-                >
-                  <Feather name="log-in" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.backToLoginText}>Giriş Sayfasına Dön</Text>
+                <LinearGradient colors={['#2563eb', '#1d4ed8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
+                  <Text style={styles.submitText}>Giriş Sayfasına Dön</Text>
+                  <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
                 </LinearGradient>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.resendButton}
-                onPress={() => {
-                  setSent(false);
-                  setEmail('');
-                }}
-              >
+              <TouchableOpacity style={styles.resendBtn} onPress={() => { setSent(false); setEmail(''); }}>
                 <Text style={styles.resendText}>Tekrar gönder</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </ScrollView>
         </SafeAreaView>
       </View>
@@ -181,128 +190,109 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0f172a', '#312e81', '#0f172a']}
+        colors={['#0f172a', '#1e3a8a', '#0f172a']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.patternOverlay}>
-        <IslamicTileBackground opacity={0.1} />
+      <View style={styles.patternOverlay} pointerEvents="none">
+        <IslamicTileBackground opacity={0.05} />
       </View>
-      <View style={styles.decorativeElements} pointerEvents="none">
-        <Animated.View
-          style={[styles.motifTopLeft, { transform: [{ rotate: rotation }] }]}
-        >
-          <CircularPersianMotif size={500} color="#ffffff" opacity={0.07} />
+      <View style={styles.decorativeLayer} pointerEvents="none">
+        <Animated.View style={[styles.motifBg, { transform: [{ rotate: rotation }] }]}>
+          <CircularPersianMotif size={600} color="#3b82f6" opacity={0.05} />
         </Animated.View>
       </View>
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Feather name="arrow-left" size={20} color="#ffffff" />
-              <Text style={styles.backButtonText}>Geri</Text>
-            </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {/* Top nav */}
+            <View style={styles.topNav}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityRole="button">
+                <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
 
+            {/* Hero */}
             <Animated.View
               style={[
-                styles.card,
+                styles.hero,
                 {
                   opacity: fadeAnim,
                   transform: [{ translateY: slideAnim }],
+                  paddingTop: isVerySmallScreen ? 18 : 36,
+                  paddingBottom: isVerySmallScreen ? 28 : 48,
                 },
               ]}
             >
-              {/* Card Header */}
-              <LinearGradient
-                colors={['#4338ca', '#1e40af']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardHeader}
+              <View style={[styles.iconWrap, { width: responsiveLogoSize, height: responsiveLogoSize }] }>
+                <Image
+                  source={require('../../assets/logo.png')}
+                  style={[styles.logoImg, { width: responsiveLogoSize, height: responsiveLogoSize }]}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={[styles.appLabel, { fontSize: responsiveAppLabelSize, letterSpacing: isSmallScreen ? 0.8 : 1.2 }]}>TDVS Konya</Text>
+              <Text style={[styles.heroTitle, { fontSize: responsiveHeroTitleSize, lineHeight: Math.round(responsiveHeroTitleSize * 1.08) }]}>Şifre Sıfırla</Text>
+              <Text style={styles.heroSub}>Kayıtlı e-posta adresinize sıfırlama bağlantısı göndereceğiz</Text>
+            </Animated.View>
+
+            {/* Form */}
+            <Animated.View style={[styles.form, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>E-posta</Text>
+                <View style={[styles.inputRow, error ? styles.inputRowError : null]}>
+                  <Feather name="mail" size={16} color={error ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={(t) => { setEmail(t); setError(''); }}
+                    placeholder="ornek@gmail.com"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoFocus
+                  />
+                </View>
+                {error ? <Text style={styles.errorMsg}>{error}</Text> : null}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleResetPassword}
+                disabled={loading}
+                activeOpacity={0.85}
               >
-                <View style={styles.cardHeaderPattern}>
-                  <IslamicTileBackground opacity={0.1} />
-                </View>
-                <View style={styles.cardHeaderContent}>
-                  <View style={styles.iconContainer}>
-                    <Feather name="key" size={28} color="#4338ca" />
-                  </View>
-                  <Text style={styles.title}>Şifremi Unuttum</Text>
-                  <Text style={styles.subtitle}>Şifrenizi sıfırlamak için e-posta adresinizi girin</Text>
-                </View>
-              </LinearGradient>
-
-              {/* Card Body */}
-              <View style={styles.cardBody}>
-                <View style={styles.infoBox}>
-                  <Feather name="info" size={16} color="#3b82f6" />
-                  <Text style={styles.infoText}>
-                    Kayıtlı e-posta adresinize şifre sıfırlama bağlantısı göndereceğiz.
-                  </Text>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>E-posta Adresi</Text>
-                  <View style={[styles.inputWrapper, error ? styles.inputError : null]}>
-                    <Feather name="mail" size={18} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={email}
-                      onChangeText={(text) => {
-                        setEmail(text);
-                        setError('');
-                      }}
-                      placeholder="Kayıtlı e-posta adresiniz"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      autoFocus
-                    />
-                  </View>
-                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                  onPress={handleResetPassword}
-                  disabled={loading}
-                  activeOpacity={0.9}
+                <LinearGradient
+                  colors={['#2563eb', '#1d4ed8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitGradient}
                 >
-                  <LinearGradient
-                    colors={['#4338ca', '#1e40af']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.submitButtonGradient}
-                  >
-                    {loading ? (
-                      <Feather name="loader" size={20} color="#ffffff" />
-                    ) : (
-                      <>
-                        <Feather name="send" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                        <Text style={styles.submitButtonText}>Sıfırlama Bağlantısı Gönder</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
+                  {loading ? (
+                    <Feather name="loader" size={20} color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitText}>Sıfırlama Bağlantısı Gönder</Text>
+                      <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
-                <View style={styles.loginContainer}>
-                  <Text style={styles.loginText}>Şifrenizi hatırladınız mı? </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                    <Text style={styles.loginLink}>Giriş Yap</Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>veya</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.linkRow}>
+                <Text style={styles.linkRowText}>Şifrenizi hatırladınız mı?</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')} accessibilityRole="link">
+                  <Text style={styles.linkRowAction}> Giriş Yap</Text>
+                </TouchableOpacity>
               </View>
             </Animated.View>
           </ScrollView>
@@ -321,15 +311,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
-  decorativeElements: {
+  decorativeLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
     overflow: 'hidden',
   },
-  motifTopLeft: {
+  motifBg: {
     position: 'absolute',
-    top: -200,
-    left: -200,
+    top: -120,
+    right: -120,
   },
   safeArea: {
     flex: 1,
@@ -340,169 +330,188 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 48,
+  },
+  topNav: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Hero
+  hero: {
+    alignItems: 'center',
+    paddingTop: 36,
+    paddingBottom: 48,
     paddingHorizontal: 24,
-    paddingBottom: 32,
-    justifyContent: 'center',
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#ffffff',
-    marginLeft: 8,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 20,
-  },
-  cardHeader: {
-    padding: 32,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  cardHeaderPattern: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cardHeaderContent: {
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#ffffff',
+  iconWrap: {
+    width: 146,
+    height: 146,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  logoImg: {
+    width: 146,
+    height: 146,
+  },
+  appLabel: {
+    fontSize: 18,
+    fontWeight: '800',
     color: '#ffffff',
-    marginBottom: 4,
+    letterSpacing: 1.2,
+    textTransform: 'none',
+    marginBottom: 12,
   },
-  subtitle: {
+  heroTitle: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 10,
+    letterSpacing: -0.3,
+  },
+  heroSub: {
     fontSize: 14,
-    color: 'rgba(199, 210, 254, 1)',
+    color: 'rgba(148,163,184,0.7)',
     textAlign: 'center',
+    lineHeight: 22,
+    fontWeight: '300',
   },
-  cardBody: {
-    padding: 32,
+  // Form
+  form: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 24,
-    gap: 10,
+  fieldGroup: {
+    marginBottom: 20,
   },
-  infoText: {
-    flex: 1,
+  fieldLabel: {
     fontSize: 13,
-    color: '#1e40af',
-    lineHeight: 18,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#334155',
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.65)',
     marginBottom: 8,
-    marginLeft: 4,
+    letterSpacing: 0.3,
   },
-  inputWrapper: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
+    backgroundColor: 'rgba(10,20,50,0.65)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(59,130,246,0.2)',
+    height: 52,
+    paddingHorizontal: 16,
   },
-  inputError: {
-    borderColor: '#ef4444',
+  inputRowError: {
+    borderColor: 'rgba(248,113,113,0.5)',
   },
-  inputIcon: {
-    marginRight: 10,
+  fieldIcon: {
+    marginRight: 12,
   },
-  input: {
+  textInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
+    fontSize: 15,
+    color: '#f1f5f9',
   },
-  errorText: {
+  errorMsg: {
     fontSize: 12,
-    color: '#ef4444',
-    marginTop: 4,
+    color: '#f87171',
+    marginTop: 6,
     marginLeft: 4,
   },
-  submitButton: {
-    marginTop: 8,
-    borderRadius: 12,
+  // Submit
+  submitBtn: {
+    borderRadius: 14,
     overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
-  submitButtonGradient: {
+  submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
-  submitButtonText: {
+  submitText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.2,
   },
-  loginContainer: {
+  // Divider
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  dividerText: {
+    fontSize: 12,
+    color: 'rgba(148,163,184,0.45)',
+    marginHorizontal: 12,
+  },
+  // Link row
+  linkRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
-  },
-  loginText: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  loginLink: {
-    fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '600',
-  },
-  // Success screen styles
-  successCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 20,
   },
-  successIconContainer: {
-    marginBottom: 24,
+  linkRowText: {
+    fontSize: 14,
+    color: 'rgba(148,163,184,0.65)',
   },
-  successIcon: {
+  linkRowAction: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  // Resend btn
+  resendBtn: {
+    marginTop: 16,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  resendText: {
+    fontSize: 14,
+    color: '#60a5fa',
+    fontWeight: '500',
+  },
+  // Success
+  successSection: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    alignItems: 'center',
+  },
+  successIconWrap: {
+    marginBottom: 28,
+  },
+  successIconGrad: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -510,52 +519,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 12,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
   },
-  successMessage: {
+  successMsg: {
     fontSize: 15,
-    color: '#475569',
+    color: 'rgba(148,163,184,0.8)',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 8,
+    marginBottom: 12,
+    fontWeight: '300',
   },
   successEmail: {
-    fontWeight: '700',
-    color: '#4338ca',
+    fontWeight: '600',
+    color: '#60a5fa',
   },
   successHint: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: 'rgba(148,163,184,0.5)',
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 18,
-  },
-  backToLoginButton: {
-    width: '100%',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  backToLoginGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  backToLoginText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  resendButton: {
-    paddingVertical: 8,
-  },
-  resendText: {
-    fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '500',
+    marginBottom: 36,
+    lineHeight: 20,
+    fontWeight: '300',
   },
 });

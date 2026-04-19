@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -69,6 +70,7 @@ export const DocumentScreen: React.FC = () => {
   const route = useRoute() as RouteParams;
   const navigation = useNavigation();
   const { url, title, onComplete } = route.params ?? {};
+  const { width: screenWidth } = useWindowDimensions();
 
   const hasMarkedComplete = useRef(false);
   const [localPath, setLocalPath] = useState<string | null>(null);
@@ -217,7 +219,7 @@ export const DocumentScreen: React.FC = () => {
         <Pdf
           key={`pdf-${retryKey}`}
           source={{ uri: localPath }}
-          style={styles.pdfView}
+          style={[styles.pdfView, { width: screenWidth }]}
           trustAllCerts={false}
           onLoadComplete={(numberOfPages) => {
             setTotalPages(numberOfPages);

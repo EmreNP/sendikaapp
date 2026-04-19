@@ -16,6 +16,11 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { deleteLessonsContentsBatch } from '@/lib/utils/batchQueries';
 
 import { logger } from '../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Tek eğitim detayı
 export const GET = asyncHandler(async (
   request: NextRequest,

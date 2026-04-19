@@ -13,7 +13,9 @@ import {
   Animated,
   Easing,
   Image,
-  Linking,
+  Modal,
+  FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,8 +27,7 @@ import { IslamicTileBackground } from '../components/IslamicTileBackground';
 import { CircularPersianMotif } from '../components/CircularPersianMotif';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { BirthDatePickerModal } from '../components/BirthDatePickerModal';
 import { KONYA_DISTRICTS } from '../../../shared/constants/districts';
 
 type SignupScreenProps = {
@@ -34,6 +35,13 @@ type SignupScreenProps = {
 };
 
 export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 380;
+  const isVerySmallScreen = screenWidth < 340 || screenHeight < 700;
+  const responsiveLogoSize = isVerySmallScreen ? 112 : isSmallScreen ? 128 : 146;
+  const responsiveAppLabelSize = isVerySmallScreen ? 15 : isSmallScreen ? 16 : 18;
+  const responsiveHeroTitleSize = isVerySmallScreen ? 32 : isSmallScreen ? 36 : 42;
+
   useSecureScreen();
   const { registerBasic } = useAuth();
   const [formData, setFormData] = useState({
@@ -53,7 +61,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerDate, setDatePickerDate] = useState(new Date());
+  const [districtPickerVisible, setDistrictPickerVisible] = useState(false);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -235,28 +243,23 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Gradient Background */}
+      {/* Background gradient */}
       <LinearGradient
-        colors={['#0f172a', '#312e81', '#0f172a']}
+        colors={['#0f172a', '#1e3a8a', '#0f172a']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Islamic Pattern Overlay */}
-      <View style={styles.patternOverlay}>
-        <IslamicTileBackground opacity={0.1} />
+      {/* Islamic pattern overlay */}
+      <View style={styles.patternOverlay} pointerEvents="none">
+        <IslamicTileBackground opacity={0.05} />
       </View>
 
-      {/* Animated Persian Motif */}
-      <View style={styles.decorativeElements} pointerEvents="none">
-        <Animated.View
-          style={[
-            styles.motifTopLeft,
-            { transform: [{ rotate: rotation }] },
-          ]}
-        >
-          <CircularPersianMotif size={500} color="#ffffff" opacity={0.07} />
+      {/* Decorative rotating motif */}
+      <View style={styles.decorativeLayer} pointerEvents="none">
+        <Animated.View style={[styles.motifBg, { transform: [{ rotate: rotation }] }]}>
+          <CircularPersianMotif size={600} color="#3b82f6" opacity={0.05} />
         </Animated.View>
       </View>
 
@@ -270,352 +273,400 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Back Button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              accessibilityLabel="Geri"
-              accessibilityRole="button"
-            >
-              <Feather name="arrow-left" size={20} color="#ffffff" />
-              <Text style={styles.backButtonText}>Geri</Text>
-            </TouchableOpacity>
+            {/* Top nav */}
+            <View style={styles.topNav}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.goBack()}
+                accessibilityLabel="Geri"
+                accessibilityRole="button"
+              >
+                <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
 
-            {/* Main Card */}
+            {/* Hero */}
             <Animated.View
               style={[
-                styles.card,
+                styles.hero,
                 {
                   opacity: fadeAnim,
                   transform: [{ translateY: slideAnim }],
+                  paddingTop: isVerySmallScreen ? 14 : 24,
+                  paddingBottom: isVerySmallScreen ? 24 : 36,
                 },
               ]}
             >
-              {/* Card Header */}
-              <LinearGradient
-                colors={['#4338ca', '#1e40af']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardHeader}
-              >
-                <View style={styles.cardHeaderPattern}>
-                  <IslamicTileBackground opacity={0.1} />
-                </View>
-                <View style={styles.cardHeaderContent}>
-                  <View style={styles.iconContainer}>
-                    <Image
-                      source={require('../../assets/logo.png')}
-                      style={styles.logoImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <Text style={styles.title}>Hesap Oluştur</Text>
-                  <Text style={styles.subtitle}>Aramıza katılın ve avantajlardan yararlanın</Text>
-                </View>
-              </LinearGradient>
+              <View style={[styles.logoWrap, { width: responsiveLogoSize, height: responsiveLogoSize }] }>
+                <Image
+                  source={require('../../assets/logo.png')}
+                  style={[styles.logoImg, { width: responsiveLogoSize, height: responsiveLogoSize }]}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={[styles.appLabel, { fontSize: responsiveAppLabelSize, letterSpacing: isSmallScreen ? 0.8 : 1.2 }]}>TDVS Konya</Text>
+              <Text style={[styles.heroTitle, { fontSize: responsiveHeroTitleSize, lineHeight: Math.round(responsiveHeroTitleSize * 1.08) }]}>Hesap Oluştur</Text>
+            </Animated.View>
 
-              {/* Card Body */}
-              <View style={styles.cardBody}>
-                {/* Name Row */}
-                <View style={styles.row}>
-                  <View style={styles.halfInput}>
-                    <Text style={styles.label}>Ad</Text>
-                    <View style={[styles.inputWrapper, errors.firstName ? styles.inputError : null]}>
-                      <Feather name="user" size={16} color="#94a3b8" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        value={formData.firstName}
-                        onChangeText={(text) => updateField('firstName', text)}
-                        placeholder="Adınız"
-                        placeholderTextColor="#94a3b8"
-                        autoCapitalize="words"
-                        accessibilityLabel="Ad"
-                      />
-                    </View>
-                    {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
-                  </View>
-                  <View style={styles.halfInput}>
-                    <Text style={styles.label}>Soyad</Text>
-                    <View style={[styles.inputWrapper, errors.lastName ? styles.inputError : null]}>
-                      <Feather name="user" size={16} color="#94a3b8" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        value={formData.lastName}
-                        onChangeText={(text) => updateField('lastName', text)}
-                        placeholder="Soyadınız"
-                        placeholderTextColor="#94a3b8"
-                        autoCapitalize="words"
-                        accessibilityLabel="Soyad"
-                      />
-                    </View>
-                    {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
-                  </View>
-                </View>
-
-                {/* Phone */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Telefon Numarası</Text>
-                  <View style={[styles.inputWrapper, errors.phone ? styles.inputError : null]}>
-                    <Feather name="phone" size={16} color="#94a3b8" style={styles.inputIcon} />
+            {/* Form */}
+            <Animated.View
+              style={[styles.form, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+            >
+              {/* Ad & Soyad */}
+              <View style={[styles.nameRow, isSmallScreen && styles.nameRowStack]}>
+                <View style={[styles.fieldGroup, styles.halfFieldLeft, isSmallScreen && styles.halfFieldStack]}>
+                  <Text style={styles.fieldLabel}>Ad</Text>
+                  <View style={[styles.inputRow, errors.firstName ? styles.inputRowError : null]}>
+                    <Feather name="user" size={15} color={errors.firstName ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
                     <TextInput
-                      style={styles.input}
-                      value={formData.phone}
-                      onChangeText={(text) => {
-                        const normalized = text.replace(/\D/g, '').replace(/^0+/, '');
-                        updateField('phone', normalized);
-                      }}
-                      placeholder="Örn: 5551234567"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="phone-pad"
-                      accessibilityLabel="Telefon"
-                    />
-                  </View>
-                  <Text style={styles.hintText}>0 olmadan 10 hane (Örn: 5551234567)</Text>
-                  {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
-                </View>
-
-                {/* Email */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>E-posta Adresi</Text>
-                  <View style={[styles.inputWrapper, errors.email ? styles.inputError : null]}>
-                    <Feather name="mail" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={formData.email}
-                      onChangeText={(text) => updateField('email', text)}
-                      placeholder="Örn: isminiz@gmail.com"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      accessibilityLabel="E-posta"
-                    />
-                  </View>
-                  <Text style={styles.hintText}>Gmail, Hotmail veya başka e-posta adresinizi yazın</Text>
-                  {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-                </View>
-
-                {/* Password */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Şifre</Text>
-                  <View style={[styles.inputWrapper, errors.password ? styles.inputError : null]}>
-                    <Feather name="lock" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={formData.password}
-                      onChangeText={(text) => updateField('password', text)}
-                      placeholder="Örn: Sifrem123"
-                      placeholderTextColor="#94a3b8"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      accessibilityLabel="Şifre"
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-                      <Feather name={showPassword ? 'eye-off' : 'eye'} size={16} color="#94a3b8" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.hintText}>Parolanız en az 6 karakter olmalıdır.</Text>
-                  {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-                </View>
-
-                {/* Birth Date */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Doğum Tarihi</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker(true)}
-                    style={[styles.inputWrapper, errors.birthDate ? styles.inputError : null]}
-                  >
-                    <Feather name="calendar" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <Text style={[styles.datePickerText, !formData.birthDate && styles.datePickerPlaceholder]}>
-                      {formData.birthDate || 'YYYY-AA-GG (Örn: 1990-05-15)'}
-                    </Text>
-                  </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={datePickerDate}
-                      mode="date"
-                      display="spinner"
-                      onChange={(event, selectedDate) => {
-                        setShowDatePicker(Platform.OS === 'ios');
-                        if (selectedDate) {
-                          setDatePickerDate(selectedDate);
-                          const year = selectedDate.getFullYear();
-                          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                          const day = String(selectedDate.getDate()).padStart(2, '0');
-                          updateField('birthDate', `${year}-${month}-${day}`);
-                        }
-                      }}
-                      maximumDate={new Date()}
-                    />
-                  )}
-                  <Text style={styles.hintText}>18 yaşından büyük olmalısınız. Takvimden tarihinizi seçin</Text>
-                  {errors.birthDate ? <Text style={styles.errorText}>{errors.birthDate}</Text> : null}
-                </View>
-
-                {/* District */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Görev İlçesi</Text>
-                  <View style={[styles.pickerWrapper, errors.district ? styles.inputError : null]}>
-                    <Feather name="map-pin" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <Picker
-                      selectedValue={formData.district}
-                      onValueChange={(value) => updateField('district', value)}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="İlçe seçiniz..." value="" />
-                      {KONYA_DISTRICTS.map((district) => (
-                        <Picker.Item key={district} label={district} value={district} />
-                      ))}
-                    </Picker>
-                  </View>
-                  <Text style={styles.hintText}>Konya'da görev yaptığınız ilçeyi seçin</Text>
-                  {errors.district ? <Text style={styles.errorText}>{errors.district}</Text> : null}
-                </View>
-
-                {/* Kadro Unvani */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Kadro Ünvanı</Text>
-                  <View style={[styles.inputWrapper, errors.kadroUnvani ? styles.inputError : null]}>
-                    <Feather name="briefcase" size={16} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={formData.kadroUnvani}
-                      onChangeText={(text) => updateField('kadroUnvani', text)}
-                      placeholder="Kadro ünvanınızı giriniz"
-                      placeholderTextColor="#94a3b8"
+                      style={styles.textInput}
+                      value={formData.firstName}
+                      onChangeText={(t) => updateField('firstName', t)}
+                      placeholder="Adınız"
+                      placeholderTextColor="rgba(148,163,184,0.5)"
                       autoCapitalize="words"
-                      accessibilityLabel="Kadro Ünvanı"
                     />
                   </View>
-                  <Text style={styles.hintText}>Diyanet İşleri'ndeki görev unvanınızı giriniz</Text>
-                  {errors.kadroUnvani ? <Text style={styles.errorText}>{errors.kadroUnvani}</Text> : null}
+                  {errors.firstName ? <Text style={styles.errorMsg}>{errors.firstName}</Text> : null}
                 </View>
-
-
-
-                {/* Gender Selection */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Cinsiyet</Text>
-                  <View style={styles.genderContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.genderOption,
-                        formData.gender === 'male' && styles.genderSelected,
-                      ]}
-                      onPress={() => updateField('gender', 'male')}
-                      accessibilityLabel="Erkek"
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: formData.gender === 'male' }}
-                    >
-                      <Feather 
-                        name="user" 
-                        size={18} 
-                        color={formData.gender === 'male' ? '#4338ca' : '#64748b'} 
-                      />
-                      <Text style={[
-                        styles.genderText,
-                        formData.gender === 'male' && styles.genderTextSelected,
-                      ]}>Erkek</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.genderOption,
-                        formData.gender === 'female' && styles.genderSelected,
-                      ]}
-                      onPress={() => updateField('gender', 'female')}
-                      accessibilityLabel="Kadın"
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: formData.gender === 'female' }}
-                    >
-                      <Feather 
-                        name="user" 
-                        size={18} 
-                        color={formData.gender === 'female' ? '#4338ca' : '#64748b'} 
-                      />
-                      <Text style={[
-                        styles.genderText,
-                        formData.gender === 'female' && styles.genderTextSelected,
-                      ]}>Kadın</Text>
-                    </TouchableOpacity>
+                <View style={[styles.fieldGroup, styles.halfFieldRight, isSmallScreen && styles.halfFieldStack]}>
+                  <Text style={styles.fieldLabel}>Soyad</Text>
+                  <View style={[styles.inputRow, errors.lastName ? styles.inputRowError : null]}>
+                    <Feather name="user" size={15} color={errors.lastName ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={formData.lastName}
+                      onChangeText={(t) => updateField('lastName', t)}
+                      placeholder="Soyadınız"
+                      placeholderTextColor="rgba(148,163,184,0.5)"
+                      autoCapitalize="words"
+                    />
                   </View>
-                  {errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
+                  {errors.lastName ? <Text style={styles.errorMsg}>{errors.lastName}</Text> : null}
                 </View>
+              </View>
 
-                {/* KVKK Acceptance */}
-                <View style={styles.kvkkContainer}>
-                  <TouchableOpacity 
-                    style={styles.checkbox}
-                    onPress={() => setKvkkAccepted(!kvkkAccepted)}
-                    accessibilityLabel="Gizlilik Politikası ve KVKK Aydınlatma Metni'ni okudum ve kabul ediyorum"
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: kvkkAccepted }}
-                  >
-                    <View style={[styles.checkboxBox, kvkkAccepted && styles.checkboxChecked]}>
-                      {kvkkAccepted && <Feather name="check" size={14} color="#ffffff" />}
-                    </View>
-                    <Text style={styles.kvkkText}>
-                      <Text style={styles.kvkkLink} onPress={() => navigation.navigate('Kvkk')}>
-                        Gizlilik Politikası ve KVKK Aydınlatma Metni
-                      </Text>
-                      'ni okudum, kabul ediyorum
-                    </Text>
+              {/* Telefon */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Telefon</Text>
+                <View style={[styles.inputRow, errors.phone ? styles.inputRowError : null]}>
+                  <Feather name="phone" size={15} color={errors.phone ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={formData.phone}
+                    onChangeText={(text) => {
+                      const normalized = text.replace(/\D/g, '').replace(/^0+/, '');
+                      updateField('phone', normalized);
+                    }}
+                    placeholder="5551234567"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                {errors.phone ? <Text style={styles.errorMsg}>{errors.phone}</Text> : null}
+              </View>
+
+              {/* E-posta */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>E-posta</Text>
+                <View style={[styles.inputRow, errors.email ? styles.inputRowError : null]}>
+                  <Feather name="mail" size={15} color={errors.email ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={formData.email}
+                    onChangeText={(t) => updateField('email', t)}
+                    placeholder="ornek@gmail.com"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                {errors.email ? <Text style={styles.errorMsg}>{errors.email}</Text> : null}
+              </View>
+
+              {/* Şifre */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Şifre</Text>
+                <View style={[styles.inputRow, errors.password ? styles.inputRowError : null]}>
+                  <Feather name="lock" size={15} color={errors.password ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={formData.password}
+                    onChangeText={(t) => updateField('password', t)}
+                    placeholder="En az 6 karakter"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <Feather name={showPassword ? 'eye-off' : 'eye'} size={15} color="rgba(148,163,184,0.6)" />
                   </TouchableOpacity>
                 </View>
+                {errors.password ? <Text style={styles.errorMsg}>{errors.password}</Text> : null}
+              </View>
 
-                {/* Terms of Use Acceptance */}
-                <View style={[styles.kvkkContainer, { marginTop: 8 }]}>
-                  <TouchableOpacity 
-                    style={styles.checkbox}
-                    onPress={() => setTermsAccepted(!termsAccepted)}
-                    accessibilityLabel="Kullanım Koşulları'nı okudum ve kabul ediyorum"
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: termsAccepted }}
-                  >
-                    <View style={[styles.checkboxBox, termsAccepted && styles.checkboxChecked]}>
-                      {termsAccepted && <Feather name="check" size={14} color="#ffffff" />}
-                    </View>
-                    <Text style={styles.kvkkText}>
-                      <Text style={styles.kvkkLink} onPress={() => navigation.navigate('Terms')}>
-                        Kullanım Koşulları
-                      </Text>
-                      'nı okudum, kabul ediyorum
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Submit Button */}
+              {/* Doğum Tarihi */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Doğum Tarihi</Text>
                 <TouchableOpacity
-                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                  onPress={handleSignup}
-                  disabled={loading}
-                  activeOpacity={0.9}
-                  accessibilityLabel="Kayıt ol"
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: loading }}
+                  style={[styles.inputRow, errors.birthDate ? styles.inputRowError : null]}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}
                 >
-                  <LinearGradient
-                    colors={['#4338ca', '#1e40af']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.submitButtonGradient}
+                  <Feather name="calendar" size={15} color={errors.birthDate ? '#f87171' : '#94a3b8'} style={styles.fieldIcon} />
+                  <Text
+                    style={[
+                      styles.textInput,
+                      !formData.birthDate && styles.placeholderText,
+                      { flex: 1 },
+                    ]}
+                    numberOfLines={1}
                   >
-                    {loading ? (
-                      <Feather name="loader" size={20} color="#ffffff" />
-                    ) : (
-                      <>
-                        <Feather name="user-plus" size={20} color="#ffffff" style={styles.buttonIcon} />
-                        <Text style={styles.submitButtonText}>Kayıt Ol</Text>
-                      </>
-                    )}
-                  </LinearGradient>
+                    {formData.birthDate
+                      ? (() => { const [y, m, d] = formData.birthDate.split('-'); return `${d}/${m}/${y}`; })()
+                      : 'Doğum tarihi seçiniz...'}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color="rgba(148,163,184,0.5)" />
                 </TouchableOpacity>
+                {errors.birthDate ? <Text style={styles.errorMsg}>{errors.birthDate}</Text> : null}
+              </View>
 
-                {/* Login Link */}
-                <View style={styles.loginContainer}>
-                  <Text style={styles.loginText}>Zaten hesabınız var mı? </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                    <Text style={styles.loginLink}>Giriş Yap</Text>
+              {/* Scroll-wheel tarih seçici modal */}
+              <BirthDatePickerModal
+                visible={showDatePicker}
+                initialDate={formData.birthDate || undefined}
+                onClose={() => setShowDatePicker(false)}
+                onSave={(dateStr) => {
+                  updateField('birthDate', dateStr);
+                  setShowDatePicker(false);
+                }}
+              />
+
+              {/* Görev İlçesi */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Görev İlçesi</Text>
+                <TouchableOpacity
+                  style={[styles.inputRow, errors.district ? styles.inputRowError : null]}
+                  onPress={() => setDistrictPickerVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="map-pin" size={15} color={errors.district ? '#f87171' : '#94a3b8'} style={styles.fieldIcon} />
+                  <Text
+                    style={[
+                      styles.textInput,
+                      !formData.district && styles.placeholderText,
+                      { flex: 1 },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {formData.district || 'İlçe seçiniz...'}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color="rgba(148,163,184,0.5)" />
+                </TouchableOpacity>
+                {errors.district ? <Text style={styles.errorMsg}>{errors.district}</Text> : null}
+              </View>
+
+              {/* District Picker Modal */}
+              <Modal
+                visible={districtPickerVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setDistrictPickerVisible(false)}
+                statusBarTranslucent
+              >
+                <TouchableOpacity
+                  style={styles.districtModalOverlay}
+                  activeOpacity={1}
+                  onPress={() => setDistrictPickerVisible(false)}
+                >
+                  <View
+                    style={styles.districtModalSheet}
+                    onStartShouldSetResponder={() => true}
+                  >
+                    {/* Handle bar */}
+                    <View style={styles.districtSheetHandle} />
+
+                    {/* Header */}
+                    <View style={styles.districtSheetHeader}>
+                      <Text style={styles.districtSheetTitle}>Görev İlçesi</Text>
+                      <TouchableOpacity
+                        onPress={() => setDistrictPickerVisible(false)}
+                        style={styles.districtSheetClose}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="x" size={18} color="rgba(148,163,184,0.7)" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* List */}
+                    <FlatList
+                      data={KONYA_DISTRICTS}
+                      keyExtractor={(item) => item}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      style={styles.districtList}
+                      renderItem={({ item }) => {
+                        const selected = formData.district === item;
+                        return (
+                          <TouchableOpacity
+                            style={[
+                              styles.districtItem,
+                              selected && styles.districtItemSelected,
+                            ]}
+                            onPress={() => {
+                              updateField('district', item);
+                              setDistrictPickerVisible(false);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.districtItemText,
+                                selected && styles.districtItemTextSelected,
+                              ]}
+                            >
+                              {item}
+                            </Text>
+                            {selected && (
+                              <Feather name="check" size={15} color="#60a5fa" />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+
+              {/* Kadro Ünvanı */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Kadro Ünvanı</Text>
+                <View style={[styles.inputRow, errors.kadroUnvani ? styles.inputRowError : null]}>
+                  <Feather name="briefcase" size={15} color={errors.kadroUnvani ? '#f87171' : '#ffffff'} style={styles.fieldIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={formData.kadroUnvani}
+                    onChangeText={(t) => updateField('kadroUnvani', t)}
+                    placeholder="Görev unvanınız"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    autoCapitalize="words"
+                  />
+                </View>
+                {errors.kadroUnvani ? <Text style={styles.errorMsg}>{errors.kadroUnvani}</Text> : null}
+              </View>
+
+              {/* Cinsiyet */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Cinsiyet</Text>
+                <View style={[styles.genderRow, isVerySmallScreen && styles.genderRowStack]}>
+                  <TouchableOpacity
+                    style={[styles.genderBtn, formData.gender === 'male' && styles.genderBtnActive]}
+                    onPress={() => updateField('gender', 'male')}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: formData.gender === 'male' }}
+                  >
+                    <Feather
+                      name="user"
+                      size={16}
+                      color={formData.gender === 'male' ? '#60a5fa' : 'rgba(255,255,255,0.4)'}
+                    />
+                    <Text style={[styles.genderBtnText, formData.gender === 'male' && styles.genderBtnTextActive]}>
+                      Erkek
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.genderBtn, formData.gender === 'female' && styles.genderBtnActive]}
+                    onPress={() => updateField('gender', 'female')}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: formData.gender === 'female' }}
+                  >
+                    <Feather
+                      name="user"
+                      size={16}
+                      color={formData.gender === 'female' ? '#60a5fa' : 'rgba(255,255,255,0.4)'}
+                    />
+                    <Text style={[styles.genderBtnText, formData.gender === 'female' && styles.genderBtnTextActive]}>
+                      Kadın
+                    </Text>
                   </TouchableOpacity>
                 </View>
+                {errors.gender ? <Text style={styles.errorMsg}>{errors.gender}</Text> : null}
+              </View>
+
+              {/* KVKK */}
+              <TouchableOpacity
+                style={styles.checkRow}
+                onPress={() => setKvkkAccepted(!kvkkAccepted)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: kvkkAccepted }}
+              >
+                <View style={[styles.checkBox, kvkkAccepted && styles.checkBoxActive]}>
+                  {kvkkAccepted && <Feather name="check" size={12} color="#fff" />}
+                </View>
+                <Text style={styles.checkText}>
+                  <Text style={styles.checkLink} onPress={() => navigation.navigate('Kvkk')}>
+                    Gizlilik Politikası ve KVKK
+                  </Text>
+                  {' '}metnini okudum, kabul ediyorum
+                </Text>
+              </TouchableOpacity>
+
+              {/* Kullanım Koşulları */}
+              <TouchableOpacity
+                style={[styles.checkRow, { marginTop: 10 }]}
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: termsAccepted }}
+              >
+                <View style={[styles.checkBox, termsAccepted && styles.checkBoxActive]}>
+                  {termsAccepted && <Feather name="check" size={12} color="#fff" />}
+                </View>
+                <Text style={styles.checkText}>
+                  <Text style={styles.checkLink} onPress={() => navigation.navigate('Terms')}>
+                    Kullanım Koşulları
+                  </Text>
+                  {'\''}nı okudum, kabul ediyorum
+                </Text>
+              </TouchableOpacity>
+
+              {/* Submit */}
+              <TouchableOpacity
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleSignup}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Kayıt Ol"
+              >
+                <LinearGradient
+                  colors={['#2563eb', '#1d4ed8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitGradient}
+                >
+                  {loading ? (
+                    <Feather name="loader" size={20} color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitText}>Kayıt Ol</Text>
+                      <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>veya</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Login link */}
+              <View style={styles.linkRow}>
+                <Text style={styles.linkRowText}>Zaten hesabınız var mı?</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')} accessibilityRole="link">
+                  <Text style={styles.linkRowAction}> Giriş Yap</Text>
+                </TouchableOpacity>
               </View>
             </Animated.View>
           </ScrollView>
@@ -634,15 +685,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
-  decorativeElements: {
+  decorativeLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
     overflow: 'hidden',
   },
-  motifTopLeft: {
+  motifBg: {
     position: 'absolute',
-    top: -200,
-    left: -200,
+    top: -120,
+    right: -120,
   },
   safeArea: {
     flex: 1,
@@ -653,246 +704,329 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 48,
   },
-  backButton: {
-    flexDirection: 'row',
+  // Top nav
+  topNav: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
   },
-  backButtonText: {
-    fontSize: 16,
+  // Hero
+  hero: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+  },
+  logoWrap: {
+    width: 146,
+    height: 146,
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    marginBottom: 18,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  logoImg: {
+    width: 146,
+    height: 146,
+  },
+  appLabel: {
+    fontSize: 18,
+    fontWeight: '800',
     color: '#ffffff',
+    letterSpacing: 1.2,
+    textTransform: 'none',
+    marginBottom: 12,
+  },
+  heroTitle: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 0,
+    letterSpacing: -0.3,
+  },
+  // Form
+  form: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    marginBottom: 0,
+  },
+  nameRowStack: {
+    flexDirection: 'column',
+  },
+  halfFieldLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+  halfFieldRight: {
+    flex: 1,
     marginLeft: 8,
   },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 20,
+  halfFieldStack: {
+    marginLeft: 0,
+    marginRight: 0,
   },
-  cardHeader: {
-    padding: 32,
+  fieldGroup: {
+    marginBottom: 18,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.65)',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  inputRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
-  },
-  cardHeaderPattern: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cardHeaderContent: {
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 40,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: 'rgba(10,20,50,0.65)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
+    borderColor: 'rgba(59,130,246,0.2)',
+    height: 52,
+    paddingHorizontal: 16,
   },
-  logoImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  inputRowError: {
+    borderColor: 'rgba(248,113,113,0.5)',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  // District Picker Modal
+  districtModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  districtModalSheet: {
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    maxHeight: '70%',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(59,130,246,0.2)',
+  },
+  districtSheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: 'rgba(148,163,184,0.3)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(199, 210, 254, 1)',
-    textAlign: 'center',
-  },
-  cardBody: {
-    padding: 32,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  halfInput: {
-    flex: 1,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#334155',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  inputWrapper: {
+  districtSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59,130,246,0.12)',
+  },
+  districtSheetTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f1f5f9',
+    letterSpacing: 0.2,
+  },
+  districtSheetClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  districtList: {
     paddingHorizontal: 12,
+    paddingTop: 8,
   },
-  pickerWrapper: {
+  districtItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
-    paddingLeft: 12,
+    marginBottom: 2,
   },
-  picker: {
+  districtItemSelected: {
+    backgroundColor: 'rgba(59,130,246,0.15)',
+  },
+  districtItemText: {
+    fontSize: 15,
+    color: 'rgba(241,245,249,0.75)',
+    fontWeight: '400',
+  },
+  districtItemTextSelected: {
+    color: '#60a5fa',
+    fontWeight: '600',
+  },
+  fieldIcon: {
+    marginRight: 12,
+  },
+  textInput: {
     flex: 1,
-    color: '#1e293b',
-    marginLeft: -8,
+    fontSize: 15,
+    color: '#f1f5f9',
   },
-  datePickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
+  placeholderText: {
+    color: 'rgba(148,163,184,0.5)',
   },
-  datePickerPlaceholder: {
-    color: '#94a3b8',
-  },
-  inputError: {
-    borderColor: '#ef4444',
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
-  },
-  eyeButton: {
+  eyeBtn: {
     padding: 4,
+    marginLeft: 8,
   },
-  errorText: {
+  errorMsg: {
     fontSize: 12,
-    color: '#ef4444',
-    marginTop: 4,
+    color: '#f87171',
+    marginTop: 6,
     marginLeft: 4,
   },
-  hintText: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  genderContainer: {
+  // Gender
+  genderRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  genderOption: {
+  genderRowStack: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  genderBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
     gap: 8,
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.18)',
+    backgroundColor: 'rgba(10,20,50,0.65)',
   },
-  genderSelected: {
-    borderColor: '#4338ca',
-    backgroundColor: '#eef2ff',
+  genderBtnActive: {
+    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(59,130,246,0.12)',
   },
-  genderText: {
-    fontSize: 16,
-    color: '#64748b',
+  genderBtnText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: '400',
   },
-  genderTextSelected: {
-    color: '#4338ca',
+  genderBtnTextActive: {
+    color: '#60a5fa',
     fontWeight: '600',
   },
-  kvkkContainer: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  checkbox: {
+  // Checkbox
+  checkRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 6,
   },
-  checkboxBox: {
+  checkBox: {
     width: 20,
     height: 20,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#cbd5e1',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59,130,246,0.3)',
     marginRight: 10,
-    marginTop: 2,
+    marginTop: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(10,20,50,0.6)',
   },
-  checkboxChecked: {
-    backgroundColor: '#4338ca',
-    borderColor: '#4338ca',
+  checkBoxActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
-  kvkkText: {
+  checkText: {
     flex: 1,
     fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
+    color: 'rgba(255,255,255,0.5)',
+    lineHeight: 20,
   },
-  kvkkLink: {
-    color: '#4338ca',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+  checkLink: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
-  submitButton: {
-    marginTop: 24,
-    borderRadius: 12,
+  // Submit
+  submitBtn: {
+    borderRadius: 14,
     overflow: 'hidden',
+    marginTop: 24,
+    marginBottom: 4,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
-  submitButtonGradient: {
+  submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  submitButtonText: {
+  submitText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.2,
   },
-  loginContainer: {
+  // Divider
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  dividerText: {
+    fontSize: 12,
+    color: 'rgba(148,163,184,0.45)',
+    marginHorizontal: 12,
+  },
+  // Link row
+  linkRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  loginText: {
+  linkRowText: {
     fontSize: 14,
-    color: '#64748b',
+    color: 'rgba(148,163,184,0.65)',
   },
-  loginLink: {
+  linkRowAction: {
     fontSize: 14,
-    color: '#4338ca',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });

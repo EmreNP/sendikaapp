@@ -12,6 +12,11 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { createAuditLog } from '@/lib/services/auditLogService';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET /api/activities/[id] - Get single activity
 export const GET = asyncHandler(async (
   request: NextRequest,

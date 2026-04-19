@@ -6,6 +6,11 @@ import { withAuth, getCurrentUser } from '@/lib/middleware/auth'
 import { AppAuthorizationError } from '@/lib/utils/errors/AppError'
 import { USER_ROLE } from '@shared/constants/roles'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // OpenAPI spec artık sadece admin/superadmin erişimine açık
 // API yüzey keşfini (reconnaissance) önlemek için kimlik doğrulaması gerekli
 export const GET = asyncHandler(async (request: NextRequest) => {

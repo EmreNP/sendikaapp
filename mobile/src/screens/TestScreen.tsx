@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   FlatList,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
   Animated,
 } from 'react-native';
@@ -17,8 +17,6 @@ import ApiService from '../services/api';
 import { logger } from '../utils/logger';
 import type { TestContentDetail, TestQuestion, TestOption } from '../types';
 import { useRoute, useNavigation } from '@react-navigation/native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type RouteParams = {
   params: { testId: string; contentId?: string; trainingId?: string; lessonId?: string };
@@ -35,6 +33,7 @@ interface QuestionResult {
 export const TestScreen: React.FC = () => {
   const route = useRoute() as RouteParams;
   const navigation = useNavigation();
+  const { width: screenWidth } = useWindowDimensions();
   const { testId, contentId, trainingId, lessonId } = route.params;
 
   const [test, setTest] = useState<TestContentDetail | null>(null);
@@ -309,14 +308,14 @@ export const TestScreen: React.FC = () => {
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
+          length: screenWidth,
+          offset: screenWidth * index,
           index,
         })}
         renderItem={({ item: q, index }) => {
           const selectedId = answers[q.id];
           return (
-            <View style={[styles.questionPage, { width: SCREEN_WIDTH }]}>
+            <View style={[styles.questionPage, { width: screenWidth }]}>
               <ScrollView contentContainerStyle={styles.questionScroll} showsVerticalScrollIndicator={false}>
                 {/* Question Text */}
                 <View style={styles.questionCard}>

@@ -120,7 +120,7 @@ export const PartnerDetailScreen: React.FC<PartnerDetailScreenProps> = ({ naviga
                 </Text>
               </View>
             )}
-            <Text style={styles.partnerName}>{partner.name}</Text>
+            <Text style={styles.partnerName} numberOfLines={2}>{partner.name}</Text>
           </View>
 
           {/* Discount Badge */}

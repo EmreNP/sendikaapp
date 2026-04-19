@@ -5,6 +5,11 @@ import {
 } from '@/lib/utils/response';
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 export const POST = asyncHandler(async (request: NextRequest) => {
   // E-posta doğrulama özelliği devre dışı bırakıldı
   return withAuth(request, async (_req, _user) => {

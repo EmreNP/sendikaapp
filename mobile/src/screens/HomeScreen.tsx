@@ -147,7 +147,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [currentAnnouncementSlide, setCurrentAnnouncementSlide] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const sliderRef = useRef<FlatList>(null);
   const [sliderNews, setSliderNews] = useState<News[]>([]);
@@ -168,31 +167,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return () => clearInterval(interval);
   }, [currentSlide, sliderNews.length]);
 
-  // Auto slide for Announcements (front: 5000ms interval)
-  useEffect(() => {
-    if (announcements.length === 0) return;
-    const interval = setInterval(() => {
-      setCurrentAnnouncementSlide((prev) => (prev + 1) % announcements.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [announcements.length, currentAnnouncementSlide]);
-
   const fetchData = async () => {
     try {
       setIsLoading(true);
       const [announcementsData, newsData, featuredNewsData] = await Promise.all([
-        ApiService.getAnnouncements({ limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getAnnouncements({ limit: 3 }).catch(() => ({ items: [], total: 0, hasMore: false })),
         ApiService.getNews({ isPublished: true, limit: 20 }).catch(() => ({ items: [], total: 0, hasMore: false })),
-        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 5 }).catch(() => ({ items: [], total: 0, hasMore: false })),
+        ApiService.getNews({ isFeatured: true, isPublished: true, limit: 15 }).catch(() => ({ items: [], total: 0, hasMore: false })),
       ]);
       // API verisi varsa kullan, yoksa boş liste göster
-      const fetchedAnnouncements = announcementsData.items.slice(0, 5);
+      const fetchedAnnouncements = announcementsData.items.slice(0, 3);
       const fetchedNews = newsData.items.slice(0, 3);
       setAnnouncements(fetchedAnnouncements);
       setNews(fetchedNews);
       
       // Slider için öne çıkan haberleri al (isFeatured=true)
-      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : newsData.items.slice(0, 3));
+      setSliderNews(featuredNewsData.items.length > 0 ? featuredNewsData.items : newsData.items.slice(0, 15));
 
       // Cache successful data for offline use
       if (fetchedAnnouncements.length > 0) await cacheAnnouncements(fetchedAnnouncements);
@@ -204,14 +194,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       const cachedAnnouncementsData = await getCachedAnnouncements();
       
       if (cachedAnnouncementsData && cachedAnnouncementsData.length > 0) {
-        setAnnouncements(cachedAnnouncementsData);
+        setAnnouncements(cachedAnnouncementsData.slice(0, 3));
       } else {
         setAnnouncements([]);
       }
       
       if (cachedNewsData && cachedNewsData.length > 0) {
         setNews(cachedNewsData.slice(0, 3));
-        setSliderNews(cachedNewsData.slice(0, 3));
+        setSliderNews(cachedNewsData.slice(0, 15));
       } else {
         setNews([]);
         setSliderNews([]);
@@ -256,26 +246,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [navigation]);
 
-  // Front AnnouncementSection'dan - Öncelik renkleri
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return { bg: '#fee2e2', text: '#b91c1c' };
-      case 'high': return { bg: '#ffedd5', text: '#c2410c' };
-      case 'normal': return { bg: '#dbeafe', text: '#1d4ed8' };
-      case 'low': return { bg: '#f3f4f6', text: '#374151' };
-      default: return { bg: '#dbeafe', text: '#1d4ed8' };
+  const handleAnnouncementPress = useCallback(async (announcement: Announcement) => {
+    if (announcement.externalUrl) {
+      const supported = await Linking.canOpenURL(announcement.externalUrl);
+      if (supported) {
+        Linking.openURL(announcement.externalUrl);
+      } else {
+        Alert.alert('Hata', 'Harici bağlantı açılamıyor.');
+      }
+      return;
     }
-  };
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'Acil';
-      case 'high': return 'Önemli';
-      case 'normal': return 'Duyuru';
-      case 'low': return 'Bilgi';
-      default: return 'Duyuru';
+    const announcementId = (announcement as any).id || (announcement as any)._id;
+    if (announcementId) {
+      navigation.navigate('AnnouncementDetail', { announcementId });
+      return;
     }
-  };
+
+    navigation.navigate('AllAnnouncements');
+  }, [navigation]);
 
   type AnyDate = string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined | null;
   const toDate = (d: AnyDate): Date => {
@@ -314,7 +303,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         style={styles.slideOverlay}
       />
       <View style={styles.slideTextContainer}>
-        <Text style={styles.slideTitle}>{item.title}</Text>
+        <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
       </View>
     </TouchableOpacity>
   ), [screenWidth, LAYOUT.sliderHeight, navigation]);
@@ -366,8 +355,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     );
   };
 
-  // Front AnnouncementSection - single announcement slider
-  const renderAnnouncementSlider = () => {
+  // Front AnnouncementSection - alt alta 3 duyuru kartı
+  const renderAnnouncementList = () => {
     if (isLoading) {
       return (
         <View style={styles.announcementLoading}>
@@ -384,56 +373,65 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       );
     }
 
-    const currentAnnouncement = announcements[currentAnnouncementSlide];
-    const priorityColors = getPriorityColor(currentAnnouncement.priority || 'normal');
-
     return (
-      <TouchableOpacity
-        style={styles.announcementCard}
-        onPress={() => navigation.navigate('AllAnnouncements')}
-        activeOpacity={0.9}
-        accessibilityLabel={`Duyuru: ${currentAnnouncement.title}`}
-        accessibilityRole="button"
-        accessibilityHint="Tüm duyuruları görmek için dokunun"
-      >
-        <View style={styles.announcementContent}>
-          <View style={styles.announcementLeft}>
-            {/* Priority badge */}
-            <View style={[styles.priorityBadge, { backgroundColor: priorityColors.bg }]}>
-              <Text style={[styles.priorityText, { color: priorityColors.text }]}>
-                {getPriorityLabel(currentAnnouncement.priority || 'normal')}
-              </Text>
-            </View>
-            
-            <Text style={styles.announcementTitle} numberOfLines={2}>
-              {currentAnnouncement.title}
-            </Text>
-            
-            <Text style={styles.announcementSummary} numberOfLines={3}>
-              {stripHtmlTags((currentAnnouncement as Announcement).summary || currentAnnouncement.content || '')}
-            </Text>
-            
-            <View style={styles.announcementMeta}>
-              <View style={styles.metaItem}>
-                <Feather name="calendar" size={14} color="#6b7280" />
-                <Text style={styles.metaText}>
-                  {formatDate(currentAnnouncement.createdAt || new Date())}
-                </Text>
+      <View style={styles.announcementListContainer}>
+        {announcements.slice(0, 3).map((announcement) => {
+          const isFeatured = !!announcement.isFeatured;
+          const isExternal = !!announcement.externalUrl;
+          const announcementDescription = stripHtmlTags((announcement as Announcement).summary || announcement.content || '');
+          const descriptionText = announcementDescription || (isExternal ? `Kaynak: ${announcement.externalUrl}` : '');
+
+          return (
+            <TouchableOpacity
+              key={announcement._id || announcement.id || announcement.title}
+              style={[styles.announcementCard, isFeatured && styles.featuredAnnouncementCard]}
+              onPress={() => handleAnnouncementPress(announcement)}
+              activeOpacity={0.9}
+              accessibilityLabel={`Duyuru: ${announcement.title}`}
+              accessibilityRole="button"
+              accessibilityHint={isExternal ? 'Harici bağlantıyı açmak için dokunun' : 'Duyuru detayını görmek için dokunun'}
+            >
+              <View style={styles.announcementContent}>
+                <View style={styles.announcementLeft}>
+                  {isExternal && (
+                    <View style={styles.externalBadge}>
+                      <Feather name="external-link" size={12} color="#2563eb" />
+                      <Text style={styles.externalBadgeText}>Harici Bağlantı</Text>
+                    </View>
+                  )}
+
+                  <Text style={styles.announcementTitle} numberOfLines={2}>
+                    {announcement.title}
+                  </Text>
+
+                  <Text style={styles.announcementSummary} numberOfLines={2}>
+                    {descriptionText}
+                  </Text>
+
+                  <View style={styles.announcementMeta}>
+                    <View style={styles.metaItem}>
+                      <Feather name="calendar" size={14} color="#6b7280" />
+                      <Text style={styles.metaText}>
+                        {formatDate(announcement.createdAt || new Date())}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Feather name="clock" size={14} color="#6b7280" />
+                      <Text style={styles.metaText}>
+                        {formatTime(announcement.createdAt || new Date())}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.announcementRight}>
+                  <Feather name={isExternal ? 'external-link' : 'chevron-right'} size={20} color={isExternal ? '#2563eb' : '#9ca3af'} />
+                </View>
               </View>
-              <View style={styles.metaItem}>
-                <Feather name="clock" size={14} color="#6b7280" />
-                <Text style={styles.metaText}>
-                  {formatTime(currentAnnouncement.createdAt || new Date())}
-                </Text>
-              </View>
-            </View>
-          </View>
-          
-          <View style={styles.announcementRight}>
-            <Feather name="chevron-right" size={20} color="#9ca3af" />
-          </View>
-        </View>
-      </TouchableOpacity>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     );
   };
 
@@ -458,7 +456,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
           {/* Marka İsmi */}
           <View style={styles.brandText}>
-            <Text style={styles.brandName}>Türk Diyanet Vakıf-sen</Text>
+            <Text style={styles.brandName} numberOfLines={1}>Türk Diyanet Vakıf-sen</Text>
             <View style={styles.brandSubtitle}>
               <View style={styles.subtitleLine} />
               <Text style={styles.subtitleText}>KONYA</Text>
@@ -584,7 +582,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Feather name="arrow-right" size={16} color="#2563eb" />
             </TouchableOpacity>
           </View>
-          {renderAnnouncementSlider()}
+          {renderAnnouncementList()}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -619,6 +617,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    flex: 1,
   },
   logoContainer: {
     width: 52,
@@ -953,6 +952,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  announcementListContainer: {
+    gap: 10,
+  },
   announcementCard: {
     backgroundColor: 'rgba(255,255,255,0.85)', // bg-white/85
     borderRadius: 16, // rounded-2xl
@@ -964,7 +966,10 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
-    minHeight: DEFAULT_LAYOUT.announcementHeight * 0.75,
+  },
+  featuredAnnouncementCard: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
   },
   announcementContent: {
     flexDirection: 'row',
@@ -987,6 +992,18 @@ const styles = StyleSheet.create({
   },
   priorityText: {
     fontSize: 11,
+    fontWeight: '600',
+  },
+  externalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
+  },
+  externalBadgeText: {
+    fontSize: 12,
+    color: '#2563eb',
     fontWeight: '600',
   },
   announcementTitle: {

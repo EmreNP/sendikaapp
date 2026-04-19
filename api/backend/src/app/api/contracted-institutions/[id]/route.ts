@@ -14,6 +14,11 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 import { logger } from '../../../../lib/utils/logger';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 const COLLECTION_NAME = 'contracted_institutions';
 
 // GET - Tek anlaşmalı kurum detayı

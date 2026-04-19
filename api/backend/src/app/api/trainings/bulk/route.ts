@@ -13,6 +13,11 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { deleteLessonsContentsBatch } from '@/lib/utils/batchQueries';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // POST - Toplu işlem (sadece admin)
 export const POST = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

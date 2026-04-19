@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   actionCardHalf: {
     flex: 1,
-    height: 140,
+    minHeight: 140,
     borderRadius: 16,
     overflow: 'hidden',
   },

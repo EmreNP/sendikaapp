@@ -9,11 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { CustomInput } from '../components/CustomInput';
 import { useAuth } from '../context/AuthContext';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
@@ -46,6 +47,9 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
     branchId: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [educationPickerVisible, setEducationPickerVisible] = useState(false);
+  const [branchPickerVisible, setBranchPickerVisible] = useState(false);
+  const [unionPickerVisible, setUnionPickerVisible] = useState(false);
 
   useEffect(() => {
     fetchBranches();
@@ -255,18 +259,17 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
             {/* Education Picker */}
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Eğitim Durumu *</Text>
-              <View style={[styles.pickerWrapper, errors.education ? styles.pickerError : undefined]}>
-                <Picker
-                  selectedValue={formData.education}
-                  onValueChange={(value) => updateField('education', value)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Seçiniz..." value="" />
-                  {EDUCATION_LEVEL_OPTIONS.map((opt) => (
-                    <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={[styles.selectTouchable, errors.education ? styles.selectError : undefined]}
+                onPress={() => setEducationPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="book-open" size={16} color="#94a3b8" />
+                <Text style={[styles.selectValue, !formData.education && styles.selectPlaceholder]}>
+                  {EDUCATION_LEVEL_OPTIONS.find(o => o.value === formData.education)?.label || 'Seçiniz...'}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#94a3b8" />
+              </TouchableOpacity>
               {errors.education && <Text style={styles.errorText}>{errors.education}</Text>}
             </View>
 
@@ -281,16 +284,17 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
 
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Başka sendikaya üye misiniz?</Text>
-              <View style={[styles.pickerWrapper]}>
-                <Picker
-                  selectedValue={String(formData.isMemberOfOtherUnion)}
-                  onValueChange={(value) => updateField('isMemberOfOtherUnion', value === 'true')}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Hayır" value="false" />
-                  <Picker.Item label="Evet" value="true" />
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={styles.selectTouchable}
+                onPress={() => setUnionPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="users" size={16} color="#94a3b8" />
+                <Text style={styles.selectValue}>
+                  {formData.isMemberOfOtherUnion ? 'Evet' : 'Hayır'}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#94a3b8" />
+              </TouchableOpacity>
             </View>
 
 
@@ -298,20 +302,100 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({ navigation }
             {/* Branch Picker */}
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Şube *</Text>
-              <View style={[styles.pickerWrapper, errors.branchId ? styles.pickerError : undefined]}>
-                <Picker
-                  selectedValue={formData.branchId}
-                  onValueChange={(value) => updateField('branchId', value)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Şube seçiniz..." value="" />
-                  {branches.map((branch) => (
-                    <Picker.Item key={branch.id} label={branch.name} value={branch.id} />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={[styles.selectTouchable, errors.branchId ? styles.selectError : undefined]}
+                onPress={() => setBranchPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="home" size={16} color="#94a3b8" />
+                <Text style={[styles.selectValue, !formData.branchId && styles.selectPlaceholder]}>
+                  {branches.find(b => b.id === formData.branchId)?.name || 'Şube seçiniz...'}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#94a3b8" />
+              </TouchableOpacity>
               {errors.branchId && <Text style={styles.errorText}>{errors.branchId}</Text>}
             </View>
+
+            {/* ===== Picker Modals ===== */}
+
+            {/* Education Modal */}
+            <Modal visible={educationPickerVisible} transparent animationType="slide" onRequestClose={() => setEducationPickerVisible(false)} statusBarTranslucent>
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setEducationPickerVisible(false)}>
+                <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+                  <View style={styles.sheetHandle} />
+                  <View style={styles.sheetHeader}>
+                    <Text style={styles.sheetTitle}>Eğitim Durumu</Text>
+                    <TouchableOpacity onPress={() => setEducationPickerVisible(false)} style={styles.sheetClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Feather name="x" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                  {EDUCATION_LEVEL_OPTIONS.map(opt => {
+                    const selected = formData.education === opt.value;
+                    return (
+                      <TouchableOpacity key={opt.value} style={[styles.sheetItem, selected && styles.sheetItemSelected]} onPress={() => { updateField('education', opt.value); setEducationPickerVisible(false); }}>
+                        <Text style={[styles.sheetItemText, selected && styles.sheetItemTextSelected]}>{opt.label}</Text>
+                        {selected && <Feather name="check" size={15} color="#4338ca" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* Union Modal */}
+            <Modal visible={unionPickerVisible} transparent animationType="slide" onRequestClose={() => setUnionPickerVisible(false)} statusBarTranslucent>
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setUnionPickerVisible(false)}>
+                <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+                  <View style={styles.sheetHandle} />
+                  <View style={styles.sheetHeader}>
+                    <Text style={styles.sheetTitle}>Başka Sendika Üyeliği</Text>
+                    <TouchableOpacity onPress={() => setUnionPickerVisible(false)} style={styles.sheetClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Feather name="x" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                  {[{ label: 'Hayır', value: false }, { label: 'Evet', value: true }].map(opt => {
+                    const selected = formData.isMemberOfOtherUnion === opt.value;
+                    return (
+                      <TouchableOpacity key={String(opt.value)} style={[styles.sheetItem, selected && styles.sheetItemSelected]} onPress={() => { updateField('isMemberOfOtherUnion', opt.value); setUnionPickerVisible(false); }}>
+                        <Text style={[styles.sheetItemText, selected && styles.sheetItemTextSelected]}>{opt.label}</Text>
+                        {selected && <Feather name="check" size={15} color="#4338ca" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* Branch Modal */}
+            <Modal visible={branchPickerVisible} transparent animationType="slide" onRequestClose={() => setBranchPickerVisible(false)} statusBarTranslucent>
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBranchPickerVisible(false)}>
+                <View style={[styles.modalSheet, { maxHeight: '70%' }]} onStartShouldSetResponder={() => true}>
+                  <View style={styles.sheetHandle} />
+                  <View style={styles.sheetHeader}>
+                    <Text style={styles.sheetTitle}>Şube Seçimi</Text>
+                    <TouchableOpacity onPress={() => setBranchPickerVisible(false)} style={styles.sheetClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Feather name="x" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={branches}
+                    keyExtractor={item => item.id}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    style={{ paddingHorizontal: 4, paddingTop: 8 }}
+                    renderItem={({ item }) => {
+                      const selected = formData.branchId === item.id;
+                      return (
+                        <TouchableOpacity style={[styles.sheetItem, selected && styles.sheetItemSelected]} onPress={() => { updateField('branchId', item.id); setBranchPickerVisible(false); }}>
+                          <Text style={[styles.sheetItemText, selected && styles.sheetItemTextSelected]}>{item.name}</Text>
+                          {selected && <Feather name="check" size={15} color="#4338ca" />}
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Modal>
 
             <TouchableOpacity
               style={styles.submitButton}
@@ -454,47 +538,95 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: 6,
   },
-  pickerWrapper: {
+  selectTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: '#f8fafc',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    overflow: 'hidden',
+    paddingHorizontal: 14,
+    height: 50,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
-    paddingHorizontal: 12,
-  },
-  inputError: {
-    borderColor: '#ef4444',
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
+  selectValue: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: '#1e293b',
   },
-  pickerError: {
-    borderColor: '#ef4444',
-  },
-  datePickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
-  },
-  datePickerPlaceholder: {
+  selectPlaceholder: {
     color: '#94a3b8',
   },
-  picker: {
-    height: 50,
+  selectError: {
+    borderColor: '#ef4444',
+  },
+  // Bottom-sheet modal (light theme)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    borderTopWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#cbd5e1',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+    letterSpacing: 0.2,
+  },
+  sheetClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    marginBottom: 2,
+  },
+  sheetItemSelected: {
+    backgroundColor: 'rgba(67,56,202,0.08)',
+  },
+  sheetItemText: {
+    fontSize: 15,
+    color: '#334155',
+    fontWeight: '400',
+  },
+  sheetItemTextSelected: {
+    color: '#4338ca',
+    fontWeight: '600',
   },
   errorText: {
     fontSize: 12,

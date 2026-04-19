@@ -10,6 +10,11 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError } from '@/lib/utils/errors/AppError';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET /api/users/stats - Kullanıcı istatistikleri
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

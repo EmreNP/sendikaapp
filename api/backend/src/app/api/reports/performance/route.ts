@@ -8,6 +8,11 @@ import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppAuthorizationError, AppValidationError } from '@/lib/utils/errors/AppError';
 import { logger } from '@/lib/utils/logger';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 /**
  * Performans skorunu hesapla
  * Puanlama:

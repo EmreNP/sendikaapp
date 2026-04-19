@@ -15,6 +15,11 @@ import { parseJsonBody } from '@/lib/utils/request';
 import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/AppError';
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 const COLLECTION_NAME = 'contracted_institutions';
 
 // GET - Tüm anlaşmalı kurumları listele

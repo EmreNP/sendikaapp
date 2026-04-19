@@ -105,7 +105,8 @@
           "project": "TDVS Konya",
           "uploadSourceMaps": true
         }
-      ]
+      ],
+      "expo-video"
     ],
     "extra": {
       "eas": {

@@ -76,12 +76,17 @@ export function useNotifications(isAuthenticated: boolean) {
       if (!data) return;
 
       const { type, contentId } = data as { type?: string; contentId?: string };
+      const announcementId = (data as any).announcementId || contentId || (data as any).id;
 
       try {
         if (type === 'news' && contentId) {
           navigation.navigate('NewsDetail', { newsId: contentId });
         } else if (type === 'announcement') {
-          navigation.navigate('AllAnnouncements');
+          if (typeof announcementId === 'string' && announcementId.length > 0) {
+            navigation.navigate('AnnouncementDetail', { announcementId });
+          } else {
+            navigation.navigate('AllAnnouncements');
+          }
         } else {
           // Genel bildirim — bildirimler ekranına git
           navigation.navigate('Notifications');

@@ -14,6 +14,11 @@ import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/l
 import { getBranchDetails } from '@/lib/utils/branchQueries';
 
 import { logger } from '../../../../lib/utils/logger';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Note: getBranchManagers, getBranchEventCount, getBranchEducationCount fonksiyonları
 // artık getBranchDetails() utility fonksiyonu kullanılıyor (src/lib/utils/branchQueries.ts)
 

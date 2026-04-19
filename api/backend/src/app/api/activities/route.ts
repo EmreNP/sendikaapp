@@ -21,6 +21,11 @@ import { AppValidationError, AppAuthorizationError } from '@/lib/utils/errors/Ap
 import { paginateHybrid, parsePaginationParams, searchInBatches } from '@/lib/utils/pagination';
 import { createAuditLog } from '@/lib/services/auditLogService';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET /api/activities - List activities (filtered by role)
 export const GET = asyncHandler(async (request: NextRequest) => {
   return withAuth(request, async (req, user) => {

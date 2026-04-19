@@ -1,4 +1,4 @@
-// Profile Screen - User Profile with Logout
+// Profile Screen – Hesap ayarları (profil detayı ayrı ekranda)
 import React from 'react';
 import {
   View,
@@ -39,16 +39,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       'Hesabınızdan çıkış yapmak istediğinizden emin misiniz?',
       [
         { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Çıkış Yap', 
+        {
+          text: 'Çıkış Yap',
           style: 'destructive',
           onPress: async () => {
             try {
               await logout();
-            } catch (error) {
+            } catch {
               Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu');
             }
-          }
+          },
         },
       ]
     );
@@ -77,10 +77,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       await ApiService.deleteAccount();
                       await logout();
                     } catch (error: any) {
-                      Alert.alert(
-                        'Hata',
-                        error?.message || 'Hesap silinirken bir hata oluştu. Lütfen tekrar deneyin.'
-                      );
+                      Alert.alert('Hata', error?.message || 'Hesap silinirken bir hata oluştu.');
                     }
                   },
                 },
@@ -93,21 +90,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   const menuItems: { icon: keyof typeof Feather.glyphMap; label: string; action: () => void }[] = [
-    { icon: 'user', label: 'Profil', action: () => navigation.navigate('EditProfile' as never) },
+    {
+      icon: 'user',
+      label: 'Profil',
+      action: () => navigation.navigate('ProfileDetail' as never),
+    },
     { icon: 'lock', label: 'Şifre Değiştir', action: () => navigation.navigate('ChangePassword' as never) },
     { icon: 'shield', label: 'Gizlilik Politikası ve KVKK', action: () => navigation.navigate('Kvkk' as never) },
     { icon: 'file-text', label: 'Kullanım Koşulları', action: () => navigation.navigate('Terms' as never) },
     { icon: 'help-circle', label: 'Yardım & Destek', action: () => navigation.navigate('Contact') },
-    // Admin Panel - superadmin, admin ve şube yöneticileri için
-    ...((role === 'superadmin' || role === 'admin' || role === 'branch_manager') ? [
-      { icon: 'settings' as keyof typeof Feather.glyphMap, label: 'Admin Panel', action: () => Linking.openURL('https://tdvs-konya.web.app/login') },
-    ] : []),
+    ...((role === 'superadmin' || role === 'admin' || role === 'branch_manager')
+      ? [{ icon: 'settings' as keyof typeof Feather.glyphMap, label: 'Admin Panel', action: () => Linking.openURL('https://tdvs-konya.web.app/login') }]
+      : []),
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Gradient Header */}
         <LinearGradient
           colors={['#0f172a', '#312e81', '#4338ca']}
           start={{ x: 0, y: 0 }}
@@ -115,73 +115,66 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           style={styles.header}
         >
           <View style={styles.avatarContainer}>
-            <LinearGradient
-              colors={['#4338ca', '#1e40af']}
-              style={styles.avatar}
-            >
+            <LinearGradient colors={['#4338ca', '#1e40af']} style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </Text>
             </LinearGradient>
           </View>
           <Text style={styles.userName}>
-            {user?.firstName && user?.lastName 
-              ? `${user.firstName} ${user.lastName}` 
+            {user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
               : 'Kullanıcı'}
           </Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {role && (
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>
-                {role === 'admin' ? 'Yönetici' : role === 'branch_manager' ? 'Şube Yöneticisi' : status === 'resigned' ? 'İstifa Etmiş Üye' : status === 'active' ? 'Sendika Üyesi' : 'Üye'}
+                {role === 'admin'
+                  ? 'Yönetici'
+                  : role === 'branch_manager'
+                  ? 'Şube Yöneticisi'
+                  : status === 'resigned'
+                  ? 'İstifa Etmiş Üye'
+                  : status === 'active'
+                  ? 'Sendika Üyesi'
+                  : 'Üye'}
               </Text>
             </View>
           )}
         </LinearGradient>
 
-        {/* Menu Items */}
+        {/* Menü */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.menuItem}
+              style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
               onPress={item.action}
               activeOpacity={0.7}
             >
               <View style={styles.menuItemLeft}>
-                <View style={styles.menuIconContainer}>
+                <View style={styles.menuIconBox}>
                   <Feather name={item.icon} size={20} color="#4338ca" />
                 </View>
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </View>
-              <View style={styles.menuItemRight}>
-                <Feather name="chevron-right" size={20} color="#94a3b8" />
-              </View>
+              <Feather name="chevron-right" size={20} color="#94a3b8" />
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Logout Button */}
+        {/* Çıkış / Hesap Sil */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleLogout}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
             <Feather name="log-out" size={20} color="#dc2626" />
             <Text style={styles.logoutText}>Çıkış Yap</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.deleteAccountButton}
-            onPress={handleDeleteAccount}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} activeOpacity={0.8}>
             <Text style={styles.deleteAccountText}>Hesabımı Sil</Text>
           </TouchableOpacity>
         </View>
 
-        {/* App Version */}
         <Text style={styles.versionText}>Versiyon 1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -189,10 +182,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   header: {
     paddingVertical: 32,
     paddingHorizontal: 24,
@@ -200,9 +190,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-  avatarContainer: {
-    marginBottom: 16,
-  },
+  avatarContainer: { marginBottom: 16 },
   avatar: {
     width: 80,
     height: 80,
@@ -210,35 +198,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 12,
-  },
+  avatarText: { fontSize: 32, fontWeight: 'bold', color: '#ffffff' },
+  userName: { fontSize: 22, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 },
+  userEmail: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 12 },
   roleBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  roleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
+  roleText: { fontSize: 12, fontWeight: '600', color: '#ffffff' },
   menuContainer: {
     marginTop: 24,
     marginHorizontal: 16,
@@ -260,47 +231,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuIconContainer: {
+  menuItemLast: { borderBottomWidth: 0 },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+  menuIconBox: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(67, 56, 202, 0.1)',
+    backgroundColor: 'rgba(67,56,202,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  menuItemText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#0f172a',
+  menuIconBoxHighlight: {
+    backgroundColor: 'rgba(67,56,202,0.14)',
   },
-  menuItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  logoutContainer: {
-    marginTop: 24,
-    marginHorizontal: 16,
-  },
+  menuItemText: { fontSize: 15, fontWeight: '500', color: '#0f172a', flex: 1 },
+  menuItemTextHighlight: { fontWeight: '700', color: '#4338ca' },
+  logoutContainer: { marginTop: 24, marginHorizontal: 16 },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,12 +257,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fecaca',
   },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#dc2626',
-    marginLeft: 8,
-  },
+  logoutText: { fontSize: 15, fontWeight: '600', color: '#dc2626', marginLeft: 8 },
   deleteAccountButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,17 +265,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 10,
   },
-  deleteAccountText: {
-    fontSize: 13,
-    color: '#9ca3af',
-    marginLeft: 6,
-    textDecorationLine: 'underline',
-  },
-  versionText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 24,
-    marginBottom: 32,
-  },
+  deleteAccountText: { fontSize: 13, color: '#9ca3af', textDecorationLine: 'underline' },
+  versionText: { textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 24, marginBottom: 32 },
 });

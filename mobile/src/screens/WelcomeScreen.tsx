@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Image,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -105,6 +107,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
   const buttonSlideAnim = useRef(new Animated.Value(100)).current;
 
   const [showContent, setShowContent] = useState(false);
+  const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -305,6 +308,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
 
       {/* Main content */}
       <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* Logo section */}
           <Animated.View
@@ -379,7 +383,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                 { icon: 'users', label: 'Topluluk' },
                 { icon: 'shield', label: 'Haklarınız' },
               ].map((feature, index) => (
-                <View key={index} style={styles.featureItem}>
+                <View key={index} style={[styles.featureItem, { width: Math.floor((screenWidth - 96) / 3) }]}>
                   <View style={styles.featureIconWrapper}>
                     <LinearGradient
                       colors={['rgba(59, 130, 246, 0.25)', 'rgba(59, 130, 246, 0.1)']}
@@ -458,6 +462,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             © {new Date().getFullYear()} Türk Diyanet Vakıf-Sen Konya Şubesi
           </Text>
         </Animated.View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );

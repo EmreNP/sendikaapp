@@ -7,7 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -21,8 +20,6 @@ import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ContractedInstitution, InstitutionCategory } from '../types';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 type PartnerInstitutionsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PartnerInstitutions'>;
 

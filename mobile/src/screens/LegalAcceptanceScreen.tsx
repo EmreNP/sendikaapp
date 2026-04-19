@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -42,6 +42,7 @@ export const LegalAcceptanceScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Feather name="shield" size={64} color="#4338ca" />
@@ -114,6 +115,7 @@ export const LegalAcceptanceScreen: React.FC = () => {
           <Text style={styles.logoutText}>Vazgeç ve Çıkış Yap</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

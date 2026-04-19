@@ -17,11 +17,32 @@ const FCM_TOKEN_KEY = 'fcm_token';
  */
 export function isExpoGo(): boolean {
   try {
-    // 1. Birincil kontrol: executionEnvironment (SDK 46+)
-    if (Constants.executionEnvironment === 'storeClient') return true;
-    // 2. Yedek kontrol: appOwnership (eski sürümler için)
-    const legacyOwnership = (Constants as Record<string, unknown>).appOwnership;
-    if (legacyOwnership === 'expo') return true;
+    const anyConstants = Constants as unknown as Record<string, unknown>;
+
+    // 1) appOwnership: Expo Go'da genellikle 'expo'
+    const ownership = (anyConstants.appOwnership ?? (Constants as any).appOwnership) as unknown;
+    if (ownership === 'expo') return true;
+
+    // 2) executionEnvironment: Expo Go'da 'storeClient'
+    const execEnv = (anyConstants.executionEnvironment ?? (Constants as any).executionEnvironment) as unknown;
+    if (typeof execEnv === 'string') {
+      const normalized = execEnv.toLowerCase();
+      if (normalized === 'storeclient' || normalized.includes('store')) return true;
+    } else if (typeof execEnv === 'number') {
+      const envEnum = (anyConstants.ExecutionEnvironment ?? (Constants as any).ExecutionEnvironment) as any;
+      if (envEnum && typeof envEnum === 'object' && execEnv === envEnum.StoreClient) return true;
+    }
+
+    // 3) İleriye dönük/edge: Expo Go manifestleri genelde hostUri içerir
+    const expoConfig = (anyConstants.expoConfig ?? (Constants as any).expoConfig) as any;
+    if (expoConfig && typeof expoConfig === 'object') {
+      const hostUri = expoConfig.hostUri as unknown;
+      if (typeof hostUri === 'string' && hostUri.length > 0) {
+        // hostUri tek başına Expo Go kanıtı değil; ama ownership/execEnv yoksa güçlü ipucu.
+        return true;
+      }
+    }
+
     return false;
   } catch {
     return false;
@@ -112,6 +133,15 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     return token;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // Expo Go'da remote push API çağrısı yapılırsa expo-notifications bu hatayı fırlatır.
+    // Bu durum beklenen bir durum olduğundan Sentry'ye error olarak göndermiyoruz.
+    if (message.includes('removed from Expo Go') || message.includes('Use a development build')) {
+      logger.warn('⚠️ Expo Go ortamında remote push desteklenmiyor; token alma atlandı.');
+      return null;
+    }
+
     logger.error('❌ Push token alınamadı:', error);
     Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
       tags: { flow: 'push-token-retrieval' },

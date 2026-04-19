@@ -11,6 +11,11 @@ import { AppValidationError, AppInternalServerError } from '@/lib/utils/errors/A
 import { isErrorWithMessage } from '@/lib/utils/response';
 import { logger } from '../../../../../lib/utils/logger';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 interface PasswordChangeRequest {
   currentPassword: string;
   newPassword: string;

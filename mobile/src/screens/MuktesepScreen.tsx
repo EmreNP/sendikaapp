@@ -8,7 +8,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,8 +16,6 @@ import { Feather } from '@expo/vector-icons';
 import { calculateMuktesep, MuktesepFormData } from '../utils/muktesepCalculator';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 type MuktesepScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Muktesep'>;
 
@@ -496,10 +493,14 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   breakdownLabel: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 15,
     color: '#475569',
   },
   breakdownValue: {
+    flexShrink: 0,
+    marginLeft: 8,
     fontSize: 15,
     color: '#1e3a8a',
     fontWeight: '700',

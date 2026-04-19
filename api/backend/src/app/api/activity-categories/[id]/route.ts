@@ -11,6 +11,11 @@ import {
 import { asyncHandler } from '@/lib/utils/errors/errorHandler';
 import { AppValidationError, AppAuthorizationError, AppNotFoundError } from '@/lib/utils/errors/AppError';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+
 // GET /api/activity-categories/[id] - Get single category (admin only)
 export const GET = asyncHandler(async (
   request: NextRequest,

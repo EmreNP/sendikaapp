@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,8 +24,6 @@ interface UpdateModalProps {
   updateInfo: UpdateCheckResult;
   onDismiss?: () => void;
 }
-
-const { width } = Dimensions.get('window');
 
 export const UpdateModal: React.FC<UpdateModalProps> = ({
   visible,
@@ -161,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 30,
     alignItems: 'center',
-    width: width - 60,
+    width: '100%',
     maxWidth: 380,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },

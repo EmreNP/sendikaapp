@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/config/api';
 
 const TermsPage: React.FC = () => {
   const [data, setData] = useState<{title?: string, lastUpdated?: string, content?: string} | null>(null);
@@ -9,8 +10,7 @@ const TermsPage: React.FC = () => {
     const fetchTerms = async () => {
       try {
         setLoading(true);
-        const backendUrl = import.meta.env.VITE_API_URL || 'https://tdvskonya-api-805647677578.europe-west1.run.app';
-        const response = await fetch(`${backendUrl}/api/legal/terms`);
+        const response = await fetch(`${API_BASE_URL}/legal/terms`);
         if (!response.ok) throw new Error('Metin yüklenemedi');
         const result = await response.json();
         setData(result);

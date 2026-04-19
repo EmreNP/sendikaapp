@@ -8,16 +8,16 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  useWindowDimensions,
+  Linking,
+  Alert,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
-import { HtmlContent, stripHtmlTags } from '../components/HtmlContent';
+import { stripHtmlTags } from '../components/HtmlContent';
 import { CardSkeleton } from '../components/SkeletonLoader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, Announcement } from '../types';
@@ -32,7 +32,6 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -96,107 +95,86 @@ export const AllAnnouncementsScreen: React.FC<AllAnnouncementsScreenProps> = ({
     });
   };
 
-  const getPriorityColor = (priority?: string): [string, string] => {
-    switch (priority) {
-      case 'high':
-        return ['#ef4444', '#dc2626'];
-      case 'medium':
-        return ['#f59e0b', '#d97706'];
-      default:
-        return ['#2563eb', '#1d4ed8'];
+  const formatTime = (dateInput: string | Date | { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | undefined | null) => {
+    if (!dateInput) return '';
+    let dateString: string | Date;
+    if (typeof dateInput === 'object' && 'seconds' in dateInput) {
+      dateString = new Date((dateInput.seconds ?? dateInput._seconds ?? 0) * 1000);
+    } else {
+      dateString = dateInput as string | Date;
     }
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const getPriorityLabel = (priority?: string) => {
-    switch (priority) {
-      case 'high':
-        return 'Önemli';
-      case 'medium':
-        return 'Orta';
-      default:
-        return 'Normal';
+  const handleAnnouncementPress = useCallback(async (item: Announcement) => {
+    if (item.externalUrl) {
+      const supported = await Linking.canOpenURL(item.externalUrl);
+      if (supported) {
+        Linking.openURL(item.externalUrl);
+      } else {
+        Alert.alert('Hata', 'Harici bağlantı açılamıyor.');
+      }
+      return;
     }
-  };
 
-  const getPriorityIcon = (priority?: string): 'alert-triangle' | 'alert-circle' | 'bell' => {
-    switch (priority) {
-      case 'high':
-        return 'alert-triangle';
-      case 'medium':
-        return 'alert-circle';
-      default:
-        return 'bell';
-    }
-  };
-
-  const toggleAnnouncement = useCallback((id: string) => {
-    setSelectedAnnouncement(prev => prev === id ? null : id);
-  }, []);
+    navigation.navigate('AnnouncementDetail', { announcementId: item.id });
+  }, [navigation]);
 
   const renderAnnouncementItem = useCallback(({ item }: { item: Announcement }) => {
-    const isExpanded = selectedAnnouncement === item.id;
-    const priorityColors = getPriorityColor(item.priority);
+    const isFeatured = !!item.isFeatured;
+    const isExternal = !!item.externalUrl;
     const plainContent = item.content ? stripHtmlTags(item.content) : '';
+    const previewContent = plainContent || (isExternal ? `Kaynak: ${item.externalUrl}` : '');
 
     return (
       <TouchableOpacity
-        style={[styles.announcementCard, isExpanded && styles.announcementCardExpanded]}
-        onPress={() => toggleAnnouncement(item.id)}
+        style={[styles.announcementCard, isFeatured && styles.featuredAnnouncementCard]}
+        onPress={() => handleAnnouncementPress(item)}
         activeOpacity={0.9}
+        accessibilityLabel={`Duyuru: ${item.title}`}
+        accessibilityRole="button"
+        accessibilityHint={isExternal ? 'Harici bağlantıyı açmak için dokunun' : 'Duyuru detayını görmek için dokunun'}
       >
-        <View style={styles.cardHeader}>
-          <LinearGradient
-            colors={priorityColors}
-            style={styles.priorityIndicator}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <View style={styles.cardContent}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardTitle} numberOfLines={isExpanded ? undefined : 2}>
-                {item.title}
-              </Text>
-              <Feather 
-                name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                size={18} 
-                color="#94a3b8" 
-              />
-            </View>
-
-            {/* Kapalıyken kısa özet (HTML tag'larından temizlenmiş) */}
-            {!isExpanded && plainContent.length > 0 && (
-              <Text style={styles.previewText} numberOfLines={2}>
-                {plainContent}
-              </Text>
+        <View style={styles.announcementContent}>
+          <View style={styles.announcementLeft}>
+            {isExternal && (
+              <View style={styles.externalBadge}>
+                <Feather name="external-link" size={12} color="#2563eb" />
+                <Text style={styles.externalBadgeText}>Harici Bağlantı</Text>
+              </View>
             )}
 
-            <View style={styles.cardMeta}>
-              <View style={[styles.priorityBadge, { backgroundColor: priorityColors[0] + '15' }]}>
-                <Feather name={getPriorityIcon(item.priority)} size={12} color={priorityColors[0]} style={{ marginRight: 4 }} />
-                <Text style={[styles.priorityText, { color: priorityColors[0] }]}>
-                  {getPriorityLabel(item.priority)}
-                </Text>
+            <Text style={styles.announcementTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+
+            <Text style={styles.announcementSummary} numberOfLines={2}>
+              {previewContent}
+            </Text>
+
+            <View style={styles.announcementMeta}>
+              <View style={styles.metaItem}>
+                <Feather name="calendar" size={14} color="#6b7280" />
+                <Text style={styles.metaText}>{formatDate(item.createdAt || '')}</Text>
               </View>
-              <View style={styles.dateContainer}>
-                <Feather name="calendar" size={12} color="#64748b" style={{ marginRight: 4 }} />
-                <Text style={styles.cardDate}>{formatDate(item.createdAt || '')}</Text>
+              <View style={styles.metaItem}>
+                <Feather name="clock" size={14} color="#6b7280" />
+                <Text style={styles.metaText}>{formatTime(item.createdAt || '')}</Text>
               </View>
             </View>
+          </View>
+
+          <View style={styles.announcementRight}>
+            <Feather name={isExternal ? 'external-link' : 'chevron-right'} size={20} color={isExternal ? '#2563eb' : '#9ca3af'} />
           </View>
         </View>
-
-        {/* Açıldığında görsel ve HTML içerik */}
-        {isExpanded && (
-          <View style={styles.expandedContent}>
-            {item.imageUrl && (
-              <Image source={{ uri: item.imageUrl }} style={styles.announcementImage} />
-            )}
-            {item.content && <HtmlContent html={item.content} />}
-          </View>
-        )}
       </TouchableOpacity>
     );
-  }, [selectedAnnouncement]);
+  }, [handleAnnouncementPress]);
 
   const keyExtractor = useCallback((item: Announcement) => item.id, []);
 
@@ -339,91 +317,85 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   announcementCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: 16,
+    padding: 14,
     marginBottom: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  announcementCardExpanded: {
+    shadowColor: '#1e40af',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
   },
-  announcementImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    resizeMode: 'cover',
-    marginBottom: 12,
+  featuredAnnouncementCard: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
   },
-  cardHeader: {
-    flexDirection: 'row',
-  },
-  priorityIndicator: {
-    width: 4,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 16,
-  },
-  cardTitleRow: {
+  announcementContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardTitle: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginRight: 12,
-    lineHeight: 22,
   },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    flexWrap: 'wrap',
-    gap: 8,
+  announcementLeft: {
+    flex: 1,
+  },
+  announcementRight: {
+    justifyContent: 'center',
+    paddingLeft: 12,
   },
   priorityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
   priorityText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
-  dateContainer: {
+  externalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
   },
-  cardDate: {
+  externalBadgeText: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#2563eb',
+    fontWeight: '600',
   },
-  previewText: {
+  announcementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  announcementSummary: {
     fontSize: 13,
-    color: '#64748b',
-    lineHeight: 20,
-    marginTop: 6,
+    color: '#4b5563',
+    marginBottom: 10,
+    lineHeight: 18,
+    flex: 1,
   },
-  expandedContent: {
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    padding: 16,
-    backgroundColor: '#fafafa',
+  announcementMeta: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 11,
+    color: '#6b7280',
   },
   emptyContainer: {
     flex: 1,
